@@ -43,7 +43,8 @@ class ArmGoalEnv(gym.Env):
         self.render_mode, self.size, self._renderer = render_mode, (height, width), None
 
         P, vc = H + L1 + L2, e["vel_clip"]  # P bounds any tip/target coordinate
-        hi = np.r_[np.ones(6), np.full(3, vc), np.full(3, P), np.full(3, 2 * P)].astype(np.float32)
+        self.err_scale = e.get("err_scale", 1.0)  # >1 magnifies the tip->target obs so the net can resolve mm
+        hi = np.r_[np.ones(6), np.full(3, vc), np.full(3, P), np.full(3, 2 * P * self.err_scale)].astype(np.float32)
         goal = spaces.Box(-P, P, (3,), np.float32)
         self.observation_space = spaces.Dict(
             {"observation": spaces.Box(-hi, hi), "achieved_goal": goal, "desired_goal": goal}
@@ -65,7 +66,7 @@ class ArmGoalEnv(gym.Env):
         v = np.clip(
             self.data.qvel * self.ecfg["vel_scale"], -self.ecfg["vel_clip"], self.ecfg["vel_clip"]
         )
-        o = np.r_[np.sin(q), np.cos(q), v, tip, self.goal - tip]
+        o = np.r_[np.sin(q), np.cos(q), v, tip, (self.goal - tip) * self.err_scale]
         return {
             "observation": o.astype(np.float32),
             "achieved_goal": tip.astype(np.float32),

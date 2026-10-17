@@ -7,6 +7,7 @@ import shutil
 import time
 from datetime import date
 
+import torch
 import yaml
 from stable_baselines3.common.callbacks import BaseCallback
 
@@ -81,13 +82,17 @@ def main() -> None:
     write("running", 0)
     try:
         env = make_env(cfg)
+        kw = dict(cfg["algo"]["kwargs"])
+        pk = kw.get("policy_kwargs", {})
+        if "activation_fn" in pk:  # YAML holds the torch.nn class name
+            kw["policy_kwargs"] = {**pk, "activation_fn": getattr(torch.nn, pk["activation_fn"])}
         model = algo_class(cfg)(
             cfg["algo"]["policy"],
             env,
             seed=cfg["seed"],
             device="cpu",
             tensorboard_log=str(run / "tb"),
-            **cfg["algo"]["kwargs"],
+            **kw,
         )
         model.learn(total, callback=SummaryCallback(write, total, run), progress_bar=False)
         model.save(run / "model.zip")

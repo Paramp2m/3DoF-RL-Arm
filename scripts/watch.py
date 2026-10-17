@@ -9,12 +9,14 @@ import argparse
 import json
 import os
 import sys
+import threading
 import time
 from pathlib import Path
 
 os.environ["MUJOCO_GL"] = "glfw"  # a window needs GLFW; the project default (egl) is headless
 
 import glfw
+import mujoco.viewer
 import yaml
 
 from rlarm.common import ROOT, algo_class, apply_threads, make_env
@@ -40,6 +42,9 @@ def main() -> None:
     p.add_argument("--run", help="run folder (default: most recent run)")
     p.add_argument("--config", help="watch a random policy on this config instead of a run")
     p.add_argument("--episodes", type=int, default=0, help="0 = loop until the window closes")
+    p.add_argument(
+        "--speed", type=float, default=1.0, help="playback speed, 0 = as fast as possible"
+    )
     p.add_argument("--stochastic", action="store_true", help="sample actions instead of the mean")
     a = p.parse_args()
 
@@ -47,28 +52,50 @@ def main() -> None:
     cfg = yaml.safe_load(Path(a.config or run / "config.yaml").read_text())
     apply_threads({**cfg, "torch_threads": 1})  # stay out of training's way
     env = make_env(cfg, "human")
+    u = env.unwrapped
+    # our arm envs only render rgb_array, so they get MuJoCo's own passive viewer instead
+    viewer = (
+        None if hasattr(u, "mujoco_renderer") else mujoco.viewer.launch_passive(u.model, u.data)
+    )
+    dt = getattr(u, "dt", None) or u.ecfg["frame_skip"] * u.model.opt.timestep
     model, loaded, ep = None, None, 0
-    while not a.episodes or ep < a.episodes:
-        f = model_file(run)
-        if f and (f, f.stat().st_mtime) != loaded:
-            model, loaded = algo_class(cfg).load(f, device="cpu"), (f, f.stat().st_mtime)
-        steps = json.loads((run / "summary.json").read_text())["steps"] if run else 0
-        label = f"{f.name} @ {steps} steps" if f else "random policy"
-        obs, _ = env.reset()
-        done, total = False, 0.0
-        while not done:
-            t0 = time.perf_counter()
-            act = model.predict(obs, deterministic=not a.stochastic)[0] if model else None
-            obs, r, term, trunc, _ = env.step(env.action_space.sample() if act is None else act)
-            total, done = total + r, term or trunc
-            win = env.unwrapped.mujoco_renderer.viewer.window
-            if glfw.window_should_close(win):
-                return env.close()
-            glfw.set_window_title(win, f"rl-arm watch | {run.name if run else 'random'} | {label}")
-            time.sleep(max(0.0, env.unwrapped.dt - (time.perf_counter() - t0)))  # real time
-        ep += 1
-        print(f"episode {ep}: return {total:.2f} ({label})")
-    env.close()
+    try:
+        while not a.episodes or ep < a.episodes:
+            f = model_file(run)
+            if f and (f, f.stat().st_mtime) != loaded:
+                model, loaded = algo_class(cfg).load(f, device="cpu"), (f, f.stat().st_mtime)
+            steps = json.loads((run / "summary.json").read_text())["steps"] if run else 0
+            label = f"{f.name} @ {steps} steps" if f else "random policy"
+            obs, _ = env.reset()
+            done, total = False, 0.0
+            while not done:
+                t0 = time.perf_counter()
+                act = model.predict(obs, deterministic=not a.stochastic)[0] if model else None
+                obs, r, term, trunc, _ = env.step(env.action_space.sample() if act is None else act)
+                total, done = total + r, term or trunc
+                if viewer:
+                    if not viewer.is_running():
+                        return
+                    viewer.sync()
+                else:
+                    win = u.mujoco_renderer.viewer.window
+                    if glfw.window_should_close(win):
+                        return
+                    glfw.set_window_title(
+                        win, f"rl-arm watch | {run.name if run else 'random'} | {label}"
+                    )
+                if a.speed:  # 1 = real time
+                    time.sleep(max(0.0, dt / a.speed - (time.perf_counter() - t0)))
+            ep += 1
+            print(f"episode {ep}: return {total:.2f} ({label})")
+    finally:
+        if viewer:
+            viewer.close()
+            # the viewer's daemon thread tears GL down after close(); exiting first segfaults
+            for t in threading.enumerate():
+                if t.name.endswith("(_launch_internal)"):
+                    t.join(timeout=5)
+        env.close()
 
 
 if __name__ == "__main__":

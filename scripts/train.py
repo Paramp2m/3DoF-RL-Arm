@@ -8,7 +8,7 @@ import time
 from datetime import date
 
 import yaml
-from stable_baselines3.common.callbacks import BaseCallback
+from stable_baselines3.common.callbacks import BaseCallback, CallbackList
 
 from rlarm.common import (
     ROOT,
@@ -19,6 +19,7 @@ from rlarm.common import (
     evaluate_goal,
     git_hash,
     load_config,
+    load_policy,
     make_env,
 )
 
@@ -43,6 +44,32 @@ class SummaryCallback(BaseCallback):
         return True
 
 
+class ValCallback(BaseCallback):
+    """Every `every` steps: evaluate on validation goals (seeds disjoint from the eval seeds) and keep
+    the best policy as model_best.zip (higher success, then lower median distance). History -> val.json."""
+
+    def __init__(self, cfg: dict, run, every: int, episodes: int, seed: int):
+        super().__init__()
+        self.env, self.run, self.every, self.n, self.seed = make_env(cfg), run, every, episodes, seed
+        self.best, self.hist = None, []
+
+    def _on_step(self) -> bool:
+        if self.num_timesteps % self.every == 0:
+            ev = evaluate_goal(self.model, self.env, self.n, seed=self.seed)
+            key = (ev["success_rate"], -ev["final_dist_mm_median"])
+            self.logger.record("val/success", ev["success_rate"])
+            self.logger.record("val/median_mm", ev["final_dist_mm_median"])
+            self.hist.append({"step": self.num_timesteps, "success": key[0], "median_mm": -key[1]})
+            if self.best is None or key > self.best[0]:
+                self.best = (key, self.num_timesteps)
+                self.model.save(self.run / "model_best_tmp.zip")
+                os.replace(self.run / "model_best_tmp.zip", self.run / "model_best.zip")
+            (self.run / "val.json").write_text(
+                json.dumps({"best_step": self.best[1], "history": self.hist}, indent=1)
+            )
+        return True
+
+
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--config", required=True)
@@ -62,6 +89,8 @@ def main() -> None:
     (run / "git_hash.txt").write_text(git_hash() + "\n")
     t0 = time.time()
 
+    best = "model.zip"
+
     def write(status, steps, final_eval=None):
         wall = time.time() - t0
         (run / "summary.json").write_text(
@@ -73,7 +102,7 @@ def main() -> None:
                     "steps_per_s": round(steps / wall, 1) if wall else 0,
                     "torch_threads": threads,
                     "final_eval": final_eval,
-                    "best_checkpoint": "model.zip",
+                    "best_checkpoint": best,
                 },
                 indent=1,
             )
@@ -90,8 +119,19 @@ def main() -> None:
             tensorboard_log=str(run / "tb"),
             **algo_kwargs(cfg),
         )
-        model.learn(total, callback=SummaryCallback(write, total, run), progress_bar=False)
-        model.save(run / "model.zip")
+        cbs = [SummaryCallback(write, total, run)]
+        v = cfg.get("val")  # optional best-checkpoint selection on validation goals
+        if v:
+            every, n_val = (total // 2, 2) if a.dry_run else (v["every"], v["episodes"])
+            cbs.append(ValCallback(cfg, run, every, n_val, v["seed"]))
+        model.learn(total, callback=CallbackList(cbs), progress_bar=False)
+        if v and (run / "model_best.zip").exists():
+            model.save(run / "final.zip")  # last policy kept for comparison; model.zip = val-best
+            os.replace(run / "model_best.zip", run / "model.zip")
+            best = f"model.zip (val best @ {cbs[1].best[1]} steps; final.zip = last)"
+            model = load_policy(cfg, run / "model.zip")
+        else:
+            model.save(run / "model.zip")
         n_eval = cfg["dry_eval_episodes"] if a.dry_run else cfg["eval_episodes"]
         if "task" in cfg:
             ev = evaluate_goal(model, make_env(cfg), n_eval)

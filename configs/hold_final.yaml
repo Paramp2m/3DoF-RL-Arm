@@ -1,0 +1,49 @@
+# Phase 3 task B, final: SAC + HER on hold (last 50 of 250 steps within 2 cm) + settle + joint-limit term + val-best checkpoint. Seeds via --seed.
+# No global distance term (its local minima trap 27% of episodes at joint limits); the scaled
+# tip->target vector is computed in the network (GoalDiffExtractor) so HER relabels stay consistent.
+name: hold_final
+task: hold
+env:
+  action_mode: delta_pos
+  max_delta: 0.05
+  frame_skip: 20
+  episode_steps: 250
+  hold_steps: 50
+  success_dist: 0.02
+  vel_scale: 0.1
+  vel_clip: 5.0
+  obs_err: false
+  reward: {w_distance: 0.0, w_precision: 1.0, sigma: 0.03, w_success: 1.0, w_settle: 1.0, w_limit: 0.5, limit_margin: 0.05}
+arm:
+  xml: models/arm/arm.xml
+  actuators: position
+  kp: 400.0
+  kv: 20.0
+  tau_max: 12.0
+  joint_damping: 0.5
+  frictionloss: 0.0
+  armature: 0.01
+  body_mass: {shoulder: 0.8, upper_arm: 1.0, forearm: 0.6}
+  home: [0.0, 1.0, -0.5]
+algo:
+  name: SAC
+  policy: MultiInputPolicy
+  kwargs:
+    learning_rate: 0.001
+    batch_size: 256
+    buffer_size: 1000000
+    learning_starts: 5000
+    gamma: 0.98
+    replay_buffer_class: HerReplayBuffer
+    replay_buffer_kwargs: {n_sampled_goal: 4, goal_selection_strategy: future, copy_info_dict: true}
+    policy_kwargs:
+      features_extractor_class: GoalDiffExtractor
+      features_extractor_kwargs: {scale: 30.0}
+total_steps: 1000000
+val: {every: 50000, episodes: 100, seed: 50000}   # validation goals (disjoint from eval 10000+); model.zip = val-best
+seed: 0
+torch_threads: 2
+eval_episodes: 100
+gif_episodes: 3
+dry_steps: 6000
+dry_eval_episodes: 5

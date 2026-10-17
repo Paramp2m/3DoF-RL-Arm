@@ -7,7 +7,7 @@ from pathlib import Path
 import imageio.v2 as imageio
 import yaml
 
-from rlarm.common import algo_class, apply_threads, evaluate, make_env
+from rlarm.common import algo_class, apply_threads, evaluate, evaluate_goal, make_env
 
 
 def main() -> None:
@@ -18,12 +18,15 @@ def main() -> None:
     cfg = yaml.safe_load((run / "config.yaml").read_text())
     apply_threads(cfg)
     model = algo_class(cfg).load(run / "model.zip", device="cpu")
-    rets = evaluate(model, make_env(cfg), cfg["eval_episodes"])
-    out = {
-        "episodes": len(rets),
-        "return_mean": float(rets.mean()),
-        "return_std": float(rets.std()),
-    }
+    if "task" in cfg:  # arm tasks: SPEC §8 schema
+        out = evaluate_goal(model, make_env(cfg), cfg["eval_episodes"])
+    else:
+        rets = evaluate(model, make_env(cfg), cfg["eval_episodes"])
+        out = {
+            "episodes": len(rets),
+            "return_mean": float(rets.mean()),
+            "return_std": float(rets.std()),
+        }
     (run / "eval.json").write_text(json.dumps(out, indent=1))
 
     env, frames = make_env(cfg, "rgb_array", width=320, height=320), []

@@ -26,7 +26,11 @@ def apply_threads(cfg: dict) -> int:
 
 
 def make_env(cfg: dict, render_mode: str | None = None, **kw) -> gym.Env:
-    """Build the Gymnasium env named in the config."""
+    """Build the arm task env (cfg['task']) or the Gymnasium env named in cfg['env']['id']."""
+    if "task" in cfg:
+        from rlarm.envs import make
+
+        return make(cfg, render_mode=render_mode, **kw)
     return gym.make(cfg["env"]["id"], render_mode=render_mode, **kw)
 
 
@@ -55,3 +59,40 @@ def evaluate(model, env: gym.Env, episodes: int, seed: int = 10_000) -> np.ndarr
             done = term or trunc
         rets.append(total)
     return np.array(rets)
+
+
+def evaluate_goal(policy, env: gym.Env, episodes: int, seed: int = 10_000) -> dict:
+    """SPEC §8 eval.json metrics for an arm task env. Success = tip within success_dist at the last step."""
+    env.action_space.seed(seed)  # makes RandomAgent reproducible; no effect on SB3 policies
+    succ, dist, to_succ, smooth, energy, rets = [], [], [], [], [], []
+    for ep in range(episodes):
+        obs, _ = env.reset(seed=seed + ep)
+        done, t, first, prev, da, en, ret = False, 0, None, None, [], 0.0, 0.0
+        while not done:
+            a = np.asarray(policy.predict(obs, deterministic=True)[0], float)
+            obs, r, term, trunc, info = env.step(a)
+            t, ret, en = t + 1, ret + r, en + info["energy"]
+            if prev is not None:
+                da.append(np.linalg.norm(a - prev))
+            prev = a
+            if first is None and info["is_success"]:
+                first = t
+            done = term or trunc
+        succ.append(info["is_success"])
+        dist.append(info["distance"] * 1000)
+        smooth.append(np.mean(da) if da else 0.0)
+        energy.append(en)
+        rets.append(ret)
+        if info["is_success"] and first is not None:
+            to_succ.append(first)
+    return {
+        "episodes": episodes,
+        "success_rate": float(np.mean(succ)),
+        "final_dist_mm_mean": float(np.mean(dist)),
+        "final_dist_mm_median": float(np.median(dist)),
+        "steps_to_success_mean": float(np.mean(to_succ)) if to_succ else None,
+        "smoothness_mean": float(np.mean(smooth)),
+        "energy_mean": float(np.mean(energy)) if env.unwrapped.mode.startswith("torque") else None,
+        "return_mean": float(np.mean(rets)),
+        "return_std": float(np.std(rets)),
+    }

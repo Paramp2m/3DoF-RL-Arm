@@ -253,9 +253,158 @@ def c16():
     ) <= 640, f"pixel std={std:.1f}, matches fresh render={same}"
 
 
+# ---- Phase 2: reach environment ----
+REACH_CFG = "configs/reach.yaml"
+MODES = ("delta_pos", "abs_pos", "torque", "torque_gravcomp")
+
+
+def _reach(mode: str = "delta_pos", **arm):
+    from rlarm.common import load_config, make_env
+
+    cfg = load_config(ROOT / REACH_CFG)
+    cfg["env"]["action_mode"] = mode
+    cfg["arm"].update(arm)
+    return make_env(cfg)
+
+
+def c21():
+    import warnings
+
+    from stable_baselines3.common.env_checker import check_env
+
+    out = []
+    for mode in MODES:
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            check_env(_reach(mode))  # raises on failure
+        out.append(f"{mode} ok ({len(w)} warn)")
+    return True, ", ".join(out)
+
+
+def c22():
+    bad, vmax = [], 0.0
+    for mode in MODES:
+        env = _reach(mode)
+        env.action_space.seed(0)
+        obs, _ = env.reset(seed=0)
+        for _ in range(5000):
+            obs, r, term, trunc, _ = env.step(env.action_space.sample())
+            vmax = max(vmax, float(np.abs(env.data.qvel).max()))
+            arrs = [*obs.values(), np.array([r])]
+            if not all(np.isfinite(x).all() for x in arrs) or not env.observation_space.contains(
+                obs
+            ):
+                bad.append(mode)
+                break
+            if term or trunc:
+                obs, _ = env.reset()
+    return not bad, f"modes failing={bad or 'none'}; max raw |qvel|={vmax:.1f} rad/s"
+
+
+def c23():
+    worst = 0.0
+    for mode in MODES:
+        env = _reach(mode)
+        env.action_space.seed(1)
+        obs, _ = env.reset(seed=1)
+        ag, dg, infos, rs = [], [], [], []
+        for _ in range(1000):
+            obs, r, term, trunc, info = env.step(env.action_space.sample())
+            (
+                ag.append(obs["achieved_goal"]),
+                dg.append(obs["desired_goal"]),
+                infos.append(info),
+                rs.append(r),
+            )
+            if term or trunc:
+                obs, _ = env.reset()
+        batched = env.compute_reward(np.array(ag), np.array(dg), np.array(infos))
+        worst = max(worst, float(np.abs(batched - np.array(rs)).max()))
+    return worst <= 1e-6, f"max |batched - per-step|={worst:.1e} over 4x1000 steps"
+
+
+def c24():
+    same = []
+    for mode in MODES:
+        trajs, env = [], _reach(mode)
+        for _ in range(2):  # same env reset twice: also catches state leaking across resets
+            rng = np.random.default_rng(7)
+            obs, _ = env.reset(seed=123)
+            t = [obs["observation"].tobytes()]
+            for _ in range(200):
+                obs, *_ = env.step(rng.uniform(-1, 1, 3).astype(np.float32))
+                t.append(b"".join(v.tobytes() for v in obs.values()))
+            trajs.append(t)
+        same.append(trajs[0] == trajs[1])
+    fresh = _reach(MODES[-1]).reset(seed=123)[0]["observation"].tobytes() == trajs[0][0]
+    return all(same) and fresh, (
+        f"bitwise identical per mode={dict(zip(MODES, same))}, fresh env same start={fresh}"
+    )
+
+
+def _agent_eval(kind: str) -> dict:
+    from rlarm.agents import IKAgent, RandomAgent
+    from rlarm.common import evaluate_goal
+
+    env = _reach("delta_pos")
+    return evaluate_goal((IKAgent if kind == "ik" else RandomAgent)(env), env, 100)
+
+
+def c25():
+    ev = _agent_eval("ik")
+    return ev["success_rate"] >= 0.98, (
+        f"success={ev['success_rate']:.0%}, final dist median={ev['final_dist_mm_median']:.1f} mm, "
+        f"steps to success={ev['steps_to_success_mean']}"
+    )
+
+
+def c26():
+    ev = _agent_eval("random")
+    return ev["success_rate"] <= 0.05, (
+        f"success={ev['success_rate']:.0%}, final dist median={ev['final_dist_mm_median']:.0f} mm"
+    )
+
+
+def c27():
+    base = _reach().model
+    m = _reach(
+        body_mass={"shoulder": 0.8, "upper_arm": 2.0, "forearm": 0.6}, joint_damping=1.5
+    ).model
+    b = base.body("upper_arm").id
+    ok = m.body_mass[b] == 2.0 and base.body_mass[b] == 1.0 and (m.dof_damping == 1.5).all()
+    ok &= bool(np.allclose(m.body_inertia[b], 2 * base.body_inertia[b]))
+    return ok, (
+        f"upper_arm mass {base.body_mass[b]:.1f}->{m.body_mass[b]:.1f} kg, "
+        f"damping {base.dof_damping[0]:.1f}->{m.dof_damping[0]:.1f}"
+    )
+
+
+def c28():
+    from rlarm import rewards
+
+    env = _reach()
+    env.reset(seed=0)
+    _, r, _, _, info = env.step(env.action_space.sample())
+    names = list(rewards.terms(np.zeros(3), np.zeros(3), env.ecfg["reward"], 0.02))
+    missing = [n for n in names if f"r_{n}" not in info]
+    total = sum(info[f"r_{n}"] for n in names if f"r_{n}" in info)
+    ok = not missing and abs(total - r) < 1e-9
+    return ok, f"terms={names}, missing={missing or 'none'}, sum==reward {abs(total - r) < 1e-9}"
+
+
 CHECKS = {
     0: {"0.1": c01, "0.2": c02, "0.3": c03, "0.4": c04, "0.5": c05, "0.6": c06, "0.7": c07},
     1: {"1.1": c11, "1.2": c12, "1.3": c13, "1.4": c14, "1.5": c15, "1.6": c16},
+    2: {
+        "2.1": c21,
+        "2.2": c22,
+        "2.3": c23,
+        "2.4": c24,
+        "2.5": c25,
+        "2.6": c26,
+        "2.7": c27,
+        "2.8": c28,
+    },
 }
 
 

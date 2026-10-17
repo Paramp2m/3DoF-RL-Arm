@@ -27,4 +27,9 @@ def load_model(cfg: dict) -> mujoco.MjModel:
             m.actuator_ctrlrange[i] = [-a["tau_max"], a["tau_max"]]
     m.dof_damping[:] = a["joint_damping"]
     m.dof_armature[:] = a["armature"]
+    m.dof_frictionloss[:] = a.get("frictionloss", 0.0)
+    for body, mass in a.get("body_mass", {}).items():
+        b = m.body(body).id
+        m.body_inertia[b] *= mass / m.body_mass[b]  # same shape, new mass
+        m.body_mass[b] = mass
     return m

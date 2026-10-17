@@ -21,6 +21,10 @@ class SummaryCallback(BaseCallback):
         self.write, self.every, self.run = write, max(1, total // 10), run
 
     def _on_step(self) -> bool:
+        for info in self.locals.get("infos", []):  # every reward term to TensorBoard
+            for k, v in info.items():
+                if k.startswith("r_"):
+                    self.logger.record_mean(f"reward/{k[2:]}", v)
         if self.num_timesteps % self.every == 0:
             # save-then-rename so watch.py never loads a half-written checkpoint
             self.model.save(self.run / "checkpoint_tmp.zip")

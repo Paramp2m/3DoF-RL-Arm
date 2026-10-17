@@ -62,16 +62,19 @@ class ArmGoalEnv(gym.Env):
 
     def compute_reward(self, achieved_goal, desired_goal, info) -> np.ndarray:
         """Sum of reward terms; batched over leading dims. info (a dict, or HER's array of dicts)
-        supplies joint_speed for the settle term."""
-        speed = None
-        if self.ecfg["reward"].get("w_settle"):
-            speed = (
-                info["joint_speed"]
-                if isinstance(info, dict)
-                else np.array([i["joint_speed"] for i in np.ravel(info)])
-            )
+        supplies joint_speed / limit_prox for the settle / joint-limit terms."""
+        w = self.ecfg["reward"]
+
+        def get(key):
+            return info[key] if isinstance(info, dict) else np.array([i[key] for i in np.ravel(info)])
+
         t = rewards.terms(
-            achieved_goal, desired_goal, self.ecfg["reward"], self.ecfg["success_dist"], speed
+            achieved_goal,
+            desired_goal,
+            w,
+            self.ecfg["success_dist"],
+            get("joint_speed") if w.get("w_settle") else None,
+            get("limit_prox") if w.get("w_limit") else None,
         )
         return sum(t.values())
 
@@ -91,15 +94,18 @@ class ArmGoalEnv(gym.Env):
 
     def _info(self, obs: dict) -> dict:
         speed = float(np.linalg.norm(self.data.qvel))
+        gap = np.minimum(self.data.qpos - self.lim[:, 0], self.lim[:, 1] - self.data.qpos)
+        prox = float(np.clip(1 - gap / self.ecfg["reward"].get("limit_margin", 0.05), 0, 1).sum())
         t = rewards.terms(
             obs["achieved_goal"],
             obs["desired_goal"],
             self.ecfg["reward"],
             self.ecfg["success_dist"],
             speed,
+            prox,
         )
         d = float(np.linalg.norm(obs["achieved_goal"] - obs["desired_goal"].astype(float)))
-        return {"is_success": d < self.ecfg["success_dist"], "distance": d, "joint_speed": speed} | {
+        return {"is_success": d < self.ecfg["success_dist"], "distance": d, "joint_speed": speed, "limit_prox": prox} | {
             f"r_{k}": float(v) for k, v in t.items()
         }
 

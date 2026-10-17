@@ -54,3 +54,26 @@ def test_her_train_and_load_roundtrip(tmp_path):
     obs, _ = make_env(cfg).reset(seed=3)
     back = load_policy(cfg, tmp_path / "m.zip")
     assert np.allclose(m.predict(obs, deterministic=True)[0], back.predict(obs, deterministic=True)[0])
+
+
+def test_joint_limit_term_and_her_style_batched_reward():
+    e = make_env(cfg_for("reach_her_lim"))
+    u = e.unwrapped
+    e.reset(seed=0)
+    lo, hi = u.lim.T
+    u.data.qpos[:] = (lo + hi) / 2
+    u.data.qpos[1] = hi[1] - 0.025  # shoulder halfway into the 0.05 rad margin
+    u.target_q = u.data.qpos.copy()
+    import mujoco
+
+    mujoco.mj_forward(u.model, u.data)
+    info = u._info(u._obs())
+    assert np.isclose(info["limit_prox"], 0.5) and np.isclose(info["r_limits"], -0.25)
+    e.action_space.seed(1)
+    ag, dg, infos, rs = [], [], [], []
+    for _ in range(40):  # push the shoulder into its limit and back
+        obs, r, _, _, inf = e.step(np.r_[0, 1, 0] * e.action_space.sample()[1])
+        ag.append(obs["achieved_goal"]), dg.append(obs["desired_goal"]), infos.append(inf), rs.append(r)
+    assert any(i["r_limits"] < 0 for i in infos)
+    batched = u.compute_reward(np.array(ag), np.array(dg), np.array(infos, dtype=object))
+    assert np.allclose(batched, rs, atol=1e-6)

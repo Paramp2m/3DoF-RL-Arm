@@ -20,7 +20,7 @@ Goal-conditioned reach env (`src/rlarm/envs/`), configured by `configs/reach.yam
 ## Key numbers
 - No training this phase. Control runs at 25 Hz (frame_skip 20 × 2 ms), and episodes last 200 steps (8 s).
 - The IK agent reaches the target in ≈34 steps (1.4 s) and then holds it. A random agent ends ≈0.4 m away.
-- Gate run time is ≈75 s. There are 14 fast tests in about 4 s.
+- Gate run time is ≈75 s. 20 fast tests run in about 7 s.
 
 ## Look at this
 - ![](../media/phase2_ik_reach.gif) The IK agent on 3 eval seeds. The orange tip should settle on the green target.
@@ -32,12 +32,15 @@ It outputs 3 numbers in [−1, 1]. Config decides what they mean: joint-angle in
 Reward = −distance + a sharp bonus near the target (exp(−(d/3 cm)²)) + 1 while within 2 cm. Each term is logged separately.
 Targets are sampled as random joint angles passed through forward kinematics, so every target is reachable. An IK controller that scores 100 % proves this, and a random policy that scores 0 % shows the task is not trivial.
 
+## Review
+Mutation testing of 16 deliberate bugs in the env, rewards, arm loader, eval metrics and IK agent. The first test set missed 8 of them, so I added tests for abs_pos mapping, torque scale, energy, truncation, obs layout, goal resampling, zero-action hold and the eval metrics. All 16 are now caught (a 17th, a redundant ctrl write in `reset`, was deleted instead). Random agent: 0 % at the last step, 1 % ever within 2 cm. Dead code in `reset` was removed. `eval.py` was run on an arm run: eval.json and video.gif are written.
+
 ## Decisions made
 See the `2026-10-17 | 2 |` lines in [decisions.md](../decisions.md): the reward has 3 terms, success is measured at the last step, the obs velocity is clipped, gravcomp goes through ctrl, the physics keys, the IK agent's feedback law, and the review fixes.
 
 ## Known issues / next
 - I wrote the checks together with the build, so I never saw them fail first. Their discriminating power comes from the agents instead: random scores 0 % and IK scores 100 %.
 - 2.3 is structurally easy: the step reward *is* `compute_reward` on the obs goals. It catches batching bugs only. The formula itself is unit-tested in `tests/test_env.py`.
-- Success is measured at the last step, which is stricter for learned policies and easier for the random check. A random agent "ever within 2 cm" was not measured.
+- Success is measured at the last step. The 2.6 line now also prints the random agent's "ever within 2 cm" rate, and `eval.json` has `ever_success_rate`.
 - eval.json has two schemas: Phase-0 Reacher keeps `return_*` only, and arm tasks use SPEC §8 (+ return). Link lengths are not config-driven yet (Phase 7).
 - `reach.yaml` has no `algo` block yet. Phase 3 adds one per experiment.

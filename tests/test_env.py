@@ -94,3 +94,86 @@ def test_agents_and_eval_schema():
         "steps_to_success_mean",
         "smoothness_mean",
     }
+
+
+def test_abs_pos_and_torque_scaling():
+    e = env_for("abs_pos")
+    e.reset(seed=0)
+    for a, want in ((-1.0, e.lim[:, 0]), (0.0, e.lim.mean(axis=1))):
+        e.step(np.full(3, a, np.float32))
+        assert np.allclose(e.data.ctrl[:3], want)
+    e = env_for("torque")
+    e.reset(seed=0)
+    e.step(np.array([1.0, -0.5, 0.0], np.float32))
+    assert np.allclose(e.data.ctrl[3:6], [e.tau_max, -e.tau_max / 2, 0])
+
+
+def test_delta_pos_zero_action_holds_pose():
+    e = env_for("delta_pos")
+    e.reset(seed=4)
+    q0 = e.data.qpos.copy()
+    for _ in range(10):
+        e.step(np.zeros(3, np.float32))
+    assert np.abs(e.data.qpos - q0).max() < 0.02
+
+
+def test_obs_layout_and_truncation():
+    e = env_for()
+    o, _ = e.reset(seed=1)
+    q = e.data.qpos
+    assert np.allclose(o["observation"][:6], np.r_[np.sin(q), np.cos(q)], atol=1e-6)
+    assert np.allclose(o["observation"][9:12], o["achieved_goal"], atol=1e-6)
+    assert np.allclose(o["observation"][12:15], o["desired_goal"] - o["achieved_goal"], atol=1e-6)
+    n = e.ecfg["episode_steps"]
+    flags = [e.step(np.zeros(3, np.float32))[3] for _ in range(n)]
+    assert not any(flags[:-1]) and flags[-1]
+
+
+def test_energy_matches_manual_integration():
+    import mujoco
+
+    a = np.array([0.3, -0.2, 0.5], np.float32)
+    e, ref = env_for("torque"), env_for("torque")
+    e.reset(seed=2), ref.reset(seed=2)
+    info = e.step(a)[4]
+    want = 0.0
+    for _ in range(ref.ecfg["frame_skip"]):
+        ref.data.ctrl[3:6] = a * ref.tau_max
+        mujoco.mj_step(ref.model, ref.data)
+        want += np.abs(ref.data.actuator_force[3:6] * ref.data.qvel).sum() * ref.model.opt.timestep
+    assert info["energy"] == pytest.approx(want) and want > 0
+    assert evaluate_goal(RandomAgent(env_for()), env_for(), 1)["energy_mean"] is None
+
+
+def test_eval_metrics_against_independent_rollout():
+    class Zero:
+        def predict(self, obs, deterministic=True):
+            return np.zeros(3, np.float32), None
+
+    e = env_for()
+    ev = evaluate_goal(Zero(), e, 4, seed=50)
+    d = []
+    for i in range(4):
+        e.reset(seed=50 + i)
+        for _ in range(e.ecfg["episode_steps"]):
+            info = e.step(np.zeros(3, np.float32))[4]
+        d.append(info["distance"] * 1000)
+    assert ev["final_dist_mm_median"] == pytest.approx(np.median(d))
+    assert ev["final_dist_mm_mean"] == pytest.approx(np.mean(d))
+    assert ev["smoothness_mean"] == 0.0 and ev["ever_success_rate"] >= ev["success_rate"]
+    ik = evaluate_goal(IKAgent(e), e, 5)
+    assert ik["ever_success_rate"] == 1.0 and 5 < ik["steps_to_success_mean"] < 80
+
+
+def test_goal_resampled_each_reset_and_reachable():
+    from rlarm.kinematics import ik
+
+    e = env_for()
+    goals = []
+    for seed in (1, 2, 1):
+        o, _ = e.reset(seed=seed)
+        goals.append(o["desired_goal"])
+        assert np.allclose(e.data.mocap_pos[e.mocap], e.goal)
+        sols = ik(e.goal)
+        assert np.all((sols >= e.lim[:, 0] - 1e-9) & (sols <= e.lim[:, 1] + 1e-9), axis=1).any()
+    assert not np.allclose(goals[0], goals[1]) and np.array_equal(goals[0], goals[2])

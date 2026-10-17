@@ -361,7 +361,8 @@ def c25():
 def c26():
     ev = _agent_eval("random")
     return ev["success_rate"] <= 0.05, (
-        f"success={ev['success_rate']:.0%}, final dist median={ev['final_dist_mm_median']:.0f} mm"
+        f"success={ev['success_rate']:.0%} (ever within 2 cm: {ev['ever_success_rate']:.0%}), "
+        f"final dist median={ev['final_dist_mm_median']:.0f} mm"
     )
 
 

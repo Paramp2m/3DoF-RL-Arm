@@ -62,7 +62,11 @@ def evaluate(model, env: gym.Env, episodes: int, seed: int = 10_000) -> np.ndarr
 
 
 def evaluate_goal(policy, env: gym.Env, episodes: int, seed: int = 10_000) -> dict:
-    """SPEC §8 eval.json metrics for an arm task env. Success = tip within success_dist at the last step."""
+    """SPEC §8 eval.json metrics for an arm task env.
+
+    success_rate: tip within success_dist at the last step. ever_success_rate: within it at any step.
+    steps_to_success: first step within it, over episodes that ever got there.
+    """
     env.action_space.seed(seed)  # makes RandomAgent reproducible; no effect on SB3 policies
     succ, dist, to_succ, smooth, energy, rets = [], [], [], [], [], []
     for ep in range(episodes):
@@ -83,11 +87,12 @@ def evaluate_goal(policy, env: gym.Env, episodes: int, seed: int = 10_000) -> di
         smooth.append(np.mean(da) if da else 0.0)
         energy.append(en)
         rets.append(ret)
-        if info["is_success"] and first is not None:
+        if first is not None:
             to_succ.append(first)
     return {
         "episodes": episodes,
         "success_rate": float(np.mean(succ)),
+        "ever_success_rate": len(to_succ) / episodes,
         "final_dist_mm_mean": float(np.mean(dist)),
         "final_dist_mm_median": float(np.median(dist)),
         "steps_to_success_mean": float(np.mean(to_succ)) if to_succ else None,

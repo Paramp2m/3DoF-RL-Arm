@@ -90,7 +90,6 @@ class ArmGoalEnv(gym.Env):
         q = self.np_random.uniform(self.lim[:, 0], self.lim[:, 1])
         self.data.qpos[:] = q
         self.target_q = q.copy()
-        self.data.ctrl[self.act] = q if self.mode.endswith("_pos") else 0.0
         self.goal = self._sample_goal()
         self.data.mocap_pos[self.mocap] = self.goal
         mujoco.mj_forward(self.model, self.data)

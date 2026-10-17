@@ -1,0 +1,11 @@
+# Phase 0 pipeline proof: SAC on Gymnasium Reacher-v5.
+name: reacher_sac
+env: {id: Reacher-v5}
+algo:
+  name: SAC
+  kwargs: {learning_rate: 0.0003, batch_size: 256, buffer_size: 300000, learning_starts: 1000}
+total_steps: 300000
+seed: 0
+torch_threads: 2
+eval_episodes: 100
+gif_episodes: 3

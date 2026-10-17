@@ -1,0 +1,43 @@
+[project]
+name = "rlarm"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "gymnasium[mujoco]>=1.4.0",
+    "imageio>=2.38.1",
+    "matplotlib>=3.11.2",
+    "mujoco>=3.16.0",
+    "pyyaml>=6.0.3",
+    "stable-baselines3>=2.9.0",
+    "tensorboard>=2.21.0",
+    "torch",
+]
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+markers = ["slow: tests taking over 10 s"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+extend-exclude = [".claude", "third_party"]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.17.1",
+]

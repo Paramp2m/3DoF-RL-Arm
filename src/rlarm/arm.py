@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import mujoco
-import numpy as np
 
 from rlarm.common import ROOT
 
@@ -16,10 +15,12 @@ def load_model(cfg: dict) -> mujoco.MjModel:
     m = mujoco.MjModel.from_xml_path(str(ROOT / a["xml"]))
     use = {"position": POS, "motor": MOTOR}[a["actuators"]]
     m.opt.disableactuator = 1 << (MOTOR if use == POS else POS)
+    m.actuator_ctrllimited[:] = 1
     for i in range(m.nu):
-        if m.actuator_group[i] == POS:
+        if m.actuator_group[i] == POS:  # ctrl is a joint angle: clip to that joint's limits
             m.actuator_gainprm[i, 0] = a["kp"]
             m.actuator_biasprm[i, :3] = [0, -a["kp"], -a["kv"]]
+            m.actuator_ctrlrange[i] = m.jnt_range[m.actuator_trnid[i, 0]]
             m.actuator_forcerange[i] = [-a["tau_max"], a["tau_max"]]
             m.actuator_forcelimited[i] = 1
         else:
@@ -27,8 +28,3 @@ def load_model(cfg: dict) -> mujoco.MjModel:
     m.dof_damping[:] = a["joint_damping"]
     m.dof_armature[:] = a["armature"]
     return m
-
-
-def joint_range(m: mujoco.MjModel) -> np.ndarray:
-    """(3, 2) joint limits [rad]."""
-    return m.jnt_range.copy()

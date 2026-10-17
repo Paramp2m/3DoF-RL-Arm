@@ -1,6 +1,6 @@
 <!-- Spatial RRR arm: base yaw (z) -> shoulder pitch -> elbow pitch. Positive pitch raises the link.
      Both actuator sets exist: group 0 = position, group 1 = motor. rlarm.arm.load_model enables one set
-     and overrides gains/damping from config. -->
+     and sets gains, ctrl/force ranges, damping from config. -->
 <mujoco model="rrr_arm">
   <compiler angle="radian"/>
   <option timestep="0.002" integrator="implicitfast"/>
@@ -44,11 +44,11 @@
   </worldbody>
 
   <actuator>
-    <position name="yaw_pos" joint="yaw" kp="400" kv="20" ctrlrange="-3.1 3.1" group="0"/>
-    <position name="shoulder_pos" joint="shoulder_pitch" kp="400" kv="20" ctrlrange="0.4 1.7" group="0"/>
-    <position name="elbow_pos" joint="elbow_pitch" kp="400" kv="20" ctrlrange="-1.1 1.4" group="0"/>
-    <motor name="yaw_motor" joint="yaw" ctrlrange="-12 12" group="1"/>
-    <motor name="shoulder_motor" joint="shoulder_pitch" ctrlrange="-12 12" group="1"/>
-    <motor name="elbow_motor" joint="elbow_pitch" ctrlrange="-12 12" group="1"/>
+    <position name="yaw_pos" joint="yaw" group="0"/>
+    <position name="shoulder_pos" joint="shoulder_pitch" group="0"/>
+    <position name="elbow_pos" joint="elbow_pitch" group="0"/>
+    <motor name="yaw_motor" joint="yaw" group="1"/>
+    <motor name="shoulder_motor" joint="shoulder_pitch" group="1"/>
+    <motor name="elbow_motor" joint="elbow_pitch" group="1"/>
   </actuator>
 </mujoco>

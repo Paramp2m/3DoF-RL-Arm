@@ -210,8 +210,10 @@ def c14():
 def c15():
     import mujoco
 
+    from rlarm.arm import MOTOR
+
     m, d, lim = _arm()
-    assert m.opt.disableactuator == 1 << 1, "position variant not active"
+    assert m.opt.disableactuator == 1 << MOTOR, "position variant not active"
     rng = np.random.default_rng(3)
     worst = 0.0
     for _ in range(5):

@@ -1,0 +1,5 @@
+# Maps phase/task -> run directory used by scripts/check_phase.py. Maintained by Claude.
+# Example:
+# phase0:
+#   reacher: runs/2026-10-20_reacher_sac_s0
+{}

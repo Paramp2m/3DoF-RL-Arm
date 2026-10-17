@@ -1,0 +1,10 @@
+runs/
+third_party/
+*.mp4
+__pycache__/
+.venv/
+.pytest_cache/
+.ruff_cache/
+MUJOCO_LOG.TXT
+.claude/settings.local.json
+.claude/unlock

@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "stable-baselines3": {
+      "source": "k-dense-ai/scientific-agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/stable-baselines3/SKILL.md",
+      "computedHash": "ff2b48ffe30ef624ce1acf1ceb001c631ee491d343b16b61c3095f135cbc67e8"
+    }
+  }
+}

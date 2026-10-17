@@ -1,3 +1,6 @@
 # Maps phase/task -> run directory used by scripts/check_phase.py. Maintained by Claude.
 phase0:
   reacher: runs/2026-10-17_reacher_sac_s0
+phase3:
+  reach: [runs/2026-10-17_reach_her_s0, runs/2026-10-17_reach_her_s1, runs/2026-10-17_reach_her_s2]
+  hold: [runs/2026-10-17_hold_her_s0, runs/2026-10-17_hold_her_s1, runs/2026-10-17_hold_her_s2]

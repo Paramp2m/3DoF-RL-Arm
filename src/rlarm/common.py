@@ -61,17 +61,20 @@ def evaluate(model, env: gym.Env, episodes: int, seed: int = 10_000) -> np.ndarr
     return np.array(rets)
 
 
-def evaluate_goal(policy, env: gym.Env, episodes: int, seed: int = 10_000) -> dict:
+def evaluate_goal(
+    policy, env: gym.Env, episodes: int, seed: int = 10_000, speed_window: int = 50
+) -> dict:
     """SPEC §8 eval.json metrics for an arm task env.
 
     success_rate: tip within success_dist at the last step. ever_success_rate: within it at any step.
     steps_to_success: first step within it, over episodes that ever got there.
+    final_joint_speed_mean: mean over episodes of the mean ‖q̇‖ (rad/s) over the last speed_window steps.
     """
     env.action_space.seed(seed)  # makes RandomAgent reproducible; no effect on SB3 policies
-    succ, dist, to_succ, smooth, energy, rets = [], [], [], [], [], []
+    succ, dist, to_succ, smooth, energy, rets, speed = [], [], [], [], [], [], []
     for ep in range(episodes):
         obs, _ = env.reset(seed=seed + ep)
-        done, t, first, prev, da, en, ret = False, 0, None, None, [], 0.0, 0.0
+        done, t, first, prev, da, en, ret, sp = False, 0, None, None, [], 0.0, 0.0, []
         while not done:
             a = np.asarray(policy.predict(obs, deterministic=True)[0], float)
             obs, r, term, trunc, info = env.step(a)
@@ -79,6 +82,7 @@ def evaluate_goal(policy, env: gym.Env, episodes: int, seed: int = 10_000) -> di
             if prev is not None:
                 da.append(np.linalg.norm(a - prev))
             prev = a
+            sp.append(info["joint_speed"])
             if first is None and info["is_success"]:
                 first = t
             done = term or trunc
@@ -86,6 +90,7 @@ def evaluate_goal(policy, env: gym.Env, episodes: int, seed: int = 10_000) -> di
         dist.append(info["distance"] * 1000)
         smooth.append(np.mean(da) if da else 0.0)
         energy.append(en)
+        speed.append(np.mean(sp[-speed_window:]))
         rets.append(ret)
         if first is not None:
             to_succ.append(first)
@@ -96,6 +101,7 @@ def evaluate_goal(policy, env: gym.Env, episodes: int, seed: int = 10_000) -> di
         "final_dist_mm_mean": float(np.mean(dist)),
         "final_dist_mm_median": float(np.median(dist)),
         "steps_to_success_mean": float(np.mean(to_succ)) if to_succ else None,
+        "final_joint_speed_mean": float(np.mean(speed)),
         "smoothness_mean": float(np.mean(smooth)),
         "energy_mean": float(np.mean(energy)) if env.unwrapped.mode.startswith("torque") else None,
         "return_mean": float(np.mean(rets)),

@@ -10,7 +10,16 @@ from datetime import date
 import yaml
 from stable_baselines3.common.callbacks import BaseCallback
 
-from rlarm.common import ROOT, algo_class, apply_threads, evaluate, git_hash, load_config, make_env
+from rlarm.common import (
+    ROOT,
+    algo_class,
+    apply_threads,
+    evaluate,
+    evaluate_goal,
+    git_hash,
+    load_config,
+    make_env,
+)
 
 
 class SummaryCallback(BaseCallback):
@@ -82,10 +91,18 @@ def main() -> None:
         )
         model.learn(total, callback=SummaryCallback(write, total, run), progress_bar=False)
         model.save(run / "model.zip")
-        rets = evaluate(
-            model, make_env(cfg), cfg["dry_eval_episodes"] if a.dry_run else cfg["eval_episodes"]
-        )
-        write("done", total, {"return_mean": float(rets.mean()), "return_std": float(rets.std())})
+        n_eval = cfg["dry_eval_episodes"] if a.dry_run else cfg["eval_episodes"]
+        if "task" in cfg:
+            ev = evaluate_goal(model, make_env(cfg), n_eval)
+            final = {
+                "success": ev["success_rate"],
+                "median_mm": ev["final_dist_mm_median"],
+                "return_mean": ev["return_mean"],
+            }
+        else:
+            rets = evaluate(model, make_env(cfg), n_eval)
+            final = {"return_mean": float(rets.mean()), "return_std": float(rets.std())}
+        write("done", total, final)
     except BaseException:
         write("crashed", model.num_timesteps if "model" in locals() else 0)
         raise

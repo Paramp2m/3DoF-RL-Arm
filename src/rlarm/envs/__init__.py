@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from rlarm.envs.base import ArmGoalEnv
+from rlarm.envs.hold import HoldEnv
 from rlarm.envs.reach import ReachEnv
 
-TASKS = {"reach": ReachEnv}
+TASKS = {"reach": ReachEnv, "hold": HoldEnv}
 
 
 def make(cfg: dict, render_mode: str | None = None, **kw) -> ArmGoalEnv:

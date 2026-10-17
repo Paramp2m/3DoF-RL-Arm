@@ -393,6 +393,67 @@ def c28():
     return ok, f"terms={names}, missing={missing or 'none'}, sum==reward {abs(total - r) < 1e-9}"
 
 
+# ---- Phase 3: learned reach and hold ----
+STEP_LIMIT, MEDIA_MAX = 1_000_000, 3_000_000
+
+
+def _evals(task: str) -> list[dict]:
+    """eval.json of the 3 best-run seeds for a task (docs/best_runs.yaml phase3.<task>), validated."""
+    d = yaml.safe_load((ROOT / "docs/best_runs.yaml").read_text()) or {}
+    runs = (d.get("phase3") or {}).get(task) or []
+    if len(runs) != 3:
+        raise ValueError(f"phase3.{task} needs 3 runs in best_runs.yaml, found {len(runs)}")
+    out, seeds = [], set()
+    for r in runs:
+        run = ROOT / r
+        cfg = yaml.safe_load((run / "config.yaml").read_text())
+        steps = json.loads((run / "summary.json").read_text())["steps"]
+        ev = json.loads((run / "eval.json").read_text())
+        if cfg["task"] != task or steps > STEP_LIMIT or ev["episodes"] != 100:
+            raise ValueError(f"{r}: task={cfg['task']} steps={steps} episodes={ev['episodes']}")
+        seeds.add(cfg["seed"])
+        out.append(ev)
+    if len(seeds) != 3:
+        raise ValueError(f"{task}: seeds not distinct: {sorted(seeds)}")
+    return out
+
+
+def _mean(task: str, key: str) -> tuple[float, list[float]]:
+    vals = [e[key] for e in _evals(task)]
+    return float(np.mean(vals)), vals
+
+
+def _fmt(vals, scale=1.0, f=".1f") -> str:
+    return "[" + ", ".join(format(v * scale, f) for v in vals) + "]"
+
+
+def c31():
+    m, v = _mean("reach", "success_rate")
+    return m >= 0.95, f"reach success mean={m:.1%} per seed {_fmt(v, 100)}%"
+
+
+def c32():
+    m, v = _mean("reach", "final_dist_mm_median")
+    return m <= 10, f"reach median final distance mean={m:.1f} mm per seed {_fmt(v)}"
+
+
+def c33():
+    m, v = _mean("hold", "success_rate")
+    return m >= 0.90, f"hold success mean={m:.1%} per seed {_fmt(v, 100)}%"
+
+
+def c34():
+    m, v = _mean("hold", "final_joint_speed_mean")
+    return m < 0.05, f"hold mean joint speed (final 50 steps) mean={m:.4f} rad/s per seed {_fmt(v, f='.4f')}"
+
+
+def c35():
+    sizes = {t: (ROOT / f"docs/media/phase3_{t}.gif").stat().st_size for t in ("reach", "hold")}
+    return all(0 < v < MEDIA_MAX for v in sizes.values()), (
+        "gif sizes " + ", ".join(f"{t}={v / 1e6:.2f} MB" for t, v in sizes.items())
+    )
+
+
 CHECKS = {
     0: {"0.1": c01, "0.2": c02, "0.3": c03, "0.4": c04, "0.5": c05, "0.6": c06, "0.7": c07},
     1: {"1.1": c11, "1.2": c12, "1.3": c13, "1.4": c14, "1.5": c15, "1.6": c16},
@@ -406,6 +467,7 @@ CHECKS = {
         "2.7": c27,
         "2.8": c28,
     },
+    3: {"3.1": c31, "3.2": c32, "3.3": c33, "3.4": c34, "3.5": c35},
 }
 
 

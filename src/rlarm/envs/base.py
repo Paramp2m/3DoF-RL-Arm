@@ -80,7 +80,7 @@ class ArmGoalEnv(gym.Env):
             self.ecfg["success_dist"],
         )
         d = float(np.linalg.norm(obs["achieved_goal"] - obs["desired_goal"].astype(float)))
-        return {"is_success": d < self.ecfg["success_dist"], "distance": d} | {
+        return {"is_success": d < self.ecfg["success_dist"], "distance": d, "joint_speed": float(np.linalg.norm(self.data.qvel))} | {
             f"r_{k}": float(v) for k, v in t.items()
         }
 

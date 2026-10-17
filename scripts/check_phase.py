@@ -395,6 +395,11 @@ def c28():
 
 # ---- Phase 3: learned reach and hold ----
 STEP_LIMIT, MEDIA_MAX = 1_000_000, 3_000_000
+# ROADMAP task definitions each run's config copy must match (delta_pos, 2 cm, 200-step reach, 50-of-250 hold)
+TASK_DEF = {
+    "reach": {"action_mode": "delta_pos", "success_dist": 0.02, "episode_steps": 200},
+    "hold": {"action_mode": "delta_pos", "success_dist": 0.02, "episode_steps": 250, "hold_steps": 50},
+}
 
 
 def _evals(task: str) -> list[dict]:
@@ -411,6 +416,11 @@ def _evals(task: str) -> list[dict]:
         ev = json.loads((run / "eval.json").read_text())
         if cfg["task"] != task or steps > STEP_LIMIT or ev["episodes"] != 100:
             raise ValueError(f"{r}: task={cfg['task']} steps={steps} episodes={ev['episodes']}")
+        bad = {k: cfg["env"].get(k) for k, v in TASK_DEF[task].items() if cfg["env"].get(k) != v}
+        if bad:
+            raise ValueError(f"{r}: env differs from ROADMAP task definition: {bad}")
+        if (run / "eval.json").stat().st_mtime < (run / "model.zip").stat().st_mtime:
+            raise ValueError(f"{r}: eval.json is older than model.zip (stale)")
         seeds.add(cfg["seed"])
         out.append(ev)
     if len(seeds) != 3:
@@ -448,8 +458,10 @@ def c34():
 
 
 def c35():
-    sizes = {t: (ROOT / f"docs/media/phase3_{t}.gif").stat().st_size for t in ("reach", "hold")}
-    return all(0 < v < MEDIA_MAX for v in sizes.values()), (
+    gifs = {t: ROOT / f"docs/media/phase3_{t}.gif" for t in ("reach", "hold")}
+    sizes = {t: p.stat().st_size for t, p in gifs.items()}
+    real = all(p.read_bytes()[:6] in (b"GIF87a", b"GIF89a") for p in gifs.values())
+    return real and all(0 < v < MEDIA_MAX for v in sizes.values()), (
         "gif sizes " + ", ".join(f"{t}={v / 1e6:.2f} MB" for t, v in sizes.items())
     )
 

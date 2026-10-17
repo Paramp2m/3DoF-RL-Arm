@@ -11,8 +11,6 @@ from stable_baselines3.common.callbacks import BaseCallback
 
 from rlarm.common import ROOT, algo_class, apply_threads, evaluate, git_hash, load_config, make_env
 
-DRY_STEPS = 2000
-
 
 class SummaryCallback(BaseCallback):
     """Rewrite summary.json every ~10% of training so `status` works mid-run."""
@@ -37,7 +35,7 @@ def main() -> None:
     if a.seed is not None:
         cfg["seed"] = a.seed
     threads = apply_threads(cfg)
-    total = DRY_STEPS if a.dry_run else cfg["total_steps"]
+    total = cfg["dry_steps"] if a.dry_run else cfg["total_steps"]
     run_id = f"{date.today()}_{cfg['name']}_s{cfg['seed']}" + ("_dry" if a.dry_run else "")
     run = ROOT / "runs" / ("_dry" if a.dry_run else "") / run_id
     shutil.rmtree(run, ignore_errors=True)
@@ -76,7 +74,9 @@ def main() -> None:
         )
         model.learn(total, callback=SummaryCallback(write, total), progress_bar=False)
         model.save(run / "model.zip")
-        rets = evaluate(model, make_env(cfg), 5 if a.dry_run else cfg["eval_episodes"])
+        rets = evaluate(
+            model, make_env(cfg), cfg["dry_eval_episodes"] if a.dry_run else cfg["eval_episodes"]
+        )
         write("done", total, {"return_mean": float(rets.mean()), "return_std": float(rets.std())})
     except BaseException:
         write("crashed", model.num_timesteps if "model" in locals() else 0)

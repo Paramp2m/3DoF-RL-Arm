@@ -89,8 +89,14 @@ def c05():
     if not run or not (run / "eval.json").exists():
         return False, "no phase0.reacher run in best_runs.yaml / eval.json missing"
     ev = json.loads((run / "eval.json").read_text())
-    steps = json.loads((run / "summary.json").read_text())["steps"]
-    ok = ev["return_mean"] >= RETURN_TARGET and ev["episodes"] >= 100 and steps <= STEP_CAP
+    sm = json.loads((run / "summary.json").read_text())
+    steps = sm["steps"]
+    ok = (
+        sm["status"] == "done"
+        and ev["return_mean"] >= RETURN_TARGET
+        and ev["episodes"] >= 100
+        and steps <= STEP_CAP
+    )
     return ok, f"return={ev['return_mean']:.2f} over {ev['episodes']} eps, steps={steps}"
 
 
@@ -102,6 +108,12 @@ def c06():
     missing = [f for f in need if not (run / f).exists()]
     if not list((run / "tb").glob("**/events.out.tfevents*")):
         missing.append("tb events")
+    if (run / "video.gif").exists() and (run / "video.gif").stat().st_size == 0:
+        missing.append("empty video.gif")
+    threads = json.loads((run / "summary.json").read_text()).get("torch_threads")
+    cfg_threads = yaml.safe_load((run / "config.yaml").read_text())["torch_threads"]
+    if threads != cfg_threads or threads == 16:
+        missing.append(f"train threads {threads} != config {cfg_threads}")
     return not missing, f"missing={missing or 'none'}"
 
 

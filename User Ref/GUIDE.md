@@ -69,29 +69,32 @@ The exit code is 0 on PASS and 1 on FAIL. A check that crashes counts as FAIL an
 |---|---|---|
 | Phase 0 | Monitor learning live (curves, reward terms). Every chart is explained in `User Ref/TENSORBOARD.md` | `uv run tensorboard --logdir runs`, then open http://localhost:6006 |
 | Phase 0 | Run status (steps, success, ETA) | `cat runs/*/summary.json` (each run updates it every ~10%) |
-| Phase 0 | Render a still image of the env | `env MUJOCO_GL=egl uv run python scripts/render_snapshot.py --config configs/<name>.yaml --out /tmp/snap.png` |
+| Phase 0 | Render a still image of the env (one line; `--config` takes a YAML file from `configs/`, and `--out` is required) | `env MUJOCO_GL=egl uv run python scripts/render_snapshot.py --config configs/reacher_sac.yaml --out /tmp/snap.png`, then `xdg-open /tmp/snap.png` |
 | Phase 0 | GIF of a finished run | open `runs/<run_id>/video.gif` |
+| **Phase 0** | **Watch a policy live** in a MuJoCo window, any time, inside or outside a phase. During training it shows the latest checkpoint (saved every ~10%) and swaps in newer ones between episodes, so you see the arm improve. The window title shows the run and step count; the terminal prints each episode's return | `uv run python scripts/watch.py` (most recent run), or `--run runs/<id>`, `--config configs/<name>.yaml` (random policy, before any training), `--episodes 5`, `--stochastic`. Close the window or Ctrl+C to stop |
 | **Phase 1** | **Interactive viewer:** rotate, zoom, drag the target (double-click it, then Ctrl + right-drag), move joints with the sliders in the right panel | `uv run python scripts/view.py` |
 | Phase 2 | Watch the IK scripted agent drive the arm | Ask Claude: "add a way for me to watch the IK agent in the viewer" |
 | **Phase 6** | **Live demo:** drag the target, and the trained policy follows | `uv run python scripts/demo.py` |
 
-**Watching a policy before Phase 6.** `demo.py` only arrives in Phase 6. If you want to watch a trained or half-trained policy in the viewer from Phase 3 onward, start Phase 3 with this request: *"Also add `scripts/watch.py --run runs/<id> [--checkpoint latest]` that opens the viewer and runs that policy with a draggable target."* It's a small script, and Phase 6's demo can reuse it.
+**Watching vs. the demo.** `watch.py` plays a run's policy against the env's own targets; Phase 6's `demo.py` adds dragging the target yourself. When you run `watch.py` from your own terminal, Hyprland simply tiles it next to that terminal.
+
+**Windows Claude opens.** When Claude opens a GUI for you (e.g. "show me the run"), it uses `scripts/claude_gui.sh`: the window opens floating and pinned in the bottom-right corner, and focus goes straight back to Claude's terminal, so the session is never hidden. Move or close it like any window; its output goes to `runs/_logs/gui.log`.
 
 **Mid-phase rules (keep Claude's work clean):**
-- Read-only things are always safe: TensorBoard, `summary.json`, the GIFs, `view.py`, `check_phase.py`.
+- Read-only things are always safe: TensorBoard, `summary.json`, the GIFs, `watch.py`, `view.py`, `check_phase.py`.
 - Don't run `scripts/eval.py` on a run that is still training. It rewrites that run's `eval.json` and GIF.
 - Don't run `git commit`, `git checkout` or `git reset` while a phase is running.
-- The viewer uses a little CPU, which only slightly slows training.
+- The viewer and `watch.py` use a little CPU (watch.py uses 1 torch thread), which only slightly slows training.
 
 ---
 
 ## 4. Phase by phase
 
 ### Phase 0: Setup and warm-up (~1 h)
-- **Built:** uv project (Python 3.12, CPU-only torch), `src/rlarm/`, `scripts/{train,eval,render_snapshot,check_phase}.py`, `configs/reacher_sac.yaml`.
+- **Built:** uv project (Python 3.12, CPU-only torch), `src/rlarm/`, `scripts/{train,eval,render_snapshot,check_phase,watch}.py`, `configs/reacher_sac.yaml`.
 - **Training:** SAC on Gymnasium's built-in 2-joint Reacher, ≤300k steps (~30–60 min). This is a stand-in benchmark, not our robot: our 3-DOF arm is built in Phase 1.
 - **Gate:** imports work; torch threads come from config; non-blank render; dry run under 120 s; Reacher return ≥ −7 (random ≈ −43); run folder complete; tests + lint pass.
-- **You look at:** the Reacher GIF. The fingertip should go straight to the dot and stop.
+- **You look at:** the Reacher GIF, or watch it live: `uv run python scripts/watch.py`. The fingertip should go straight to the dot and stop.
 - **This proves:** the whole train → eval → GIF → gate pipeline works before our own robot exists.
 
 ### Phase 1: Arm model and kinematics (no training)
@@ -167,7 +170,7 @@ Avoid anything heavy on the CPU (gaming, compiling) during long training: it slo
 | Claude wants to change SPEC/ROADMAP | Only you can. Either edit the file yourself and commit, or `touch .claude/unlock`, let Claude edit, then `rm .claude/unlock` |
 | "Blocked: ... is user-owned and locked" | The lock hook is working. See the row above |
 | Render error / "EGL" in an error message | Claude should fall back to osmesa and log it. If you're rendering yourself: `env MUJOCO_GL=osmesa uv run python scripts/render_snapshot.py ...` |
-| `view.py` / `demo.py` window won't open | The interactive viewer needs a display, not EGL: run `set -e MUJOCO_GL` in that terminal first. On Wayland, if it still fails: `env GLFW_PLATFORM=x11 uv run python scripts/view.py` |
+| `view.py` / `demo.py` / `watch.py` window won't open | The interactive viewer needs a display, not EGL (`watch.py` switches to GLFW by itself; for the others run `set -e MUJOCO_GL` in that terminal first). On Wayland, if it still fails: `env GLFW_PLATFORM=x11 uv run python scripts/view.py` |
 | TensorBoard: "port in use" | `uv run tensorboard --logdir runs --port 6007` |
 | Machine sluggish during training | Expected (up to 14 of 16 threads busy). Close heavy apps; don't start extra training yourself |
 | `uv sync` fails or is very slow | Network issue: retry. If torch tries to download a CUDA build (several GB), tell Claude: "torch is pulling CUDA, pin the CPU index" |
@@ -189,8 +192,8 @@ Avoid anything heavy on the CPU (gaming, compiling) during long training: it slo
 | `docs/best_runs.yaml` | Which run counts for each phase/task |
 | `docs/media/` | GIFs and PNGs for reports and README |
 | `docs/results.md` | Experiment tables (Phase 4+), generated by script |
-| `scripts/` | `train`, `eval`, `check_phase`, `render_snapshot`, later `view`, `demo`, `make_results` |
+| `scripts/` | `train`, `eval`, `check_phase`, `render_snapshot`, `watch`, `claude_gui.sh`, later `view`, `demo`, `make_results` |
 | `configs/` | One YAML per experiment |
-| `runs/<run_id>/` | Config copy, git hash, TensorBoard logs, `model.zip`, `eval.json`, `summary.json`, `video.gif` (git-ignored) |
+| `runs/<run_id>/` | Config copy, git hash, TensorBoard logs, `checkpoint.zip` (latest, during training), `model.zip`, `eval.json`, `summary.json`, `video.gif` (git-ignored) |
 | `runs/_logs/` | Full training logs |
 | `src/rlarm/` | The package: kinematics, envs, rewards, wrappers |

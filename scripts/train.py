@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import os
 import shutil
 import time
 from datetime import date
@@ -13,14 +14,17 @@ from rlarm.common import ROOT, algo_class, apply_threads, evaluate, git_hash, lo
 
 
 class SummaryCallback(BaseCallback):
-    """Rewrite summary.json every ~10% of training so `status` works mid-run."""
+    """Every ~10% of training: rewrite summary.json and save checkpoint.zip (for watch.py)."""
 
-    def __init__(self, write, total):
+    def __init__(self, write, total, run):
         super().__init__()
-        self.write, self.every = write, max(1, total // 10)
+        self.write, self.every, self.run = write, max(1, total // 10), run
 
     def _on_step(self) -> bool:
         if self.num_timesteps % self.every == 0:
+            # save-then-rename so watch.py never loads a half-written checkpoint
+            self.model.save(self.run / "checkpoint_tmp.zip")
+            os.replace(self.run / "checkpoint_tmp.zip", self.run / "checkpoint.zip")
             self.write("running", self.num_timesteps)
         return True
 
@@ -72,7 +76,7 @@ def main() -> None:
             tensorboard_log=str(run / "tb"),
             **cfg["algo"]["kwargs"],
         )
-        model.learn(total, callback=SummaryCallback(write, total), progress_bar=False)
+        model.learn(total, callback=SummaryCallback(write, total, run), progress_bar=False)
         model.save(run / "model.zip")
         rets = evaluate(
             model, make_env(cfg), cfg["dry_eval_episodes"] if a.dry_run else cfg["eval_episodes"]

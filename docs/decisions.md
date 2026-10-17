@@ -12,3 +12,4 @@ One line per decision: `YYYY-MM-DD | phase | decision | reason`
 2026-10-17 | 0 | Reacher SAC: default-ish hparams, 2 torch threads, 300k steps, eval 100 det. episodes | roadmap cap 300k; matches train skill thread budget
 2026-10-17 | 0 | Policy class, dry-run steps/eval episodes moved into YAML; checks 0.5/0.6 also verify status=done, train thread count, non-empty GIF | Phase-0 review findings
 2026-10-17 | 0 | eval.json schema deferred to Phase 1 (Reacher has no success/distance notion) | SPEC §8 fields need the real arm
+2026-10-17 | 0 | train.py saves checkpoint.zip every ~10% (atomic rename); watch.py reloads it between episodes; Claude-opened GUIs go through scripts/claude_gui.sh (hl.exec_cmd float+pin, then refocus terminal) | User asked for live viewing without hiding Claude's terminal; no_initial_focus alone did not keep focus

@@ -47,6 +47,30 @@ def algo_class(cfg: dict):
     return getattr(sb3, cfg["algo"]["name"])
 
 
+def algo_kwargs(cfg: dict) -> dict:
+    """cfg algo.kwargs with class names resolved: replay_buffer_class (SB3), policy_kwargs
+    activation_fn (torch.nn) and features_extractor_class (rlarm.policies)."""
+    from rlarm import policies
+
+    kw = dict(cfg["algo"]["kwargs"])
+    if "replay_buffer_class" in kw:
+        kw["replay_buffer_class"] = getattr(sb3, kw["replay_buffer_class"])
+    pk = dict(kw.get("policy_kwargs", {}))
+    if "activation_fn" in pk:
+        pk["activation_fn"] = getattr(torch.nn, pk["activation_fn"])
+    if "features_extractor_class" in pk:
+        pk["features_extractor_class"] = getattr(policies, pk["features_extractor_class"])
+    if pk:
+        kw["policy_kwargs"] = pk
+    return kw
+
+
+def load_policy(cfg: dict, path: str | Path):
+    """Load a saved model for inference (HER models need an env to rebuild their buffer)."""
+    her = "replay_buffer_class" in cfg["algo"]["kwargs"]
+    return algo_class(cfg).load(path, env=make_env(cfg) if her else None, device="cpu")
+
+
 def evaluate(model, env: gym.Env, episodes: int, seed: int = 10_000) -> np.ndarray:
     """Deterministic rollouts; returns the per-episode return."""
     rets = []

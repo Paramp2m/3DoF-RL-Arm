@@ -17,7 +17,7 @@ MODES = ("delta_pos", "abs_pos", "torque", "torque_gravcomp")
 class ArmGoalEnv(gym.Env):
     """Base env. Subclasses implement `_sample_goal`.
 
-    observation = [sin q (3), cos q (3), scaled q̇ (3), tip (3), target - tip (3)].
+    observation = [sin q (3), cos q (3), scaled q̇ (3), tip (3), (target - tip)·err_scale (3, unless obs_err false)].
     Episodes never terminate; they truncate after env.episode_steps. info["is_success"] = tip within
     env.success_dist of the target; info["r_<term>"] holds each reward term.
     """
@@ -44,7 +44,13 @@ class ArmGoalEnv(gym.Env):
 
         P, vc = H + L1 + L2, e["vel_clip"]  # P bounds any tip/target coordinate
         self.err_scale = e.get("err_scale", 1.0)  # >1 magnifies the tip->target obs so the net can resolve mm
-        hi = np.r_[np.ones(6), np.full(3, vc), np.full(3, P), np.full(3, 2 * P * self.err_scale)].astype(np.float32)
+        # obs_err false: drop the goal-dependent tip->target entries (HER relabels goals, not observation);
+        # rlarm.policies.GoalDiffExtractor then computes them inside the network.
+        self.obs_err = e.get("obs_err", True)
+        hi = np.r_[np.ones(6), np.full(3, vc), np.full(3, P)]
+        if self.obs_err:
+            hi = np.r_[hi, np.full(3, 2 * P * self.err_scale)]
+        hi = hi.astype(np.float32)
         goal = spaces.Box(-P, P, (3,), np.float32)
         self.observation_space = spaces.Dict(
             {"observation": spaces.Box(-hi, hi), "achieved_goal": goal, "desired_goal": goal}
@@ -55,9 +61,17 @@ class ArmGoalEnv(gym.Env):
         raise NotImplementedError
 
     def compute_reward(self, achieved_goal, desired_goal, info) -> np.ndarray:
-        """Sum of reward terms; batched over leading dims (info unused by the current terms)."""
+        """Sum of reward terms; batched over leading dims. info (a dict, or HER's array of dicts)
+        supplies joint_speed for the settle term."""
+        speed = None
+        if self.ecfg["reward"].get("w_settle"):
+            speed = (
+                info["joint_speed"]
+                if isinstance(info, dict)
+                else np.array([i["joint_speed"] for i in np.ravel(info)])
+            )
         t = rewards.terms(
-            achieved_goal, desired_goal, self.ecfg["reward"], self.ecfg["success_dist"]
+            achieved_goal, desired_goal, self.ecfg["reward"], self.ecfg["success_dist"], speed
         )
         return sum(t.values())
 
@@ -66,7 +80,9 @@ class ArmGoalEnv(gym.Env):
         v = np.clip(
             self.data.qvel * self.ecfg["vel_scale"], -self.ecfg["vel_clip"], self.ecfg["vel_clip"]
         )
-        o = np.r_[np.sin(q), np.cos(q), v, tip, (self.goal - tip) * self.err_scale]
+        o = np.r_[np.sin(q), np.cos(q), v, tip]
+        if self.obs_err:
+            o = np.r_[o, (self.goal - tip) * self.err_scale]
         return {
             "observation": o.astype(np.float32),
             "achieved_goal": tip.astype(np.float32),
@@ -74,14 +90,16 @@ class ArmGoalEnv(gym.Env):
         }
 
     def _info(self, obs: dict) -> dict:
+        speed = float(np.linalg.norm(self.data.qvel))
         t = rewards.terms(
             obs["achieved_goal"],
             obs["desired_goal"],
             self.ecfg["reward"],
             self.ecfg["success_dist"],
+            speed,
         )
         d = float(np.linalg.norm(obs["achieved_goal"] - obs["desired_goal"].astype(float)))
-        return {"is_success": d < self.ecfg["success_dist"], "distance": d, "joint_speed": float(np.linalg.norm(self.data.qvel))} | {
+        return {"is_success": d < self.ecfg["success_dist"], "distance": d, "joint_speed": speed} | {
             f"r_{k}": float(v) for k, v in t.items()
         }
 

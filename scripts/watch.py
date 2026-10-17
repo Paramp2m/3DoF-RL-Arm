@@ -19,7 +19,7 @@ import glfw
 import mujoco.viewer
 import yaml
 
-from rlarm.common import ROOT, algo_class, apply_threads, make_env
+from rlarm.common import ROOT, apply_threads, load_policy, make_env
 
 
 def latest_run() -> Path:
@@ -63,7 +63,7 @@ def main() -> None:
         while not a.episodes or ep < a.episodes:
             f = model_file(run)
             if f and (f, f.stat().st_mtime) != loaded:
-                model, loaded = algo_class(cfg).load(f, device="cpu"), (f, f.stat().st_mtime)
+                model, loaded = load_policy(cfg, f), (f, f.stat().st_mtime)
             steps = json.loads((run / "summary.json").read_text())["steps"] if run else 0
             label = f"{f.name} @ {steps} steps" if f else "random policy"
             obs, _ = env.reset()

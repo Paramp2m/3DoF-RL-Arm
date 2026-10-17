@@ -7,3 +7,4 @@ One line per decision: `YYYY-MM-DD | phase | decision | reason`
 2026-10-16 | - | delta_pos main action mode; abs_pos/torque/torque_gravcomp as Phase 4 comparison | User choice D5
 2026-10-16 | - | sin+cos joint encoding | User choice D6
 2026-10-16 | - | Autonomous mode: user judges outputs, not code | User choice
+2026-10-17 | - | Moved kit from rl-arm-kit/ to repo root | CLAUDE.md paths, hooks and skills expect root layout

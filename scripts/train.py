@@ -69,7 +69,7 @@ def main() -> None:
     try:
         env = make_env(cfg)
         model = algo_class(cfg)(
-            "MlpPolicy",
+            cfg["algo"]["policy"],
             env,
             seed=cfg["seed"],
             device="cpu",

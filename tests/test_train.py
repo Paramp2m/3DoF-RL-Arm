@@ -22,6 +22,6 @@ def test_dry_run_writes_summary_and_checkpoint():
         check=True,
         capture_output=True,
     )
-    run = ROOT / "runs/_dry" / next(p.name for p in (ROOT / "runs/_dry").iterdir())
+    (run,) = (ROOT / "runs/_dry").glob("*_reacher_sac_s0_dry")
     assert json.loads((run / "summary.json").read_text())["status"] == "done"
     assert (run / "checkpoint.zip").exists() and not (run / "checkpoint_tmp.zip").exists()

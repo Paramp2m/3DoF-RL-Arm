@@ -1,0 +1,11 @@
+# Phase 1: arm model (no training). Gains, damping and actuator variant are overridden on load.
+name: arm
+arm:
+  xml: models/arm/arm.xml
+  actuators: position   # position | motor
+  kp: 400.0
+  kv: 20.0
+  tau_max: 12.0         # forcerange (position) / ctrlrange (motor), N*m
+  joint_damping: 0.5
+  armature: 0.01
+  home: [0.0, 1.0, -0.5]   # yaw, shoulder, elbow [rad]

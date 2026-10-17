@@ -12,6 +12,7 @@ import tempfile
 import time
 from pathlib import Path
 
+import numpy as np
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -124,7 +125,136 @@ def c07():
     return t.returncode == 0 and r.returncode == 0, f"pytest: {last}; ruff rc={r.returncode}"
 
 
-CHECKS = {0: {"0.1": c01, "0.2": c02, "0.3": c03, "0.4": c04, "0.5": c05, "0.6": c06, "0.7": c07}}
+# ---- Phase 1: arm model and kinematics ----
+ARM_CFG = "configs/arm.yaml"
+
+
+def _arm():
+    import mujoco
+
+    from rlarm.arm import load_model
+    from rlarm.common import load_config
+
+    m = load_model(load_config(ROOT / ARM_CFG))
+    return m, mujoco.MjData(m), m.jnt_range
+
+
+def c11():
+    import mujoco
+
+    m, _, _ = _arm()
+    hinges = int((m.jnt_type == mujoco.mjtJoint.mjJNT_HINGE).sum())
+    site = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_SITE, "tip") >= 0
+    tid = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_BODY, "target")
+    mocap = tid >= 0 and m.body_mocapid[tid] >= 0
+    return m.njnt == 3 and hinges == 3 and site and mocap, (
+        f"joints={m.njnt} hinges={hinges} tip={site} target_mocap={mocap}"
+    )
+
+
+def c12():
+    import mujoco
+
+    from rlarm.kinematics import fk
+
+    m, d, lim = _arm()
+    q = np.random.default_rng(0).uniform(lim[:, 0], lim[:, 1], (1000, 3))
+    ref = np.empty((1000, 3))
+    for i, qi in enumerate(q):
+        d.qpos[:] = qi
+        mujoco.mj_kinematics(m, d)
+        ref[i] = d.site("tip").xpos
+    err = float(np.abs(fk(q) - ref).max())
+    return err < 1e-6, f"max err={err:.2e} m"
+
+
+def c13():
+    from rlarm.kinematics import fk, ik
+
+    _, _, lim = _arm()
+    q = np.random.default_rng(1).uniform(lim[:, 0], lim[:, 1], (1000, 3))
+    fk_err, found, nsol = 0.0, 0, []
+    for qi, p in zip(q, fk(q)):
+        sols = ik(p)
+        nsol.append(len(sols))
+        if len(sols):
+            fk_err = max(fk_err, float(np.abs(fk(sols) - p).max()))
+        dq = np.abs((sols - qi + np.pi) % (2 * np.pi) - np.pi)
+        found += bool(len(sols) and (dq.max(axis=1) < 1e-6).any())
+    ok = fk_err < 1e-6 and found == 1000
+    return (
+        ok,
+        f"max FK(IK) err={fk_err:.2e} m, sample config recovered {found}/1000, solutions {min(nsol)}-{max(nsol)}",
+    )
+
+
+def c14():
+    import itertools
+
+    import mujoco
+
+    m, d, lim = _arm()
+    rng = np.random.default_rng(2)
+    corners = np.array(
+        list(itertools.product(*lim.tolist()))
+    )  # the 8 box corners, extra to the 2000
+    qs = np.vstack([rng.uniform(lim[:, 0], lim[:, 1], (2000, 3)), corners])
+    bad = 0
+    for qi in qs:
+        d.qpos[:] = qi
+        mujoco.mj_forward(m, d)
+        bad += d.ncon
+    return bad == 0, f"contacts={bad} over {len(qs)} configs (2000 random + 8 corners)"
+
+
+def c15():
+    import mujoco
+
+    m, d, lim = _arm()
+    assert m.opt.disableactuator == 1 << 1, "position variant not active"
+    rng = np.random.default_rng(3)
+    worst = 0.0
+    for _ in range(5):
+        goal = rng.uniform(lim[:, 0], lim[:, 1])
+        mujoco.mj_resetData(m, d)
+        d.qpos[:] = lim.mean(axis=1)
+        d.ctrl[:3] = goal
+        for _ in range(int(2.0 / m.opt.timestep)):
+            mujoco.mj_step(m, d)
+        worst = max(worst, float(np.degrees(np.abs(d.qpos - goal).max())))
+    return worst < 2.0, f"max steady-state err={worst:.2f} deg"
+
+
+def c16():
+    import imageio.v2 as imageio
+
+    f = ROOT / "docs/media/phase1_arm.png"
+    with tempfile.TemporaryDirectory() as d:  # re-render so a stale or arm-less image can't pass
+        r = sh(
+            "uv",
+            "run",
+            "python",
+            "scripts/render_snapshot.py",
+            "--config",
+            ARM_CFG,
+            "--out",
+            f"{d}/a.png",
+        )
+        if r.returncode or not f.exists():
+            return False, "render failed or docs/media/phase1_arm.png missing"
+        fresh = imageio.imread(f"{d}/a.png")
+    saved = imageio.imread(f)
+    std = float(saved.std())
+    same = saved.shape == fresh.shape and float(np.abs(saved.astype(int) - fresh).mean()) < 1.0
+    return std > 5 and same and max(
+        saved.shape[:2]
+    ) <= 640, f"pixel std={std:.1f}, matches fresh render={same}"
+
+
+CHECKS = {
+    0: {"0.1": c01, "0.2": c02, "0.3": c03, "0.4": c04, "0.5": c05, "0.6": c06, "0.7": c07},
+    1: {"1.1": c11, "1.2": c12, "1.3": c13, "1.4": c14, "1.5": c15, "1.6": c16},
+}
 
 
 def main() -> int:

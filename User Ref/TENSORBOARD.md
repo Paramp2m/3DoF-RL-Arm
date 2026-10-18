@@ -2,11 +2,33 @@
 
 ```fish
 cd ~/Projects/Claude/rl-arm
-uv run tensorboard --logdir runs        # then open http://localhost:6006
+uv run python scripts/tb.py             # then open http://localhost:6006
 ```
-It's read-only and safe to leave open while Claude trains. It auto-refreshes about every 30 s.
+Options: `--filter 'e1_|e2_'` (only run names matching a regex), `--since 2026-10-19` (only newer runs), `--port 6007`.
 
-> **Phase 0 uses a 2-joint arm on purpose.** Phase 0 trains on Gymnasium's built-in **Reacher**, a ready-made 2-DOF arm. It's a known benchmark, used only to prove the pipeline (train → eval → GIF → gate) works before our robot exists. **Our 3-DOF RRR arm** (base yaw → shoulder pitch → elbow pitch) is built in Phase 1 and is the robot used in every phase after that.
+`tb.py` gives a tidier view than raw `tensorboard --logdir runs`: dry runs are hidden, runs are named `<config>/s<seed>` instead of long folder paths, and a **Custom Scalars** tab (top bar) shows the charts that matter, grouped:
+1. **Headline:** success rate, validation success, median distance in mm, episode reward.
+2. **Reward terms:** every term on one chart.
+3. **Learning internals:** losses, entropy, PPO health.
+4. **Speed:** steps per second.
+
+Start in Custom Scalars. Use the plain **Scalars** tab only when you want every raw chart. It's read-only and safe to leave open while Claude trains. It auto-refreshes about every 30 s.
+
+> **Phase 0 uses a 2-joint arm on purpose.** It trains on Gymnasium's built-in Reacher, only to prove the pipeline works before our robot exists. Our 3-joint arm arrives in Phase 1 and is used from then on.
+
+---
+
+## 0. How the localhost page works
+
+```
+train.py (one per run)  ──writes──▶  runs/<run_id>/tb/SAC_1/events.out.tfevents...  ◀──reads──  tensorboard server  ──▶  your browser
+```
+- **Training writes, TensorBoard only reads.** Every few episodes, training adds numbers (reward, losses, success, …) to a small log file in `runs/<run_id>/tb/`.
+- **TensorBoard runs on your laptop only.** `localhost:6006` means "this computer, port 6006": nothing is uploaded and no one else can see it.
+- **It's live.** The page redraws about every 30 s (or click ⟳), and new runs appear in the sidebar by themselves.
+- **It can't affect training.** Closing the tab or stopping TensorBoard changes nothing, and the full history is there next time.
+- **The x-axis is training steps, not time.** Two runs at the same step have seen the same amount of experience, even if one ran slower.
+- **One run = one coloured line.** To compare, tick the runs you want in the sidebar. The names match the run table in GUIDE.md §0.
 
 ---
 
@@ -14,14 +36,13 @@ It's read-only and safe to leave open while Claude trains. It auto-refreshes abo
 
 **Top bar**
 - **SCALARS / TIME SERIES**: two views of the same line charts. Either is fine.
-- **INACTIVE dropdown**: dashboards with no data yet (images, histograms). Ignore it.
-- **⟳ Refresh**: reloads now.
-- **⚙ Settings**: refresh interval and similar options.
+- **⟳ Refresh** reloads now. **⚙ Settings** changes the refresh interval.
+- The **INACTIVE** dropdown lists empty dashboards. Ignore it.
 
 **Left sidebar**
 - **Runs list** (coloured checkboxes): one entry per run. A run's name looks like `<date>_<config>_s<seed>/tb/<ALGO>_1`, and the checkbox colour is that run's line colour.
   - Runs under `_dry/` are ~2k-step smoke tests that run before every real job. Untick them.
-  - From Phase 3 there are 3 seeds per config. Tick all three to see whether they agree. Seeds that disagree mean training is fragile.
+  - From Phase 3 there are 3 seeds per config. Tick all three to see whether they agree. If they disagree, training is fragile.
 - **Smoothing slider** (default 0.6): the bold line is a moving average, and the faint line behind it is the raw data. Use about 0.9 to see the trend and 0 to see the noise.
 - **Horizontal axis**:
   - **Step**: environment steps. Use this one.
@@ -41,11 +62,11 @@ It's read-only and safe to leave open while Claude trains. It auto-refreshes abo
 
 ## 2. Background: what SAC is doing
 
-SAC (Soft Actor-Critic, the main algorithm here) trains two kinds of network at once:
-- **Critic:** guesses "how much future reward will I get if I take this action here?"
-- **Actor (the policy):** picks actions the critic rates highly. It's also rewarded for keeping some randomness (*entropy*) so it keeps exploring.
+SAC (Soft Actor-Critic, the main algorithm here) trains two networks at once:
+- **Critic:** guesses how much future reward an action will bring.
+- **Actor (the policy):** picks actions the critic rates highly. It's also rewarded for staying a little random (*entropy*) so it keeps exploring.
 
-Rewards in this project are mostly **negative** (a penalty for distance from the target), so "better" means **closer to zero**, or above zero once bonuses like success are added.
+Rewards in this project are mostly **negative** (a penalty for distance from the target), so "better" means **closer to zero**, or above zero once bonuses like success are added. **From Phase 3, returns go positive as the arm starts succeeding**, which changes the shape of the loss charts (see `critic_loss` / `actor_loss` below).
 
 ---
 
@@ -61,8 +82,8 @@ Rewards in this project are mostly **negative** (a penalty for distance from the
 ### `train/`: the learning machinery (don't judge progress from these)
 | Chart | Meaning | Healthy shape |
 |---|---|---|
-| `critic_loss` | How wrong the critic's guesses are | Drops early and stays small. Spikes are normal; steady growth is bad |
-| `actor_loss` | Roughly the negative of the critic's value estimate | **Often rises, and that's fine.** With negative rewards, a critic that has learned "some cost is still ahead" makes this positive |
+| `critic_loss` | How wrong the critic's guesses are, measured in reward units | Starts near 0 and **grows as rewards grow**: bigger values to predict mean a bigger error. Fine as long as reward and success rise with it. Bad: a sudden 10×+ jump, or growth while reward falls |
+| `actor_loss` | Roughly minus the critic's value estimate | Goes more **negative** as the arm earns success bonuses, and that's good. It only rises early on, while rewards are still mostly negative |
 | `ent_coef` (α) | How much exploring with random actions is rewarded; tuned automatically | Drifts down as the policy gets confident. Hitting ~0 very early can mean exploration stopped too soon |
 | `ent_coef_loss` | The signal SAC uses to tune α | Hovers around 0. Ignore it |
 | `learning_rate` | Step size of the network updates (e.g. 0.0003) | Flat line (fixed setting) |
@@ -115,7 +136,7 @@ PPO learns differently, so its `train/` charts differ:
 |---|---|---|
 | 0 (Reacher, 2-DOF benchmark) | 1 SAC run, ≤300k steps, ~30 min at ~160 steps/s | `ep_rew_mean` climbs from about −43 (random) to about −4/−5 and flattens. Gate: eval ≥ −7 |
 | 1–2 (our arm built, env tested) | No training | — |
-| 3 (reach, hold) | 3 seeds × 2 tasks, ≤1M steps each, a few hours | `success_rate` → ~1.0. `distance` → near 0. For hold, `settle` → 0. The 3 seeds should look alike |
+| 3 (reach, hold) | 3 seeds × 2 tasks, all 6 in parallel. First attempt 300k steps each (up to 1M if the gate fails) | `success_rate` → ~1.0. `distance` → near 0. For hold, `settle` → 0. The 3 seeds should look alike |
 | 4 (experiments) | Many runs: action modes, SAC vs PPO, HER | Compare curves between configs, not absolute numbers. Expect `torque` modes to learn slower than `delta_pos` |
 | 5 (track, obstacle, push) | Several tasks, often with a curriculum | Curves can step down when the curriculum makes the task harder, then recover. That's expected. Push learns slowest |
 | 7 (robustness) | Randomised-physics runs | Noisier curves than nominal; slower to rise |
@@ -128,7 +149,7 @@ PPO learns differently, so its `train/` charts differ:
 |---|---|
 | `ep_rew_mean` / `success_rate` flat from the start | Not learning: reward or observation problem. Claude's gate will catch it |
 | Rises, then collapses | Unstable training; often fixed by a lower learning rate or a reward-weight change |
-| `critic_loss` growing steadily or exploding | Critic diverging. Results from that run are unreliable |
+| `critic_loss` jumps 10×+ suddenly, or keeps growing while `ep_rew_mean` falls | Critic diverging. Results from that run are unreliable |
 | `ent_coef` → ~0 within the first few % of training | Exploration died early; the policy may be stuck |
 | One seed much worse than the others | Fragile setup. Claude reports the mean over seeds, so it shows up in the numbers |
 | `fps` drops sharply mid-run | Something else is using the CPU |

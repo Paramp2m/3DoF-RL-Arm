@@ -1,0 +1,250 @@
+#!/usr/bin/env python3
+"""Rewrite the "Where you are now" block at the top of User Ref/GUIDE.md and print it.
+
+Read-only on the project (git tags, docs/, runs/*/summary.json, running train.py processes);
+the only file it writes is GUIDE.md. Stdlib only, so it runs without the venv.
+No .py extension on purpose: the Stop hook re-runs tests whenever a *.py file is uncommitted.
+Run it yourself:  python3 'User Ref/guide-status'   (--quiet: write the file, print nothing)
+"""
+
+import datetime as dt
+import json
+import os
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+GUIDE = ROOT / "User Ref" / "GUIDE.md"
+BEGIN, END = "<!-- STATUS:BEGIN -->", "<!-- STATUS:END -->"
+
+# What each phase builds / what you do in it (short form of §4 below).
+PHASES = {
+    0: ("SAC on the 2-joint Reacher benchmark; the train → eval → GIF → gate pipeline", "look at the Reacher GIF"),
+    1: ("the 3-DOF arm model, FK and IK, `view.py`", "drag the joint sliders in `view.py`; judge the arm PNG"),
+    2: ("the goal-conditioned env, 4 action modes, IK and random agents", "read the IK-vs-random numbers"),
+    3: ("SAC policies for reach and hold, 3 seeds each", "judge the reach and hold GIFs (smooth? does it settle?)"),
+    4: ("experiments E1–E4 (action modes, SAC vs PPO, HER, RL vs IK) and `docs/results.md`", "leave it running overnight, then read `docs/results.md`"),
+    5: ("track, obstacle and push tasks with curricula", "judge 3 GIFs; decide if push stalls after 3 attempts"),
+    6: ("`demo.py` (drag the target, the policy follows) and the README", "run `demo.py` and say whether it feels right"),
+    7: ("domain randomisation and the UR5e transfer (optional)", "decide whether to do it at all"),
+}
+# Gate targets per task: (success rate, median miss in mm or None). From ROADMAP Phase 3.
+TARGETS = {"reach": (0.95, 10), "hold": (0.90, None)}
+STAGES = {
+    "build": "steps 1–3: reading the roadmap, writing this phase's checks (expected to FAIL), building code + tests",
+    "train": "step 4: training in the background. Claude is idle and wakes up by itself when the runs finish. Keep the laptop awake",
+    "gate": "steps 5–6: running the gate (`check_phase.py`), fixing/retraining if a check fails, then the review",
+    "report": "step 7: writing the report, copying media, committing and tagging",
+}
+
+
+def sh(*cmd: str) -> str:
+    r = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
+    return r.stdout.strip()
+
+
+def phase_names() -> dict[int, str]:
+    text = (ROOT / "docs" / "ROADMAP.md").read_text()
+    return {int(n): t.strip() for n, t in re.findall(r"^## Phase (\d+)[^:]*: (.+)$", text, re.M)}
+
+
+def section(md: Path, title: str, limit: int = 4) -> list[str]:
+    """Non-empty lines of `## <title>` in a report, at most `limit`."""
+    m = re.search(rf"^## {re.escape(title)}\n(.*?)(?=^## |\Z)", md.read_text(), re.M | re.S)
+    return [ln for ln in (m.group(1).splitlines() if m else []) if ln.strip()][:limit]
+
+
+def settings(text: str) -> dict[str, str]:
+    """Flat `key: value` pairs from a config, including inline `{k: v}` maps (good enough to diff)."""
+    pairs = re.findall(r"(\w+):[ \t]+([^\s,{}\[\]:][^,{}\[\]\n]*?)[ \t]*(?=[,}\n]|$)", text, re.M)
+
+    def norm(v: str) -> str:
+        try:
+            return repr(float(v))  # 0.0003 and 3.0e-04 are the same setting
+        except ValueError:
+            return v.strip("'\"")
+
+    return {k: norm(v) for k, v in pairs}
+
+
+def variant(cfg: Path, task: str) -> str:
+    """'baseline', or the settings that differ from configs/<task>_sac.yaml."""
+    base = ROOT / "configs" / f"{task}_sac.yaml"
+    if not base.exists():
+        return "baseline"
+    a, b = settings(base.read_text()), settings(cfg.read_text())
+    diff = [f"{k} {b[k].removesuffix('.0')}" for k in b if k not in ("name", "seed") and a.get(k) != b[k]]
+    return "try: " + ", ".join(diff) if diff else "baseline"
+
+
+def runs_since(t0: int) -> list[dict]:
+    """Run folders created after phase start, with live/dead status from the process list."""
+    procs = sh("pgrep", "-af", "scripts/train.py").splitlines()
+    out = []
+    for cfg in sorted((ROOT / "runs").glob("*/config.yaml")):
+        run = cfg.parent
+        if cfg.stat().st_mtime < t0:
+            continue
+        sm = json.loads((run / "summary.json").read_text()) if (run / "summary.json").exists() else {}
+        name = re.search(r"^name:\s*(\S+)", cfg.read_text(), re.M)
+        seed = re.search(r"_s(\d+)$", run.name)
+        total = re.search(r"^total_steps:\s*(\d+)", cfg.read_text(), re.M)
+        alive = any(
+            name and f"configs/{name.group(1)}.yaml" in p and (not seed or f"--seed {seed.group(1)}" in p or "--seed" not in p)
+            for p in procs
+        )
+        status = sm.get("status", "?")
+        if status == "running" and not alive:
+            status = "**stopped** (crash or sleep? see §6)"
+        task = re.search(r"^task:\s*(\S+)", cfg.read_text(), re.M)
+        task = task.group(1) if task else "?"
+        out.append(
+            {"run": run, "status": status, "alive": alive, "sm": sm, "total": int(total.group(1)) if total else 0, "task": task, "what": f"{task}, seed {seed.group(1) if seed else '?'}, {variant(cfg, task)}"}
+        )
+    return out
+
+
+def build() -> str:
+    tags = set(sh("git", "tag").split())
+    started = sorted(int(t[6:-6]) for t in tags if re.fullmatch(r"phase-\d+-start", t))
+    done = sorted(int(t[6:-5]) for t in tags if re.fullmatch(r"phase-\d+-done", t))
+    names = phase_names()
+    cur = started[-1] if started else 0
+    in_phase = bool(started) and cur not in done
+    nxt = cur + 1 if not in_phase and started else cur
+    L = [BEGIN, "## 0. Where you are now (auto-updated)", ""]
+    L.append(f"_Updated {dt.datetime.now():%Y-%m-%d %H:%M} by `User Ref/guide-status` after each Claude turn. Run `python3 'User Ref/guide-status'` for a fresh copy. Don't edit inside this block._")
+    L.append("")
+
+    # present
+    runs = []
+    if in_phase:
+        t0 = int(sh("git", "log", "-1", "--format=%ct", f"phase-{cur}-start") or 0)
+        runs = runs_since(t0)
+        report = ROOT / "docs" / "reports" / f"phase-{cur}.md"
+        stage = "train" if any(r["alive"] for r in runs) else "report" if report.exists() else "gate" if runs else "build"
+        L += [f"### Now: Phase {cur}, {names.get(cur, '')}", f"- **Claude is at** {STAGES[stage]}."]
+        L.append(f"- **This phase builds** {PHASES.get(cur, ('?', '?'))[0]}.")
+    elif started:
+        L += [f"### Now: between phases (Phase {cur} done)", f"- **Claude is** idle. Phase {nxt} starts when you paste its `/goal` (§1)."]
+    else:
+        L += ["### Now: not started", "- Start Phase 0 with the `/goal` in §1."]
+    dirty = [ln for ln in sh("git", "status", "--porcelain").splitlines() if "User Ref/" not in ln]
+    L.append(f"- **Uncommitted changes:** {len(dirty)} file(s) (normal mid-phase; they're committed at the end).")
+
+    if runs:
+        L += [
+            "",
+            "**Training runs this phase.** Each row is one attempt at training a fresh neural network from scratch.",
+            "",
+            "| Run | What it is | State | Progress | Success rate | Typical miss |",
+            "|---|---|---|---|---|---|",
+        ]
+        best: dict[str, tuple] = {}  # task -> (success, -miss, run name); higher is better
+        for r in runs:
+            sm, total, task = r["sm"], r["total"], r["task"]
+            steps, sps = sm.get("steps", 0), sm.get("steps_per_s", 0)
+            if r["alive"]:
+                state = "training"
+                prog = f"{steps / total:.0%} ({steps // 1000}k of {total // 1000}k)" if steps else f"under 10% (first update at {total // 10000}k)"
+                prog += f", ~{(total - steps) / sps / 60:.0f} min left" if sps else ""
+            else:
+                state, prog = ("finished" if r["status"] == "done" else r["status"]), f"{steps // 1000}k steps"
+            ev = sm.get("final_eval") or {}
+            need_s, need_mm = TARGETS.get(task, (None, None))
+            succ = ev.get("success")
+            if succ is not None:
+                best[task] = max(best.get(task, (-1.0, 0.0, "")), (succ, -(ev.get("median_mm") or 1e9), r["run"].name))
+            mark = lambda ok: "" if ok is None else " ✓" if ok else " ✗"  # noqa: E731
+            s_txt = f"{succ:.0%}{mark(None if need_s is None else succ >= need_s)}" if succ is not None else "–"
+            mm = ev.get("median_mm")
+            mm_txt = f"{mm:.0f} mm{mark(None if need_mm is None else mm <= need_mm)}" if mm is not None else "–"
+            L.append(f"| `{r['run'].name}` | {r['what']} | {state} | {prog} | {s_txt} | {mm_txt} |")
+        L += [
+            "",
+            "How to read it:",
+            "- **Run** name = date, task, algorithm, an optional variant tag, and `s<seed>`. The **seed** is the random starting point; the same setup is trained with 3 seeds to show the result isn't luck.",
+            "- **What it is**: `baseline` is the phase's main config. Anything else is a variant Claude is trying, and lists only the settings it changed.",
+            "- **Progress** only updates every 10% of a run (that's when the run saves a checkpoint), so it jumps 0 → 10% → 20%.",
+            "- **Success rate** and **typical miss** are measured once training finishes: 100 test episodes with new random targets. Success = the tip ends within 2 cm of the target. Typical miss = the median final distance between tip and target. ✓/✗ compare against this phase's gate"
+            + (" (" + "; ".join(f"{k}: success ≥{v[0]:.0%}" + (f", miss ≤{v[1]} mm" if v[1] else "") for k, v in TARGETS.items() if k in best) + ")." if best else "."),
+        ]
+        for task, (s, neg_mm, name) in sorted(best.items()):
+            need = TARGETS.get(task, (None,))[0]
+            if need is not None:
+                verdict = "passes" if s >= need else f"not there yet, so Claude keeps tuning (gate needs {need:.0%})"
+                L.append(f"- **{task}**: best finished run so far is `{name}` ({s:.0%}, {-neg_mm:.0f} mm): {verdict}.")
+        if best:
+            L += ["", "**Watch the best run so far** (4× speed; Ctrl+C or close the window to stop):", "```fish"]
+            L += [f"uv run python scripts/watch.py --run runs/{name} --speed 4   # {task}" for task, (_, _, name) in sorted(best.items())]
+            L.append("```")
+
+    phase_dec = [ln for ln in (ROOT / "docs" / "decisions.md").read_text().splitlines() if in_phase and ln.split(" | ")[1:2] == [str(cur)]]
+    if phase_dec:
+        L += ["", f"**Latest decisions this phase** (all: `grep '| {cur} |' docs/decisions.md`):"]
+        L += [f"- {' | '.join(ln.split(' | ')[2:3])}" for ln in phase_dec[-3:]]
+
+    # what you can do now
+    L += ["", "### What you can do right now"]
+    if in_phase and stage == "train":
+        alive = [r["run"] for r in runs if r["alive"]]
+        L += [
+            "- Curves: `uv run tensorboard --logdir runs` → http://localhost:6006 (tick only this phase's runs; guide: `User Ref/TENSORBOARD.md`).",
+            f"- Watch the latest checkpoint live: `uv run python scripts/watch.py --run runs/{alive[0].name}` (any run from the table works).",
+            f"- Raw progress: `cat runs/{alive[0].name}/summary.json`.",
+            "- **Don't:** run `scripts/eval.py` on these runs, start other training, or commit/checkout/reset.",
+        ]
+    elif in_phase:
+        L += ["- Read-only things are safe: TensorBoard, `watch.py`, the GIFs in `docs/media/`, `check_phase.py`.", "- Don't commit, checkout or reset while Claude is working. Wait for its final message."]
+    else:
+        L += [f"- Read `docs/reports/phase-{cur}.md` and open its media (table below).", f"- Play with it (§3). Then `/clear` and paste the `/goal` for Phase {nxt}."]
+    if cur >= 1:
+        L.append("- The arm by itself: `uv run python scripts/view.py` (rotate, drag, joint sliders).")
+    if cur >= 2:
+        L.append("- An env with a random policy: `uv run python scripts/watch.py --config configs/reach_final.yaml`.")
+
+    # past
+    L += ["", "### Done (past)", "| Phase | Report | Media | Key numbers |", "|---|---|---|---|"]
+    for n in done:
+        rep = ROOT / "docs" / "reports" / f"phase-{n}.md"
+        media = ", ".join(f"`{p.name}`" for p in sorted((ROOT / "docs" / "media").glob(f"phase{n}_*")))
+        key = " ".join(ln.lstrip("- ") for ln in section(rep, "Key numbers", 2)) if rep.exists() else ""
+        L.append(f"| {n} {names.get(n, '')} | `docs/reports/phase-{n}.md` | {media or '–'} | {key.replace('|', '/')[:220]} |")
+    if not done:
+        L.append("| – | nothing finished yet | | |")
+    L.append("")
+    L.append("Look back at any phase N: its report; `git log --oneline phase-N-start..phase-N-done` (what changed); `git diff phase-N-start phase-N-done --stat`; `uv run python scripts/check_phase.py N` (re-run its gate); media in `docs/media/`.")
+
+    # future
+    L += ["", "### Next (future)"]
+    if in_phase:
+        L.append(f"- **When Claude finishes Phase {cur}** you get ≤8 lines: PASS/FAIL per check, the report path, 1–3 things to look at. Then you {PHASES.get(cur, ('', '?'))[1]}.")
+    for n in [n for n in sorted(PHASES) if n > cur][:2] if in_phase else [n for n in sorted(PHASES) if n >= nxt][:2]:
+        L.append(f"- **Phase {n}: {names.get(n, '')}**: builds {PHASES[n][0]}. You: {PHASES[n][1]}.")
+    L.append("- Read ahead: `grep -n -A 20 '## Phase <N>' docs/ROADMAP.md`. Full journey: §4.")
+    L.append(END)
+    return "\n".join(L)
+
+
+def main() -> None:
+    block = build()
+    text = GUIDE.read_text()
+    if BEGIN in text:
+        old = text[text.index(BEGIN) : text.index(END) + len(END)]
+        same = re.sub(r"_Updated [^_]*_", "", old) == re.sub(r"_Updated [^_]*_", "", block)
+        new = text if same else text.replace(old, block)
+    else:  # first run: insert before §1
+        new = text.replace("## 1. The loop", block + "\n\n---\n\n## 1. The loop", 1)
+    assert new.count(BEGIN) == 1 and new.count(END) == 1, "GUIDE.md status markers broken"
+    if new != text:
+        tmp = GUIDE.with_suffix(".tmp")
+        tmp.write_text(new)
+        os.replace(tmp, GUIDE)  # atomic: two sessions' hooks may run at once
+    if "--quiet" not in sys.argv:
+        print(block)
+
+
+if __name__ == "__main__":
+    main()

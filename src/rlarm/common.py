@@ -99,7 +99,12 @@ EVAL_SCHEMA = (  # eval.json keys for arm tasks (SPEC §8), in the order evaluat
     "energy_mean",
     "return_mean",
     "return_std",
+    "track_err_mm_mean",
+    "collision_rate",
 )
+
+
+TRACK_SKIP = 50  # tracking error ignores the first steps (ROADMAP 5.1)
 
 
 def evaluate_goal(
@@ -108,14 +113,18 @@ def evaluate_goal(
     """SPEC §8 eval.json metrics for an arm task env.
 
     success_rate: tip within success_dist at the last step. ever_success_rate: within it at any step.
+    track_err_mm_mean: mean tip-goal distance over steps > 50. collision_rate: fraction of episodes with
+    an arm-obstacle contact (None when the env reports no `collision`).
     steps_to_success: first step within it, over episodes that ever got there.
     final_joint_speed_mean: mean over episodes of the mean ‖q̇‖ (rad/s) over the last speed_window steps.
     """
     env.action_space.seed(seed)  # makes RandomAgent reproducible; no effect on SB3 policies
     succ, dist, to_succ, smooth, energy, rets, speed = [], [], [], [], [], [], []
+    track, hit = [], []
     for ep in range(episodes):
         obs, _ = env.reset(seed=seed + ep)
         done, t, first, prev, da, en, ret, sp = False, 0, None, None, [], 0.0, 0.0, []
+        err, hits = [], False
         while not done:
             a = np.asarray(policy.predict(obs, deterministic=True)[0], float)
             obs, r, term, trunc, info = env.step(a)
@@ -124,6 +133,9 @@ def evaluate_goal(
                 da.append(np.linalg.norm(a - prev))
             prev = a
             sp.append(info["joint_speed"])
+            if t > TRACK_SKIP:
+                err.append(info["distance"] * 1000)
+            hits = hits or bool(info.get("collision", False))
             if first is None and info["is_success"]:
                 first = t
             done = term or trunc
@@ -133,6 +145,8 @@ def evaluate_goal(
         energy.append(en)
         speed.append(np.mean(sp[-speed_window:]))
         rets.append(ret)
+        track.append(np.mean(err))
+        hit.append(hits)
         if first is not None:
             to_succ.append(first)
     return {
@@ -147,6 +161,8 @@ def evaluate_goal(
         "energy_mean": float(np.mean(energy)) if env.unwrapped.mode.startswith("torque") else None,
         "return_mean": float(np.mean(rets)),
         "return_std": float(np.std(rets)),
+        "track_err_mm_mean": float(np.mean(track)),
+        "collision_rate": float(np.mean(hit)) if "collision" in info else None,
     }
 
 

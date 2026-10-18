@@ -36,7 +36,7 @@ class ArmGoalEnv(gym.Env):
             {**cfg, "arm": {**cfg["arm"], "actuators": "position" if pos else "motor"}}
         )
         self.data = mujoco.MjData(self.model)
-        self.lim = self.model.jnt_range.copy()
+        self.lim = self.model.jnt_range[:3].copy()  # the 3 arm joints; task bodies may add more
         self.act = slice(0, 3) if pos else slice(3, 6)  # actuator order in arm.xml
         self.tau_max = cfg["arm"]["tau_max"]
         self.mocap = self.model.body_mocapid[self.model.body("target").id]
@@ -52,6 +52,7 @@ class ArmGoalEnv(gym.Env):
         hi = np.r_[np.ones(6), np.full(3, vc), np.full(3, P)]
         if self.obs_err:
             hi = np.r_[hi, np.full(3, 2 * P * self.err_scale)]
+        hi = np.r_[hi, np.full(self._extras_dim(), 10.0)]
         hi = hi.astype(np.float32)
         goal = spaces.Box(-P, P, (3,), np.float32)
         self.observation_space = spaces.Dict(
@@ -61,6 +62,25 @@ class ArmGoalEnv(gym.Env):
 
     def _sample_goal(self) -> np.ndarray:
         raise NotImplementedError
+
+    # --- hooks for task subclasses (reach/hold use none) ---
+    def _extras_dim(self) -> int:
+        """Length of the task-specific observation tail."""
+        return 0
+
+    def _extras(self) -> np.ndarray:
+        """Task-specific observation tail (appended to `observation`)."""
+        return np.zeros(0)
+
+    def _place_task(self) -> None:
+        """Called at reset after the goal is set: place task bodies (obstacle, cube...)."""
+
+    def _info_extra(self) -> dict:
+        """Extra info entries (e.g. collision)."""
+        return {}
+
+    def _update_goal(self) -> None:
+        """Called every control step before the observation: move a moving target."""
 
     def compute_reward(self, achieved_goal, desired_goal, info) -> np.ndarray:
         """Sum of reward terms; batched over leading dims. info (a dict, or HER's array of dicts)
@@ -83,13 +103,16 @@ class ArmGoalEnv(gym.Env):
         return sum(t.values())
 
     def _obs(self) -> dict:
-        q, tip = self.data.qpos, self.data.site("tip").xpos
+        q, tip = self.data.qpos[:3], self.data.site("tip").xpos
         v = np.clip(
-            self.data.qvel * self.ecfg["vel_scale"], -self.ecfg["vel_clip"], self.ecfg["vel_clip"]
+            self.data.qvel[:3] * self.ecfg["vel_scale"],
+            -self.ecfg["vel_clip"],
+            self.ecfg["vel_clip"],
         )
         o = np.r_[np.sin(q), np.cos(q), v, tip]
         if self.obs_err:
             o = np.r_[o, (self.goal - tip) * self.err_scale]
+        o = np.r_[o, self._extras()]
         return {
             "observation": o.astype(np.float32),
             "achieved_goal": tip.astype(np.float32),
@@ -97,8 +120,9 @@ class ArmGoalEnv(gym.Env):
         }
 
     def _info(self, obs: dict) -> dict:
-        speed = float(np.linalg.norm(self.data.qvel))
-        gap = np.minimum(self.data.qpos - self.lim[:, 0], self.lim[:, 1] - self.data.qpos)
+        speed = float(np.linalg.norm(self.data.qvel[:3]))
+        q = self.data.qpos[:3]
+        gap = np.minimum(q - self.lim[:, 0], self.lim[:, 1] - q)
         prox = float(np.clip(1 - gap / self.ecfg["reward"].get("limit_margin", 0.05), 0, 1).sum())
         t = rewards.terms(
             obs["achieved_goal"],
@@ -109,21 +133,26 @@ class ArmGoalEnv(gym.Env):
             prox,
         )
         d = float(np.linalg.norm(obs["achieved_goal"] - obs["desired_goal"].astype(float)))
-        return {
-            "is_success": d < self.ecfg["success_dist"],
-            "distance": d,
-            "joint_speed": speed,
-            "limit_prox": prox,
-        } | {f"r_{k}": float(v) for k, v in t.items()}
+        return (
+            {
+                "is_success": d < self.ecfg["success_dist"],
+                "distance": d,
+                "joint_speed": speed,
+                "limit_prox": prox,
+            }
+            | {f"r_{k}": float(v) for k, v in t.items()}
+            | self._info_extra()
+        )
 
     def reset(self, *, seed: int | None = None, options: dict | None = None):
         super().reset(seed=seed)
         mujoco.mj_resetData(self.model, self.data)
         q = self.np_random.uniform(self.lim[:, 0], self.lim[:, 1])
-        self.data.qpos[:] = q
+        self.data.qpos[:3] = q
         self.target_q = q.copy()
         self.goal = self._sample_goal()
         self.data.mocap_pos[self.mocap] = self.goal
+        self._place_task()
         mujoco.mj_forward(self.model, self.data)
         self.steps = 0
         obs = self._obs()
@@ -146,10 +175,11 @@ class ArmGoalEnv(gym.Env):
             )
             mujoco.mj_step(self.model, self.data)
             energy += (
-                np.abs(self.data.actuator_force[self.act] * self.data.qvel).sum()
+                np.abs(self.data.actuator_force[self.act] * self.data.qvel[:3]).sum()
                 * self.model.opt.timestep
             )
         self.steps += 1
+        self._update_goal()
         obs = self._obs()
         info = self._info(obs) | {"energy": float(energy)}
         reward = float(self.compute_reward(obs["achieved_goal"], obs["desired_goal"], info))

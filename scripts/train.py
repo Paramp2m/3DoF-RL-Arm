@@ -25,6 +25,7 @@ from rlarm.common import (
     load_policy,
     make_env,
 )
+from rlarm.wrappers import Curriculum
 
 
 class SummaryCallback(BaseCallback):
@@ -39,6 +40,8 @@ class SummaryCallback(BaseCallback):
             for k, v in info.items():
                 if k.startswith("r_"):
                     self.logger.record_mean(f"reward/{k[2:]}", v)
+                elif k == "difficulty":
+                    self.logger.record_mean("curriculum/difficulty", v)
         if self.num_timesteps % self.every == 0:
             # save-then-rename so watch.py never loads a half-written checkpoint
             self.model.save(self.run / "checkpoint_tmp.zip")
@@ -77,6 +80,13 @@ class ValCallback(BaseCallback):
                 json.dumps({"best_step": self.best[1], "history": self.hist}, indent=1)
             )
         return True
+
+
+def make_train_env(cfg: dict):
+    """Training env: the task env, wrapped in a Curriculum when cfg has `curriculum:` (eval/val never are)."""
+    env = make_env(cfg)
+    c = cfg.get("curriculum")
+    return Curriculum(env, **c) if c else env
 
 
 def main() -> None:
@@ -126,9 +136,11 @@ def main() -> None:
         else:
             n_envs = cfg["algo"].get("n_envs", 1)  # PPO: SubprocVecEnv workers (SPEC §6)
             env = (
-                make_vec_env(lambda: make_env(cfg), n_envs, cfg["seed"], vec_env_cls=SubprocVecEnv)
+                make_vec_env(
+                    lambda: make_train_env(cfg), n_envs, cfg["seed"], vec_env_cls=SubprocVecEnv
+                )
                 if n_envs > 1
-                else make_env(cfg)
+                else make_train_env(cfg)
             )
             model = algo_class(cfg)(
                 cfg["algo"]["policy"],

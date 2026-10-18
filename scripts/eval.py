@@ -14,6 +14,7 @@ from rlarm.common import apply_threads, evaluate, evaluate_goal, load_policy, ma
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--run", required=True)
+    p.add_argument("--no-video", action="store_true", help="only (re)write eval.json")
     a = p.parse_args()
     run = Path(a.run)
     cfg = yaml.safe_load((run / "config.yaml").read_text())
@@ -31,6 +32,9 @@ def main() -> None:
             "return_std": float(rets.std()),
         }
     (run / "eval.json").write_text(json.dumps(out, indent=1))
+    if a.no_video:
+        print(f"{run.name}: eval.json written")
+        return
 
     env, frames = make_env(cfg, "rgb_array", width=320, height=320), []
     for ep in range(cfg["gif_episodes"]):

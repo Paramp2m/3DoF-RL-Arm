@@ -414,21 +414,29 @@ TASK_DEF = {
 }
 
 
-def _evals(task: str) -> list[dict]:
-    """eval.json of the 3 best-run seeds for a task (docs/best_runs.yaml phase3.<task>), validated."""
+PHASE5_STEPS = {"track": 1_000_000, "obstacle": 1_000_000, "push": 3_000_000}  # guide D-8
+
+
+def _evals(task: str, phase: int = 3) -> list[dict]:
+    """eval.json of the 3 best-run seeds for a task (docs/best_runs.yaml phase<N>.<task>), validated."""
     d = yaml.safe_load((ROOT / "docs/best_runs.yaml").read_text()) or {}
-    runs = (d.get("phase3") or {}).get(task) or []
+    runs = (d.get(f"phase{phase}") or {}).get(task) or []
     if len(runs) != 3:
-        raise ValueError(f"phase3.{task} needs 3 runs in best_runs.yaml, found {len(runs)}")
+        raise ValueError(f"phase{phase}.{task} needs 3 runs in best_runs.yaml, found {len(runs)}")
+    limit = STEP_LIMIT if phase == 3 else PHASE5_STEPS[task]
     out, seeds = [], set()
     for r in runs:
         run = ROOT / r
         cfg = yaml.safe_load((run / "config.yaml").read_text())
         steps = json.loads((run / "summary.json").read_text())["steps"]
         ev = json.loads((run / "eval.json").read_text())
-        if cfg["task"] != task or steps > STEP_LIMIT or ev["episodes"] != 100:
+        if cfg["task"] != task or steps > limit or ev["episodes"] != 100:
             raise ValueError(f"{r}: task={cfg['task']} steps={steps} episodes={ev['episodes']}")
-        bad = {k: cfg["env"].get(k) for k, v in TASK_DEF[task].items() if cfg["env"].get(k) != v}
+        bad = {
+            k: cfg["env"].get(k)
+            for k, v in TASK_DEF.get(task, {}).items()
+            if cfg["env"].get(k) != v
+        }
         if bad:
             raise ValueError(f"{r}: env differs from ROADMAP task definition: {bad}")
         if (run / "eval.json").stat().st_mtime < (run / "model.zip").stat().st_mtime:
@@ -440,8 +448,8 @@ def _evals(task: str) -> list[dict]:
     return out
 
 
-def _mean(task: str, key: str) -> tuple[float, list[float]]:
-    vals = [e[key] for e in _evals(task)]
+def _mean(task: str, key: str, phase: int = 3) -> tuple[float, list[float]]:
+    vals = [e[key] for e in _evals(task, phase)]
     return float(np.mean(vals)), vals
 
 
@@ -533,6 +541,33 @@ def c44():
     return len(secs) >= 4 and not miss, f"{len(secs)} tables, missing seeds/budget/configs: {miss}"
 
 
+def c51():
+    m, v = _mean("track", "track_err_mm_mean", 5)
+    return m <= 25, f"track mean error after step 50 = {m:.1f} mm per seed {_fmt(v)}"
+
+
+def c52():
+    s, sv = _mean("obstacle", "success_rate", 5)
+    c, cv = _mean("obstacle", "collision_rate", 5)
+    return s >= 0.85 and c <= 0.05, (
+        f"obstacle success={s:.1%} per seed {_fmt(sv, 100)}%; collisions={c:.1%} per seed {_fmt(cv, 100)}%"
+    )
+
+
+def c53():
+    m, v = _mean("push", "success_rate", 5)
+    return m >= 0.60, f"push success mean={m:.1%} per seed {_fmt(v, 100)}%"
+
+
+def c54():
+    gifs = {t: ROOT / f"docs/media/phase5_{t}.gif" for t in ("track", "obstacle", "push")}
+    sizes = {t: p.stat().st_size for t, p in gifs.items()}
+    real = all(p.read_bytes()[:6] in (b"GIF87a", b"GIF89a") for p in gifs.values())
+    return real and all(0 < v < MEDIA_MAX for v in sizes.values()), (
+        "gif sizes " + ", ".join(f"{t}={v / 1e6:.2f} MB" for t, v in sizes.items())
+    )
+
+
 CHECKS = {
     0: {"0.1": c01, "0.2": c02, "0.3": c03, "0.4": c04, "0.5": c05, "0.6": c06, "0.7": c07},
     1: {"1.1": c11, "1.2": c12, "1.3": c13, "1.4": c14, "1.5": c15, "1.6": c16},
@@ -548,6 +583,7 @@ CHECKS = {
     },
     3: {"3.1": c31, "3.2": c32, "3.3": c33, "3.4": c34, "3.5": c35},
     4: {"4.1": c41, "4.2": c42, "4.3": c43, "4.4": c44},
+    5: {"5.1": c51, "5.2": c52, "5.3": c53, "5.4": c54},
 }
 
 

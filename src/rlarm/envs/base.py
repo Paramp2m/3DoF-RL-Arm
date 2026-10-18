@@ -104,6 +104,7 @@ class ArmGoalEnv(gym.Env):
             get("limit_prox") if w.get("w_limit") else None,
             get("collision") if w.get("w_collision") else None,
             get("reach_dist") if w.get("w_reach") else None,
+            get("action_delta") if w.get("w_smooth") else None,
         )
         return sum(t.values())
 
@@ -139,6 +140,7 @@ class ArmGoalEnv(gym.Env):
             prox,
             extra.get("collision"),
             extra.get("reach_dist"),
+            self.action_delta,
         )
         d = float(np.linalg.norm(obs["achieved_goal"] - obs["desired_goal"].astype(float)))
         return (
@@ -147,6 +149,7 @@ class ArmGoalEnv(gym.Env):
                 "distance": d,
                 "joint_speed": speed,
                 "limit_prox": prox,
+                "action_delta": self.action_delta,
             }
             | {f"r_{k}": float(v) for k, v in t.items()}
             | extra
@@ -162,7 +165,7 @@ class ArmGoalEnv(gym.Env):
         self.data.mocap_pos[self.mocap] = self.goal
         self._place_task()
         mujoco.mj_forward(self.model, self.data)
-        self.steps = 0
+        self.steps, self.action_delta, self._prev_a = 0, 0.0, np.zeros(3)
         obs = self._obs()
         return obs, self._info(obs)
 
@@ -175,6 +178,8 @@ class ArmGoalEnv(gym.Env):
             ctrl = lo + (a + 1) / 2 * (hi - lo)
         else:
             ctrl = a * self.tau_max
+        self.action_delta = float(np.sum((a - self._prev_a) ** 2))
+        self._prev_a = a
         energy = 0.0
         for _ in range(e["frame_skip"]):
             # gravcomp: qfrc_bias is from the last mj_forward/mj_step; total torque still clipped to ±tau_max

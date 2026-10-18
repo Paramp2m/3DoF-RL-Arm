@@ -177,3 +177,16 @@ def test_goal_resampled_each_reset_and_reachable():
         sols = ik(e.goal)
         assert np.all((sols >= e.lim[:, 0] - 1e-9) & (sols <= e.lim[:, 1] + 1e-9), axis=1).any()
     assert not np.allclose(goals[0], goals[1]) and np.array_equal(goals[0], goals[2])
+
+
+def test_smooth_term_penalises_action_change_only_when_enabled():
+    cfg = load_config(ROOT / "configs/reach_final.yaml")
+    cfg["env"]["reward"]["w_smooth"] = 0.1
+    env = make_env(cfg)
+    env.reset(seed=0)
+    _, _, _, _, i1 = env.step(np.array([1.0, 0, 0]))
+    _, _, _, _, i2 = env.step(np.array([1.0, 0, 0]))
+    assert np.isclose(i1["r_smooth"], -0.1) and i2["r_smooth"] == 0
+    assert (
+        "r_smooth" not in make_env(load_config(ROOT / "configs/reach_final.yaml")).reset(seed=0)[1]
+    )

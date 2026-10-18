@@ -37,7 +37,12 @@ def test_settle_term_and_her_style_batched_reward():
     for t in range(30):  # small random moves around the goal: in and out of the zone, nonzero speed
         a = e.action_space.sample() * (0.3 if t % 2 else -0.3)
         obs, r, _, _, info = e.step(a)
-        ag.append(obs["achieved_goal"]), dg.append(obs["desired_goal"]), infos.append(info), rs.append(r)
+        (
+            ag.append(obs["achieved_goal"]),
+            dg.append(obs["desired_goal"]),
+            infos.append(info),
+            rs.append(r),
+        )
         inside = info["distance"] < 0.02
         assert np.isclose(info["r_settle"], -1.0 * info["joint_speed"] ** 2 * inside)
     assert any(i["r_settle"] < 0 for i in infos)
@@ -48,12 +53,16 @@ def test_settle_term_and_her_style_batched_reward():
 def test_her_train_and_load_roundtrip(tmp_path):
     cfg = cfg_for("reach_her")
     cfg["algo"]["kwargs"].update(learning_starts=200, buffer_size=2000)
-    m = algo_class(cfg)(cfg["algo"]["policy"], make_env(cfg), seed=0, device="cpu", **algo_kwargs(cfg))
+    m = algo_class(cfg)(
+        cfg["algo"]["policy"], make_env(cfg), seed=0, device="cpu", **algo_kwargs(cfg)
+    )
     m.learn(400)
     m.save(tmp_path / "m.zip")
     obs, _ = make_env(cfg).reset(seed=3)
     back = load_policy(cfg, tmp_path / "m.zip")
-    assert np.allclose(m.predict(obs, deterministic=True)[0], back.predict(obs, deterministic=True)[0])
+    assert np.allclose(
+        m.predict(obs, deterministic=True)[0], back.predict(obs, deterministic=True)[0]
+    )
 
 
 def test_joint_limit_term_and_her_style_batched_reward():
@@ -73,7 +82,12 @@ def test_joint_limit_term_and_her_style_batched_reward():
     ag, dg, infos, rs = [], [], [], []
     for _ in range(40):  # push the shoulder into its limit and back
         obs, r, _, _, inf = e.step(np.r_[0, 1, 0] * e.action_space.sample()[1])
-        ag.append(obs["achieved_goal"]), dg.append(obs["desired_goal"]), infos.append(inf), rs.append(r)
+        (
+            ag.append(obs["achieved_goal"]),
+            dg.append(obs["desired_goal"]),
+            infos.append(inf),
+            rs.append(r),
+        )
     assert any(i["r_limits"] < 0 for i in infos)
     batched = u.compute_reward(np.array(ag), np.array(dg), np.array(infos, dtype=object))
     assert np.allclose(batched, rs, atol=1e-6)

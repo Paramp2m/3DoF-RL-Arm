@@ -398,7 +398,12 @@ STEP_LIMIT, MEDIA_MAX = 1_000_000, 3_000_000
 # ROADMAP task definitions each run's config copy must match (delta_pos, 2 cm, 200-step reach, 50-of-250 hold)
 TASK_DEF = {
     "reach": {"action_mode": "delta_pos", "success_dist": 0.02, "episode_steps": 200},
-    "hold": {"action_mode": "delta_pos", "success_dist": 0.02, "episode_steps": 250, "hold_steps": 50},
+    "hold": {
+        "action_mode": "delta_pos",
+        "success_dist": 0.02,
+        "episode_steps": 250,
+        "hold_steps": 50,
+    },
 }
 
 
@@ -454,7 +459,10 @@ def c33():
 
 def c34():
     m, v = _mean("hold", "final_joint_speed_mean")
-    return m < 0.05, f"hold mean joint speed (final 50 steps) mean={m:.4f} rad/s per seed {_fmt(v, f='.4f')}"
+    return (
+        m < 0.05,
+        f"hold mean joint speed (final 50 steps) mean={m:.4f} rad/s per seed {_fmt(v, f='.4f')}",
+    )
 
 
 def c35():

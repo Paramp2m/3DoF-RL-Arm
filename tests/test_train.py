@@ -29,7 +29,15 @@ def test_dry_run_writes_summary_and_checkpoint():
 
 @pytest.mark.slow
 def test_dry_run_val_best_checkpoint():
-    cmd = ["uv", "run", "python", "scripts/train.py", "--config", "configs/pilot/base.yaml", "--dry-run"]
+    cmd = [
+        "uv",
+        "run",
+        "python",
+        "scripts/train.py",
+        "--config",
+        "configs/pilot/base.yaml",
+        "--dry-run",
+    ]
     subprocess.run(cmd, cwd=ROOT, check=True, capture_output=True)
     run = max((ROOT / "runs/_dry").glob("*_pilot_base_s0_dry"), key=lambda p: p.stat().st_mtime)
     val = json.loads((run / "val.json").read_text())
@@ -37,4 +45,7 @@ def test_dry_run_val_best_checkpoint():
     assert val["best_step"] == best["step"]
     assert (run / "model.zip").exists() and (run / "final.zip").exists()
     assert not (run / "model_best.zip").exists()
-    assert f"@ {best['step']} steps" in json.loads((run / "summary.json").read_text())["best_checkpoint"]
+    assert (
+        f"@ {best['step']} steps"
+        in json.loads((run / "summary.json").read_text())["best_checkpoint"]
+    )

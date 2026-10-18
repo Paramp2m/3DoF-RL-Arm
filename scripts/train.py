@@ -50,7 +50,13 @@ class ValCallback(BaseCallback):
 
     def __init__(self, cfg: dict, run, every: int, episodes: int, seed: int):
         super().__init__()
-        self.env, self.run, self.every, self.n, self.seed = make_env(cfg), run, every, episodes, seed
+        self.env, self.run, self.every, self.n, self.seed = (
+            make_env(cfg),
+            run,
+            every,
+            episodes,
+            seed,
+        )
         self.best, self.hist = None, []
 
     def _on_step(self) -> bool:

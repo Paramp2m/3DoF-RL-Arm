@@ -26,6 +26,10 @@ def terms(
         "precision": w["w_precision"] * np.exp(-((d / w["sigma"]) ** 2)),
         "success": w["w_success"] * (d < success_dist),
     }
+    # np.asarray(None, float) is nan, so a missing input would silently poison the reward
+    assert (speed is not None or not w.get("w_settle")) and (
+        limit_prox is not None or not w.get("w_limit")
+    ), "w_settle needs speed, w_limit needs limit_prox"
     if w.get("w_settle"):
         t["settle"] = -w["w_settle"] * np.asarray(speed, float) ** 2 * (d < success_dist)
     if w.get("w_limit"):

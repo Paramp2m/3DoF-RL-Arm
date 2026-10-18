@@ -15,7 +15,10 @@ class GoalDiffExtractor(BaseFeaturesExtractor):
     """
 
     def __init__(self, observation_space: gym.spaces.Dict, scale: float = 1.0):
-        n = observation_space["observation"].shape[0] + 3 * observation_space["desired_goal"].shape[0]
+        n = (
+            observation_space["observation"].shape[0]
+            + 3 * observation_space["desired_goal"].shape[0]
+        )
         super().__init__(observation_space, features_dim=n)
         self.scale = scale
 

@@ -43,7 +43,9 @@ class ArmGoalEnv(gym.Env):
         self.render_mode, self.size, self._renderer = render_mode, (height, width), None
 
         P, vc = H + L1 + L2, e["vel_clip"]  # P bounds any tip/target coordinate
-        self.err_scale = e.get("err_scale", 1.0)  # >1 magnifies the tip->target obs so the net can resolve mm
+        self.err_scale = e.get(
+            "err_scale", 1.0
+        )  # >1 magnifies the tip->target obs so the net can resolve mm
         # obs_err false: drop the goal-dependent tip->target entries (HER relabels goals, not observation);
         # rlarm.policies.GoalDiffExtractor then computes them inside the network.
         self.obs_err = e.get("obs_err", True)
@@ -66,7 +68,9 @@ class ArmGoalEnv(gym.Env):
         w = self.ecfg["reward"]
 
         def get(key):
-            return info[key] if isinstance(info, dict) else np.array([i[key] for i in np.ravel(info)])
+            return (
+                info[key] if isinstance(info, dict) else np.array([i[key] for i in np.ravel(info)])
+            )
 
         t = rewards.terms(
             achieved_goal,
@@ -105,9 +109,12 @@ class ArmGoalEnv(gym.Env):
             prox,
         )
         d = float(np.linalg.norm(obs["achieved_goal"] - obs["desired_goal"].astype(float)))
-        return {"is_success": d < self.ecfg["success_dist"], "distance": d, "joint_speed": speed, "limit_prox": prox} | {
-            f"r_{k}": float(v) for k, v in t.items()
-        }
+        return {
+            "is_success": d < self.ecfg["success_dist"],
+            "distance": d,
+            "joint_speed": speed,
+            "limit_prox": prox,
+        } | {f"r_{k}": float(v) for k, v in t.items()}
 
     def reset(self, *, seed: int | None = None, options: dict | None = None):
         super().reset(seed=seed)

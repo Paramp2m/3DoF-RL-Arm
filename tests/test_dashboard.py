@@ -66,6 +66,8 @@ def test_actions_are_whitelisted():
     assert dashboard.action({"kind": "train"}) == {"error": "unknown action"}
     assert dashboard.action({"kind": "watch", "run": "../../etc"}) == {"error": "unknown run"}
     assert dashboard.action({"kind": "gate", "phase": "1; rm"}) == {"error": "bad phase"}
+    for bad in (-1, 17, "2; rm", None):
+        assert "error" in dashboard.action({"kind": "view", "speed": bad})
 
 
 def test_config_diff_names_changed_settings_only():

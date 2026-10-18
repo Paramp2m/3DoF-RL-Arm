@@ -723,13 +723,23 @@ def action(body: dict) -> dict:
     kind = body.get("kind")
     uv = ["nice", "-n", "19", "uv", "run", "python"]
     if kind in ("watch", "watch_random", "view"):
+        speed = body.get("speed", 1)
+        if not isinstance(speed, (int, float)) or not 0 <= speed <= 16:
+            return {"error": "speed must be 0 (as fast as possible) to 16"}
         if kind == "watch":
             rid = str(body.get("run", ""))
             if not NAME.match(rid) or not (RUNS / rid).is_dir():
                 return {"error": "unknown run"}
-            cmd = [*uv, "scripts/watch.py", "--run", f"runs/{rid}", "--speed", "2"]
+            cmd = [*uv, "scripts/watch.py", "--run", f"runs/{rid}", "--speed", str(speed)]
         elif kind == "watch_random":
-            cmd = [*uv, "scripts/watch.py", "--config", "configs/reach_final.yaml"]
+            cmd = [
+                *uv,
+                "scripts/watch.py",
+                "--config",
+                "configs/reach_final.yaml",
+                "--speed",
+                str(speed),
+            ]
         else:
             cmd = [*uv, "scripts/view.py"]
         (RUNS / "_logs").mkdir(exist_ok=True)

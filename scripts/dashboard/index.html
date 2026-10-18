@@ -34,7 +34,7 @@ nav.side { position: sticky; top: 0; height: 100vh; padding: 22px 14px; border-r
 .brand small { display: block; font-weight: 500; color: var(--muted); font-size: 12px; }
 nav.side a { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 10px; color: var(--text2); font-weight: 520; }
 nav.side a:hover { background: var(--panel); text-decoration: none; }
-nav.side a.on { background: var(--panel2); color: var(--text); box-shadow: inset 3px 0 0 var(--accent); }
+nav.side a.on { background: rgba(79, 91, 42, 0.45); color: var(--text); box-shadow: inset 3px 0 0 var(--accent); }
 nav.side a .n { margin-left: auto; font-size: 12px; color: var(--muted); }
 .live { margin-top: auto; padding: 12px; font-size: 12px; color: var(--muted); border-top: 1px solid var(--line); }
 .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--good); margin-right: 6px; vertical-align: 1px; }
@@ -55,11 +55,13 @@ main { padding: 28px 32px 80px; max-width: 1200px; width: 100%; }
 .grid { display: grid; gap: 16px; }
 .g2 { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
 .g3 { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.gc2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.g4c { grid-template-columns: repeat(auto-fill, minmax(215px, 1fr)); }
 .g4 { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; min-width: 0; }
 a.card { display: block; color: inherit; transition: border-color 0.15s, transform 0.15s; }
 a.card:hover { border-color: var(--accent2); text-decoration: none; transform: translateY(-1px); }
-.hero { background: linear-gradient(135deg, #26301A, #1A1F11 60%); padding: 26px 28px; }
+.hero { background: linear-gradient(135deg, rgba(79, 91, 42, 0.55), var(--panel) 65%); border-color: var(--olive); padding: 26px 28px; }
 .sec { margin: 34px 0 14px; display: flex; align-items: baseline; gap: 12px; }
 .sec h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--accent2); font-weight: 650; }
 .sec .hint { color: var(--muted); font-size: 13px; }
@@ -67,7 +69,7 @@ a.card:hover { border-color: var(--accent2); text-decoration: none; transform: t
 .muted { color: var(--muted); } .t2 { color: var(--text2); } .small { font-size: 13px; } .tiny { font-size: 12px; }
 .pill { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: 99px; font-size: 12px; font-weight: 600; background: var(--panel2); color: var(--text2); border: 1px solid var(--line2); white-space: nowrap; }
 .pill.training { color: var(--bg); background: var(--accent); border-color: var(--accent); }
-.pill.done, .pill.PASS, .pill.good { color: var(--good); border-color: #56682F; background: #1E2814; }
+.pill.done, .pill.PASS, .pill.good { color: var(--good); border-color: var(--olive); background: #1E2814; }
 .pill.stopped, .pill.FAIL, .pill.bad { color: var(--bad); border-color: #6B3A30; background: #2E1814; }
 .pill.current { color: var(--bg); background: var(--cream); border-color: var(--cream); }
 .pill.running { color: var(--warn); border-color: #6E5426; }
@@ -80,7 +82,11 @@ a.card:hover { border-color: var(--accent2); text-decoration: none; transform: t
 table { width: 100%; border-collapse: collapse; font-size: 14px; }
 th { text-align: left; font-weight: 600; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; padding: 8px 10px; border-bottom: 1px solid var(--line2); }
 td { padding: 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
-tr.click { cursor: pointer; } tr.click:hover td { background: var(--panel2); }
+tr.click { cursor: pointer; }
+table.runs { table-layout: fixed; min-width: 640px; }
+table.runs td { vertical-align: middle; }
+tr.setup td { background: #161A0E; }
+.num { white-space: nowrap; font-variant-numeric: tabular-nums; } tr.click:hover td { background: var(--panel2); }
 .tablewrap { overflow-x: auto; }
 .btn { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--line2); background: var(--panel2); color: var(--text); font: inherit; font-size: 14px; font-weight: 560; cursor: pointer; }
 .btn:hover { border-color: var(--accent2); }
@@ -136,13 +142,16 @@ td.pick { width: 34px; } td.pick input { accent-color: var(--accent); width: 16p
 .timeline { position: relative; display: grid; gap: 12px; }
 .ph { display: grid; grid-template-columns: 44px 1fr; gap: 16px; }
 .ph .num { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; background: var(--panel2); color: var(--muted); border: 1px solid var(--line2); }
-.ph.done .num { background: #1E2814; color: var(--good); border-color: #56682F; }
+.ph.done .num { background: #1E2814; color: var(--good); border-color: var(--olive); }
 .ph.current .num { background: var(--accent); color: var(--bg); border-color: var(--accent); box-shadow: 0 0 0 5px #C9982F22; }
 .ph.upcoming { opacity: 0.75; }
 .steps { display: flex; gap: 6px; margin-top: 18px; }
-.steps span { flex: 1; height: 6px; border-radius: 99px; background: var(--line2); }
-.steps span.done { background: var(--good); }
-.steps span.current { background: var(--accent); }
+.steps > div { flex: 1; text-align: center; }
+.steps span { display: block; height: 6px; border-radius: 99px; background: var(--line2); }
+.steps small { display: block; margin-top: 4px; font-size: 10px; color: var(--muted); }
+.steps .done span { background: var(--good); }
+.steps .current span { background: var(--accent); }
+.steps .current small { color: var(--accent); font-weight: 700; }
 .thumbs { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
 .thumbs img { height: 90px; border-radius: 8px; border: 1px solid var(--line); }
 .empty { padding: 26px; text-align: center; color: var(--muted); border: 1px dashed var(--line2); border-radius: var(--radius); }
@@ -154,9 +163,10 @@ a.chip:hover { border-color: var(--accent2); text-decoration: none; }
 .banner { padding: 12px 16px; border-radius: 12px; border: 1px solid #6E5426; background: #2A2010; color: var(--warn); font-size: 14px; margin-bottom: 16px; }
 @media (max-width: 860px) {
   .layout { grid-template-columns: 1fr; }
-  nav.side { position: static; height: auto; flex-direction: row; overflow-x: auto; padding: 10px 16px; border-right: none; border-bottom: 1px solid var(--line); }
+  nav.side { -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent); mask-image: linear-gradient(90deg, #000 85%, transparent); position: static; height: auto; flex-direction: row; overflow-x: auto; padding: 10px 16px; border-right: none; border-bottom: 1px solid var(--line); }
   .brand { padding: 0 8px 0 0; } .brand small, .live, nav.side a .n { display: none; }
   .top { padding: 10px 16px; } main { padding: 20px 16px 60px; }
+  .gc2 { grid-template-columns: 1fr; }
   .doclayout { grid-template-columns: 1fr; } .doclist { position: static; }
 }
 </style>
@@ -234,11 +244,17 @@ const ms = (a, f = (v) => v.toFixed(0)) => (a == null ? "–" : `${f(a[0])} <spa
 const mm = (x) => (x == null ? "–" : x.toFixed(x < 10 ? 1 : 0) + " mm");
 const ksteps = (n) => (n == null ? "–" : n >= 1e6 ? (n / 1e6).toFixed(n % 1e6 ? 1 : 0) + "M" : Math.round(n / 1000) + "k");
 const dur = (s) => { if (s == null) return "–"; s = Math.round(s); if (s < 60) return s + " s"; const m = Math.round(s / 60); if (m < 60) return m + " min"; const h = Math.floor(m / 60); return `${h} h ${m % 60} min`; };
+const ago = (t) => (t ? dur(Date.now() / 1000 - t) + " ago" : "");
 const statusPill = (s) => `<span class="pill ${esc(s)}">${{ training: "● training", done: "finished", stopped: "stopped" }[s] || esc(s)}</span>`;
 const cfgVal = (v) => (v === "—" ? '<span class="muted">not set</span>' : esc(typeof v === "string" ? v : JSON.stringify(v)));
 // TensorBoard-style exponential smoothing for noisy per-episode curves
 const smooth = (pts, a = 0.9) => { if (!pts || pts.length < 60) return pts; let m = pts[0][1]; return pts.map((p) => [p[0], (m = a * m + (1 - a) * p[1])]); };
 function prettyCfg(c) { return c.replace(/_s\d+$/, "").replace(/_/g, " "); }
+function keptModel(r) {
+  const m = /val best @ (\d+)/.exec(r.summary?.best_checkpoint || "");
+  return m ? `the best test score during training, at ${ksteps(+m[1])} steps <span class="muted small">(model.zip; the last one is final.zip)</span>` : esc(r.summary?.best_checkpoint || "–");
+}
+window.addEventListener("resize", () => { clearTimeout(window._rs); window._rs = setTimeout(() => { $("#main").dataset.keys = ""; render(); }, 250); });
 function runTitle(r) { return r.exp[0] || r.best || prettyCfg(r.config); }
 function runSub(r) { return `seed ${r.seed} · ${r.algo}${r.mode ? " · " + r.mode : ""}`; }
 async function api(path, opts) { const res = await fetch(path, opts); return res.json(); }
@@ -280,6 +296,7 @@ function mount(blocks) {
     if (el._html !== html) { const open = [...el.querySelectorAll("details[open]")].map((d) => d.dataset.k); el.innerHTML = html; el._html = html; open.forEach((o) => { const d = el.querySelector(`details[data-k="${o}"]`); if (d) d.open = true; }); }
   }
   syncSpeed();
+  for (const id in CHARTS) if (!main.querySelector(`[data-c="${id}"]`)) delete CHARTS[id];
 }
 
 // ---------- SVG line chart with hover ----------
@@ -287,7 +304,9 @@ const CHARTS = {};
 function chart(series, o = {}) {
   series = series.filter((s) => s.pts && s.pts.length);
   if (!series.length) return `<div class="empty small">${o.empty || "No data yet."}</div>`;
-  const W = 640, H = o.h || 220, L = 46, R = 12, T = 12, B = 28;
+  // drawn at its real on-screen width (o.cols = charts per row), so 11px labels stay 11px; resize re-renders
+  const mainW = Math.max(300, $("#main").clientWidth - 64), cols = mainW < 700 ? 1 : o.cols || 1;
+  const W = Math.round(Math.max(260, (mainW - (cols - 1) * 16) / cols - 42)), H = o.h || 220, L = 46, R = 12, T = 12, B = 28;
   const xs = series.flatMap((s) => s.pts.map((p) => p[0]));
   let ys = series.flatMap((s) => s.pts.flatMap((p) => (s.band ? [p[1] - p[2], p[1] + p[2]] : [p[1]])));
   const x0 = o.x0 ?? Math.min(...xs), x1 = Math.max(...xs, x0 + 1);
@@ -298,7 +317,8 @@ function chart(series, o = {}) {
   const yf = o.yf || ((v) => (Math.abs(v) >= 1000 ? (v / 1000).toFixed(1) + "k" : +v.toPrecision(3)));
   let g = "";
   for (let i = 0; i <= 4; i++) { const v = y0 + ((y1 - y0) * i) / 4; g += `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="#303A21" stroke-width="1"/><text x="${L - 8}" y="${Y(v) + 4}" text-anchor="end" font-size="11" fill="#A7A486">${yf(v)}</text>`; }
-  for (let i = 0; i <= 4; i++) { const v = x0 + ((x1 - x0) * i) / 4; g += `<text x="${X(v)}" y="${H - 8}" text-anchor="middle" font-size="11" fill="#A7A486">${ksteps(v)}</text>`; }
+  for (let i = 0; i <= 4; i++) { const v = x0 + ((x1 - x0) * i) / 4; g += `<text x="${X(v)}" y="${H - 8}" text-anchor="${i === 0 ? "start" : i === 4 ? "end" : "middle"}" font-size="11" fill="#A7A486">${ksteps(v)}</text>`; }
+  g += `<text x="${L - 8}" y="${H - 8}" text-anchor="end" font-size="10" fill="#A7A486" font-style="italic">steps</text>`;
   let body = "";
   series.forEach((s, i) => {
     const c = s.color || COLORS[i % COLORS.length];
@@ -307,7 +327,7 @@ function chart(series, o = {}) {
     if (s.pts.length < 40) body += s.pts.map((p) => `<circle cx="${X(p[0])}" cy="${Y(p[1])}" r="2.6" fill="${c}"/>`).join("");
   });
   // id from the content, so an unchanged chart renders identical HTML and mount() leaves it alone
-  const key = JSON.stringify([series, o.h, o.y0, o.y1]);
+  const key = JSON.stringify([series, W, o.h, o.y0, o.y1]);
   let hsh = 0; for (let i = 0; i < key.length; i++) hsh = (hsh * 31 + key.charCodeAt(i)) | 0;
   const id = "c" + (hsh >>> 0).toString(36);
   CHARTS[id] = { series, X, Y, x0, x1, L, R, W, H, T, B, yf: o.tf || yf };
@@ -369,7 +389,7 @@ setInterval(liveBadge, 1000);
 setInterval(() => { const h = route(); if (h.page === "run" && detail.run?.status === "training") loadRun(h.arg, true); if (h.page === "doc") loadDoc(h.arg, true); if (h.page === "exp" && h.arg) loadExp(h.arg, true); }, 4000);
 
 // ---------- router ----------
-function route() { const h = decodeURIComponent(location.hash.slice(2)); const [page, ...rest] = h.split("/"); return { page: page || "", arg: rest.join("/") }; }
+function route() { let h = location.hash.slice(2); try { h = decodeURIComponent(h); } catch { /* a stray % in the URL: use it as typed */ } const [page, ...rest] = h.split("/"); return { page: page || "", arg: rest.join("/") }; }
 window.addEventListener("hashchange", () => { window.scrollTo(0, 0); $("#main").dataset.keys = ""; const hl = detail.hlNext; detail = hl ? { hl } : {}; render(); });
 function render() {
   if (!S) return;
@@ -382,37 +402,40 @@ function render() {
 }
 
 // ---------- page: Now ----------
+const mediaName = (f) => { const s = f.replace(/^phase\d+_/, "").replace(/\.\w+$/, "").replace(/_/g, " "); return ({ reach: "Reach (task A)", hold: "Hold (task B)", reacher: "Reacher (2-joint warm-up)", arm: "The arm" })[s] || s[0].toUpperCase() + s.slice(1); };
 function phaseName(n) { return S.phase.list.find((p) => p.n === n)?.title || ""; }
 function pageNow() {
   const ph = S.phase;
   // between phases, the hero shows the phase that starts next
   const cur = ph.in_phase ? ph.list.find((p) => p.n === ph.current) : ph.list.find((p) => p.n === ph.current + 1) || ph.list.at(-1);
   const live = S.runs.filter((r) => r.status === "training");
+  const finished = S.runs.filter((r) => r.status === "done").sort((a, b) => b.mtime - a.mtime);
+  const lastDone = finished[0];
   const m = S.machine;
   const hero = `<div class="card hero">
-    <div class="row">${ph.in_phase ? "" : `<span class="pill done">Phase ${ph.current} done</span><span class="muted small">Next up:</span>`}<span class="pill current">Phase ${cur.n} of ${ph.list.length - 1}</span><span class="pill ${ph.stage === "train" ? "training" : ""}">${{ train: "● training", build: "building", gate: "checking results", report: "writing report", idle: "idle" }[ph.stage]}</span></div>
-    <h1 style="margin-top:12px">${esc(cur?.title || "")}</h1>
+    <div class="row">${ph.in_phase ? "" : `<span class="pill done">Phase ${ph.current} done</span><span class="muted small">Next up:</span>`}<span class="pill current">Phase ${cur.n}</span><span class="pill ${ph.stage === "train" ? "training" : ""}">${{ train: "● training", build: "building", gate: "checking results", report: "writing report", idle: "idle" }[ph.stage]}</span></div>
+    <h1 style="margin-top:12px">${esc((cur?.title || "").replace(/\s*\([A-Z](\s*→\s*[A-Z])+\)/, ""))}</h1>
     <p class="t2" style="margin:8px 0 0;max-width:760px">${esc(cur?.builds || "")}.</p>
     <p class="muted small" style="margin:10px 0 0"><b class="t2">Claude right now:</b> ${esc(ph.stage_text)}</p>
-    <div class="steps">${ph.list.map((p) => `<span class="${p.state}" title="Phase ${p.n}: ${esc(p.title)}"></span>`).join("")}</div>
+    <div class="steps">${ph.list.map((p) => `<div class="${p.state}" title="Phase ${p.n}: ${esc(p.title)}"><span></span><small>${p.n}</small></div>`).join("")}</div>
   </div>`;
-  const cards = live.length ? `<div class="grid g3">${live.map(liveCard).join("")}</div>` : `<div class="empty">Nothing is training right now.</div>`;
+  const cards = live.length ? `<div class="grid g3">${live.map(liveCard).join("")}</div>` : `<div class="empty">Nothing is training right now.${lastDone ? ` The last run, <a href="#/run/${lastDone.id}">${esc(runTitle(lastDone))} · seed ${lastDone.seed}</a>, finished ${ago(lastDone.mtime)}. <a href="#/runs">All runs →</a>` : ""}</div>`;
   const stopped = S.runs.filter((r) => r.status === "stopped" && S.phase.runs.includes(r.id));
   const warn = stopped.length ? `<div class="banner">${stopped.length} run(s) from this phase stopped without finishing (crash, killed, or the laptop slept): ${stopped.map((r) => `<a href="#/run/${r.id}">${esc(runTitle(r))} s${r.seed}</a>`).join(", ")}. Tell Claude in the terminal.</div>` : "";
-  const exps = S.phase.current === 4 || S.experiments.length ? `<div class="sec"><h2>Experiments</h2><span class="hint">what Phase 4 is measuring</span><a class="r" href="#/exp">all results →</a></div><div class="grid g2">${S.experiments.map(expCard).join("")}</div>` : "";
+  const exps = S.phase.current === 4 || S.experiments.length ? `<div class="sec"><h2>Experiments</h2><span class="hint">what Phase 4 is measuring</span><a class="r" href="#/exp">all results →</a></div><div class="grid g4c">${S.experiments.map(expCard).join("")}</div>` : "";
   const onBattery = m.battery && m.battery.status === "Discharging";
   const machine = `<div class="card">
     <h3>This laptop</h3>
-    <div style="margin-top:12px" class="small t2">CPU in use <b style="float:right">${m.cpu}%</b></div><div class="bar" style="margin:6px 0 12px"><i style="width:${m.cpu}%"></i></div>
-    <div class="small t2">Memory <b style="float:right">${m.mem_used} / ${m.mem_total} GB</b></div><div class="bar" style="margin:6px 0 12px"><i style="width:${(100 * m.mem_used) / m.mem_total}%"></i></div>
-    ${m.battery ? `<div class="small t2">Battery <b style="float:right" class="${onBattery && live.length ? "warn" : ""}">${m.battery.pct}% · ${esc(m.battery.status.toLowerCase())}</b></div>` : ""}
+    <div style="margin-top:12px" class="small t2">CPU in use <b style="float:right" id="m-cpu"></b></div><div class="bar" style="margin:6px 0 12px"><i id="m-cpub"></i></div>
+    <div class="small t2">Memory <b style="float:right" id="m-mem"></b></div><div class="bar" style="margin:6px 0 12px"><i id="m-memb"></i></div>
+    ${m.battery ? `<div class="small t2">Battery <b style="float:right" id="m-bat" class="${onBattery && live.length ? "warn" : ""}"></b></div>` : ""}
     <p class="small" style="margin:14px 0 0">${live.length ? `<b class="warn">Don't close the lid.</b> <span class="t2">${live.length} run(s) are training${onBattery ? ", on battery: plug in" : ""}. Sleep kills them.</span>` : `<span class="good">Safe to close the laptop:</span> <span class="t2">nothing is training.</span>`}</p>
     <p class="tiny muted" style="margin:8px 0 0">This dashboard runs at the lowest CPU priority, so it never slows training.</p>
   </div>`;
-  const decs = S.decisions.filter((d) => d.phase === String(ph.current)).slice(-3).reverse();
-  const decCard = `<div class="card"><div class="row"><h3>Latest decisions by Claude</h3><span class="sp"></span><a class="small" href="#/decisions">all ${S.decisions.length} →</a></div>
-    ${decs.length ? decs.map((d) => `<p class="small t2" style="margin:12px 0 0">${inline(d.what.length > 170 ? d.what.slice(0, 170).replace(/\s\S*$/, "") + " …" : d.what)}</p>`).join("") : `<p class="muted small">None yet this phase.</p>`}
-    <p class="tiny muted" style="margin:14px 0 0">${S.dirty.length} uncommitted file(s): normal mid-phase, Claude commits at the end. Last commit: ${esc(S.commits[0]?.msg || "")}</p></div>`;
+  const recent = finished.filter((r) => r.learns).slice(0, 5);
+  const decCard = `<div class="card"><div class="row"><h3>Latest results</h3><span class="sp"></span><a class="small" href="#/runs">all runs →</a></div>
+    ${recent.length ? `<table style="margin-top:6px">${recent.map((r) => `<tr class="click" onclick="location.hash='#/run/${r.id}'"><td class="small"><b>${esc(runTitle(r))}</b><div class="tiny muted">seed ${r.seed} · ${ago(r.mtime)}</div></td><td class="num">${pct(r.success)}</td></tr>`).join("")}</table>` : `<p class="muted small">No finished runs yet.</p>`}
+    <p class="tiny muted" style="margin:12px 0 0">${tip("success rate", "Success")} on the final test. Why Claude chose each setup: <a href="#/decisions">Claude's log</a>.${S.dirty.length ? ` ${S.dirty.length} file(s) changed since the last commit (Claude saves its work at the end of each phase).` : ""}</p></div>`;
   const doNow = `<div class="card"><h3>Things you can do now</h3>
     <div class="row" style="margin-top:12px">
       <button class="btn" onclick="act({kind:'view'},this)">Open the arm in 3D</button>
@@ -427,6 +450,10 @@ function pageNow() {
   const canNotify = "Notification" in window && Notification.permission === "default";
   const notifyBtn = canNotify ? `<div class="row small" style="margin-top:12px"><button class="btn" onclick="askNotify(this)">🔔 Notify me when a run finishes</button><span class="muted tiny">a desktop notification, while this tab is open</span></div>` : "";
   mount([["hero", hero], ["warn", warn], ["livehead", `<div class="sec"><h2>Training right now</h2><span class="hint">progress, time left, test score so far</span>${etaLine}</div>`], ["live", cards + notifyBtn], ["exps", exps], ["side", `<div class="sec"><h2>Status</h2></div><div class="grid g3">${machine}${decCard}${doNow}</div>`]]);
+  const set = (id, f) => { const el = document.getElementById(id); if (el) f(el); };
+  set("m-cpu", (el) => (el.textContent = m.cpu + "%")); set("m-cpub", (el) => (el.style.width = m.cpu + "%"));
+  set("m-mem", (el) => (el.textContent = `${m.mem_used} / ${m.mem_total} GB`)); set("m-memb", (el) => (el.style.width = (100 * m.mem_used) / m.mem_total + "%"));
+  if (m.battery) set("m-bat", (el) => (el.textContent = `${m.battery.pct}% · ${m.battery.status.toLowerCase()}`));
 }
 function liveCard(r) {
   const p = r.total ? Math.min(1, r.steps / r.total) : 0;
@@ -463,9 +490,10 @@ function pageExps() {
   mount([["h", `<h1>Experiments</h1><p class="t2" style="max-width:760px">Phase 4 asks <b>which choices actually matter</b> for teaching the arm to reach. Each experiment changes <b>one thing</b> and keeps everything else equal, so any difference in the score comes from that one thing. Every setup is trained 3 times (3 ${tip("seed", "seeds")}) for 300k ${tip("step", "steps")}.</p><p class="muted small">Phase 4 has no pass marks: these are results to report, not targets to clear.</p>`],
     ["cards", `<div class="grid g2" style="margin-top:20px">${S.experiments.map(expCard).join("")}</div>`]]);
 }
-async function loadExp(id, quiet) { const d = await api("/api/exp/" + id); if (route().arg !== id) return; detail.exp = d; if (quiet) pageExp(id); else pageExp(id); }
+async function loadExp(id) { const d = await api("/api/exp/" + encodeURIComponent(id)); if (route().arg !== id) return; detail.exp = d; detail.expId = id; pageExp(id); }
 function pageExp(id) {
-  if (!detail.exp || detail.exp.id !== id) { mount([["h", `<p class="muted">Loading…</p>`]]); return loadExp(id); }
+  if (detail.exp?.error && detail.expId === id) return mount([["h", `<a class="small" href="#/exp">← all experiments</a><div class="empty" style="margin-top:14px">No experiment called “${esc(id)}”.</div>`]]);
+  if (!detail.exp || detail.exp.id !== id) { if (!detail.loading) { detail.loading = 1; mount([["h", `<p class="muted">Loading…</p>`]]); loadExp(id).finally(() => (detail.loading = 0)); } return; }
   const e = detail.exp;
   const curves = e.arms.filter((a) => a.learns).map((a, i) => {
     const hs = a.seeds.map((s) => s.val || []).filter((h) => h.length);
@@ -479,12 +507,12 @@ function pageExp(id) {
   const verdict = allDone && ranked.length > 1 ? `<div class="card" style="border-color:var(--accent2)"><b>Result:</b> <span class="t2">${esc(ranked[0].plain)} scores best (${(ranked[0].success[0] * 100).toFixed(0)}% ± ${(ranked[0].success[1] * 100).toFixed(0)}), ${esc(ranked.at(-1).plain.toLowerCase())} worst (${(ranked.at(-1).success[0] * 100).toFixed(0)}%). ${Math.abs(ranked[0].success[0] - ranked[1].success[0]) < ranked[0].success[1] + ranked[1].success[1] ? "The top two overlap within their seed spread, so treat them as close." : "The gap is bigger than the spread between seeds, so it's a real difference."}</span></div>` : `<div class="card"><span class="muted">The verdict appears here once every seed of every setup has finished.</span></div>`;
   const ps = (x) => (x == null ? "–" : ms([x[0] * 100, x[1] * 100]) + "%");
   const sec = (a) => (a == null ? "–" : `${(a[0] / e.hz).toFixed(1)} s <span class="muted">± ${(a[1] / e.hz).toFixed(1)}</span>`);
-  const rows = e.arms.map((a, i) => `<tr><td><b>${esc(a.plain)}</b><div class="tiny muted">${esc(a.label)}</div></td><td>${ps(a.success)}</td><td>${a.seeds.map((s) => s.id ? `<a class="chip" href="#/run/${s.id}">s${s.seed} ${s.eval ? pct(s.eval.success_rate) : s.status === "training" ? `● ${pct(s.steps / (s.total || 1))}` : esc(s.status)}</a>` : `<span class="chip">s${s.seed} not started</span>`).join("")}</td><td>${a.miss_mm ? ms(a.miss_mm, (v) => v.toFixed(1)) + " mm" : "–"}</td><td>${sec(a.steps_to_success)}</td><td>${a.smoothness ? ms(a.smoothness, (v) => v.toFixed(3)) : "–"}</td><td>${a.energy ? ms(a.energy, (v) => v.toFixed(2)) + " J" : '<span class="muted">n/a</span>'}</td></tr>`).join("");
+  const rows = e.arms.map((a, i) => `<tr><td><b>${esc(a.plain)}</b><div class="tiny muted">${esc(a.label)}</div></td><td class="num"><b>${ps(a.success)}</b></td><td>${a.seeds.map((s) => s.id ? `<a class="chip" href="#/run/${s.id}">seed ${s.seed}: ${s.eval ? pct(s.eval.success_rate) : s.status === "training" ? `● ${pct(s.steps / (s.total || 1))}` : esc(s.status)}</a>` : `<span class="chip">seed ${s.seed}: not started</span>`).join("")}</td><td class="num">${a.miss_mm ? ms(a.miss_mm, (v) => v.toFixed(1)) + " mm" : "–"}</td><td class="num">${sec(a.steps_to_success)}</td><td class="num">${a.smoothness ? ms(a.smoothness, (v) => v.toFixed(3)) : "–"}</td><td class="num">${a.energy ? ms(a.energy, (v) => v.toFixed(0)) + " J" : '<span class="muted" title="Only measured when the network commands motor forces (torque modes)">not measured</span>'}</td></tr>`).join("");
   const budgets = [...new Set(e.arms.map((a) => (a.learns ? ksteps(a.steps) + " steps" : "no training")))].join(" / ");
   mount([
-    ["h", `<a class="small" href="#/exp">← all experiments</a><div class="row" style="margin-top:10px"><span class="pill">${esc(e.id.slice(0, 2).toUpperCase())}</span></div><h1 style="margin-top:10px">${esc(e.question)}</h1><p class="t2" style="max-width:780px">${esc(e.why)}</p>`],
+    ["h", `<a class="small" href="#/exp">← all experiments</a><h1 style="margin-top:12px"><span style="color:var(--accent)">${esc(e.id.slice(0, 2).toUpperCase())}</span> · ${esc(e.question)}</h1><p class="t2" style="max-width:780px">${esc(e.why)}</p>`],
     ["verdict", verdict],
-    ["chart", `<div class="sec"><h2>Learning curves</h2><span class="hint">${tip("test score during training")}, mean of the seeds; the shaded band is the spread between seeds</span></div><div class="card">${curves.length ? chart(curves, { y0: 0, y1: 100, yf: (v) => v.toFixed(0) + "%", legend: true, empty: "Curves appear after the first test, 20k steps into training." }) : `<p class="muted">This experiment compares finished policies; there is no learning curve for the IK controller.</p>`}</div>`],
+    ["chart", `<div class="sec"><h2>Learning curves</h2><span class="hint">${tip("test score during training")}, mean of the seeds; the shaded band is the spread between seeds</span></div><p class="tiny muted" style="margin:-6px 0 10px">The curve is measured on 100 validation targets, the final test below on a different fixed set of 100, so the curve's last point and the table can differ (for PPO by a lot: it handles some regions of the workspace far worse than others).</p><div class="card">${curves.length ? chart(curves, { y0: 0, y1: 100, yf: (v) => v.toFixed(0) + "%", legend: true, empty: "Curves appear after the first test, 20k steps into training." }) : `<p class="muted">This experiment compares finished policies; there is no learning curve for the IK controller.</p>`}</div>`],
     ["table", `<div class="sec"><h2>Final test</h2><span class="hint">100 attempts per seed, new random targets; mean ± spread over seeds</span></div><div class="card tablewrap"><table><tr><th>Setup</th><th>${tip("success rate", "Success")}</th><th>Per ${tip("seed", "seed")} (click to open)</th><th>${tip("typical miss", "Typical miss")}</th><th>${tip("time to reach", "Time to reach")}</th><th>${tip("smoothness", "Jerkiness")}</th><th>${tip("energy", "Energy")}</th></tr>${rows}</table></div>`],
     ["meta", `<details data-k="setup"><summary>Exact setup (seeds, budget, configs)</summary><div class="in"><dl class="kv"><dt>Seeds</dt><dd>${[...new Set(e.arms.map((a) => a.seeds.map((s) => s.seed).join(", ")))].join(" / ")}</dd><dt>Step budget</dt><dd>${budgets} per run</dd><dt>Technical question</dt><dd>${esc(e.tech_question)}</dd>${e.arms.map((a) => `<dt>${esc(a.plain)}</dt><dd><code>${esc(a.config)}</code></dd>`).join("")}</dl><p class="tiny muted">The same numbers are written to <a href="#/doc/docs/results.md">docs/results.md</a> by <code>scripts/make_results.py</code> when the phase ends.</p></div></details>`],
   ]);
@@ -498,12 +526,12 @@ function pagePhases() {
 async function pagePhase(n) {
   n = +n; const p = S.phase.list.find((x) => x.n === n); if (!p) return pagePhases();
   let rep = detail.rep;
-  if (p.report && (!rep || rep.path !== p.report)) { mount([["h", `<p class="muted">Loading…</p>`]]); rep = detail.rep = await api("/api/doc?path=" + encodeURIComponent(p.report)); }
+  if (p.report && (!rep || rep.want !== p.report)) { mount([["h", `<p class="muted">Loading…</p>`]]); rep = detail.rep = { ...(await api("/api/doc?path=" + encodeURIComponent(p.report))), want: p.report }; }
   const job = S.jobs?.["gate-" + n];
   mount([
     ["h", `<a class="small" href="#/phases">← all phases</a><div class="row" style="margin-top:10px"><span class="pill ${p.state === "current" ? "current" : p.state}">Phase ${n} · ${p.state === "current" ? "in progress" : p.state}</span></div><h1 style="margin-top:10px">${esc(p.title)}</h1><p class="t2">${esc(p.builds)}.</p>`],
-    ["gate", `<div class="card"><div class="row"><div><h3>Phase gate</h3><p class="muted small" style="margin:4px 0 0">Re-checks this phase's pass/fail targets from saved results. Never trains; safe at any time.</p></div><span class="sp"></span><button class="btn primary" onclick="act({kind:'gate',phase:${n}},this)">${job ? "Run again" : "Run the gate"}</button></div>${job ? `<details data-k="gate${n}" open><summary>Result <span class="pill ${job.state === "running" ? "running" : job.state}" style="margin-left:8px">${job.state === "running" ? "running…" : job.state}</span></summary><div class="in"><pre>${esc(job.out || "waiting for output…")}</pre></div></details>` : ""}</div>`],
-    ["media", p.media.length ? `<div class="sec"><h2>Media</h2></div><div class="grid g2">${p.media.map((f) => `<div class="card"><img class="gif" loading="lazy" src="/file/docs/media/${f}" alt="${esc(f)}"><div class="tiny muted" style="margin-top:8px">${esc(f)}</div></div>`).join("")}</div>` : ""],
+    ["gate", `<div class="card"><div class="row"><div><h3>Phase gate</h3><p class="muted small" style="margin:4px 0 0">Re-checks this phase's pass/fail targets from saved results. Never trains; safe at any time.</p></div><span class="sp"></span><button class="btn" onclick="act({kind:'gate',phase:${n}},this)">${job ? "Run again" : "Run the gate"}</button></div>${job ? `<details data-k="gate${n}" open><summary>Result <span class="pill ${job.state === "running" ? "running" : job.state}" style="margin-left:8px">${job.state === "running" ? "running…" : job.state}</span></summary><div class="in"><pre>${esc(job.out || "waiting for output…")}</pre></div></details>` : ""}</div>`],
+    ["media", p.media.length ? `<div class="sec"><h2>Media</h2></div><div class="grid g2">${p.media.map((f) => `<div class="card"><img class="gif" loading="lazy" src="/file/docs/media/${f}" alt="${esc(f)}"><div class="small t2" style="margin-top:8px">${esc(mediaName(f))}</div></div>`).join("")}</div>` : ""],
     ["rep", `<div class="sec"><h2>Report</h2>${p.report ? `<a class="r" href="#/doc/${p.report}">open as a doc →</a>` : ""}</div>${rep && p.report ? `<div class="card"><div class="md">${md(rep.text, rep.path)}</div></div>` : `<div class="empty">${p.state === "upcoming" ? "Not started yet." : "The report is written at the end of the phase."}</div>`}`],
     ["commits", p.commits.length ? `<details data-k="commits"><summary>What changed: ${p.commits.length} commit(s)</summary><div class="in"><table>${p.commits.map((c) => `<tr><td class="mono muted">${esc(c.hash)}</td><td class="muted">${esc(c.date)}</td><td>${esc(c.msg)}</td></tr>`).join("")}</table></div></details>` : ""],
   ]);
@@ -517,21 +545,29 @@ function pageRuns() {
   const list = S.runs.filter(f).filter((r) => !t || (r.id + " " + runTitle(r) + " " + r.exp.join(" ") + " " + r.algo).toLowerCase().includes(t));
   const groups = [];
   // a run appears once, except that experiments may share runs (E2/E3 reuse E1's delta_pos), so each experiment lists all of its own
-  const take = (title, hint, pred, shared, order) => { const g = list.filter((r) => (shared || !r._g) && pred(r)); if (!shared) g.forEach((r) => (r._g = 1)); if (order) g.sort((a, b) => order(a) - order(b) || a.seed - b.seed); if (g.length) groups.push([title, hint, g]); };
+  const take = (title, hint, pred, shared, order, armOf) => { const g = list.filter((r) => (shared || !r._g) && pred(r)); if (!shared) g.forEach((r) => (r._g = 1)); if (order) g.sort((a, b) => order(a) - order(b) || a.seed - b.seed); if (g.length) groups.push([title, hint, g, armOf]); };
   list.forEach((r) => delete r._g);
   take("Training now", "", (r) => r.status === "training");
   for (const e of S.experiments) {
     const tag = e.id.slice(0, 2).toUpperCase() + " · ";
     const arm = (r) => e.arms.indexOf((r.exp.find((x) => x.startsWith(tag)) || "").slice(tag.length));
-    take(`${tag}${e.plain}`, "Phase 4 experiment", (r) => r.status !== "training" && arm(r) >= 0, true, arm);
+    take(`${tag}${e.plain}`, "Phase 4 experiment · one row per setup; click a setup to see its seeds", (r) => r.status !== "training" && arm(r) >= 0, true, arm, (r) => e.arms[arm(r)]);
   }
   take("Best runs", "the ones the phase gates use (docs/best_runs.yaml)", (r) => r.best);
   list.forEach((r) => { if (r.exp.length) r._g = 1; });
   take("Archive", "earlier attempts, tuning sweeps and pilots: kept for the record", () => true);
   const head = `<h1>Runs</h1><p class="t2">Each ${tip("run")} is one training attempt. By default you see only the ones that matter; the rest are in the archive.</p>
-    <div class="row" style="margin-top:16px"><div class="filters">${[["count", "That count"], ["phase", "This phase"], ["training", "Training"], ["all", `All (${S.runs.length})`]].map(([k, l]) => `<button class="${runFilter === k ? "on" : ""}" onclick="runFilter='${k}';render()">${l}</button>`).join("")}</div><span class="sp"></span><input class="filter" id="runq" placeholder="Filter runs…" oninput="runText=this.value;pageRuns()"></div>
+    <div class="row" style="margin-top:16px"><div class="filters">${[["count", "Important"], ["phase", "This phase"], ["training", "Training"], ["all", `All (${S.runs.length})`]].map(([k, l]) => `<button class="${runFilter === k ? "on" : ""}" onclick="runFilter='${k}';render()">${l}</button>`).join("")}</div><span class="sp"></span><input class="filter" id="runq" placeholder="Filter runs…" oninput="runText=this.value;pageRuns()"></div>
     <div class="row small muted" style="margin-top:12px">${speedCtl()}<span>used by every ▶ button · tick runs to compare them</span></div>`;
-  const body = groups.length ? groups.map(([title, hint, g]) => `<div class="sec"><h2>${esc(title)}</h2><span class="hint">${esc(hint)}</span></div><div class="card tablewrap" style="padding:6px 8px"><table><tr><th></th><th>Run</th><th>State</th><th>Steps</th><th>${tip("success rate", "Success")}</th><th>${tip("typical miss", "Miss")}</th><th>Date</th><th></th></tr>${g.map(runRow).join("")}</table></div>`).join("") : `<div class="empty" style="margin-top:20px">No runs match.</div>`;
+  // same fixed columns in every group, so the tables line up down the page
+  const cols = `<colgroup><col style="width:38px"><col><col style="width:118px"><col style="width:96px"><col style="width:118px"><col style="width:96px"><col style="width:58px"></colgroup>`;
+  const thead = `<tr><th></th><th>Run</th><th>State</th><th>${tip("step", "Steps")}</th><th>${tip("success rate", "Success")}</th><th>${tip("typical miss", "Miss")}</th><th></th></tr>`;
+  const rowsOf = (title, g, armOf) => {
+    if (!armOf) return g.map((r) => runRow(r)).join("");
+    const arms = {}; g.forEach((r) => (arms[armOf(r)] ||= []).push(r));
+    return Object.entries(arms).map(([name, rs]) => { const key = title + "|" + name; return setupRow(key, name, rs) + (OPEN.has(key) ? rs.map((r) => runRow(r, true)).join("") : ""); }).join("");
+  };
+  const body = groups.length ? groups.map(([title, hint, g, armOf]) => `<div class="sec"><h2>${esc(title)}</h2><span class="hint">${esc(hint)}</span></div><div class="card tablewrap" style="padding:6px 8px"><table class="runs">${cols}${thead}${rowsOf(title, g, armOf)}</table></div>`).join("") : `<div class="empty" style="margin-top:20px">No runs match.</div>`;
   const picked = PICK.filter((id) => S.runs.some((r) => r.id === id));
   const bar = picked.length ? `<div class="cmpbar"><b>${picked.length} run(s) picked</b><span class="muted small">${picked.length < 2 ? "pick at least one more" : "overlay their learning curves and numbers"}</span><span class="sp"></span><button class="btn" onclick="PICK=[];store.set('pick',[]);render()">Clear</button><button class="btn primary" ${picked.length < 2 ? "disabled" : ""} onclick="location.hash='#/compare/${picked.join(",")}'">Compare →</button></div>` : "";
   mount([["runsh", head], ["runsb", body], ["cmp", bar]]);
@@ -551,19 +587,31 @@ function pageCompare(arg) {
   mount([
     ["h", `<a class="small" href="#/runs">← all runs</a><h1 style="margin-top:10px">Compare ${runs.length} runs</h1><p class="t2">Same chart, same scale. Different step budgets are fine: the x-axis is training steps.</p>`],
     ["chart", `<div class="card" style="margin-top:16px"><h3>${tip("test score during training", "Test success during training")}</h3><div style="margin-top:10px">${chart(curves, { y0: 0, y1: 100, yf: (v) => v.toFixed(0) + "%", legend: true, empty: "None of these runs has a learning curve (val.json) yet." })}</div></div>`],
-    ["table", `<div class="card tablewrap" style="margin-top:16px"><table><tr><th>Run</th><th>Algorithm</th><th>${tip("step", "Steps")}</th><th>${tip("success rate", "Success")}</th><th>${tip("typical miss", "Typical miss")}</th><th>Training time</th><th></th></tr>${runs.map((r, i) => `<tr><td><i style="display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:8px;background:${COLORS[i % COLORS.length]}"></i><a href="#/run/${r.id}"><b>${esc(name(r))}</b></a><div class="tiny muted mono">${esc(r.id)}</div></td><td class="small">${esc(r.algo)}${r.mode ? " · " + esc(r.mode) : ""}</td><td>${r.learns ? ksteps(r.steps) : "–"}</td><td class="${r.success != null && r.success === bs && runs.length > 1 ? "good" : ""}">${pct(r.success)}</td><td class="${r.miss_mm != null && r.miss_mm === bm && runs.length > 1 ? "good" : ""}">${mm(r.miss_mm)}</td><td class="muted">${dur(r.wall_s)}</td><td><button class="btn" onclick="watch('${r.id}',this)">▶</button></td></tr>`).join("")}</table><p class="tiny muted" style="margin:10px 0 0">Green = best in this comparison. ${speedCtl()}</p></div>`],
+    ["table", `<div class="card tablewrap" style="margin-top:16px"><table><tr><th>Run</th><th>Algorithm</th><th>${tip("step", "Steps")}</th><th>${tip("success rate", "Success")}</th><th>${tip("typical miss", "Typical miss")}</th><th>Training time</th><th></th></tr>${runs.map((r, i) => `<tr><td><i style="display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:8px;background:${COLORS[i % COLORS.length]}"></i><a href="#/run/${r.id}"><b>${esc(name(r))}</b></a><div class="tiny muted mono">${esc(r.id)}</div></td><td class="small">${esc(r.algo)}${r.mode ? " · " + esc(r.mode) : ""}</td><td>${r.learns ? ksteps(r.steps) : "–"}</td><td class="num">${r.success != null && r.success === bs && runs.length > 1 ? `<b class="good">${pct(r.success)} ★</b>` : pct(r.success)}</td><td class="num">${r.miss_mm != null && r.miss_mm === bm && runs.length > 1 ? `<b class="good">${mm(r.miss_mm)} ★</b>` : mm(r.miss_mm)}</td><td class="muted num">${dur(r.wall_s)}${r.sps ? `<div class="tiny">${Math.round(r.sps)} steps/s</div>` : ""}</td><td><button class="btn" onclick="watch('${r.id}',this)">▶</button></td></tr>`).join("")}</table><p class="tiny muted" style="margin:10px 0 0">★ = best in this comparison. Training time is wall-clock: runs in parallel share the CPU, so compare it only between runs trained side by side.</p></div>`],
+    ["speed", `<div style="margin-top:12px">${speedCtl()}</div>`],
   ]);
 }
-function runRow(r) {
+const OPEN = new Set(store.get("openArms", []));
+function toggleArm(key) { OPEN.has(key) ? OPEN.delete(key) : OPEN.add(key); store.set("openArms", [...OPEN]); render(); }
+function setupRow(key, name, rs) {
+  const done = rs.filter((r) => r.success != null);
+  const mean = (k) => { const v = done.map((r) => r[k]); if (!v.length || v.length < rs.length) return null; const m = v.reduce((a, b) => a + b) / v.length; return [m, Math.sqrt(v.reduce((a, b) => a + (b - m) ** 2, 0) / v.length)]; };
+  const s = mean("success"), m = mean("miss_mm"), tr = rs.filter((r) => r.status === "training").length;
+  const shared = rs[0].exp.length > 1 ? `<span class="chip">also in ${esc(rs[0].exp.filter((x) => !key.startsWith(x.split(" ")[0])).map((x) => x.split(" ")[0]).join(", "))}</span>` : "";
+  const st = tr ? `<span class="pill training">● ${tr} training</span>` : done.length === rs.length ? `<span class="pill done">finished</span>` : `<span class="pill">${done.length}/${rs.length} done</span>`;
+  return `<tr class="click setup" data-key="${esc(key)}" onclick="toggleArm(this.dataset.key)"><td class="muted">${OPEN.has(key) ? "▾" : "▸"}</td><td><b>${esc(name)}</b> <span class="muted small">· ${rs.length} seed${rs.length > 1 ? "s" : ""}</span> ${shared}<div class="tiny muted">${esc(rs[0].algo)}${rs[0].mode ? " · " + esc(rs[0].mode) : ""}</div></td><td>${st}</td><td class="t2">${rs[0].learns ? ksteps(rs[0].total || rs[0].steps) : "–"}</td><td class="num">${s ? `<b>${pct(s[0])}</b> <span class="muted">± ${(s[1] * 100).toFixed(0)}</span>` : "–"}</td><td class="num">${m ? mm(m[0]) : "–"}</td><td></td></tr>`;
+}
+function runRow(r, nested) {
   const tgt = TARGETS[r.best];
   const sOk = tgt && r.success != null ? (r.success >= tgt[0] ? " good" : " bad") : "";
   const mOk = tgt && tgt[1] && r.miss_mm != null ? (r.miss_mm <= tgt[1] ? " good" : " bad") : "";
-  return `<tr class="click" onclick="location.hash='#/run/${r.id}'"><td class="pick" onclick="event.stopPropagation()"><input type="checkbox" title="pick to compare" ${PICK.includes(r.id) ? "checked" : ""} onchange="pick('${r.id}',this.checked)"></td><td><b>${esc(runTitle(r))}</b> <span class="muted small">· seed ${r.seed}</span><div class="tiny muted">${esc(r.algo)}${r.mode ? " · " + esc(r.mode) : ""}${r.exp.length > 1 ? ` · also used in ${esc(r.exp.slice(1).map((x) => x.split(" ")[0]).join(", "))}` : ""}</div></td><td>${statusPill(r.status)}</td><td class="t2">${r.learns ? (r.status === "training" ? `${ksteps(r.steps)} / ${ksteps(r.total)}` : ksteps(r.steps)) : "–"}</td><td class="${sOk}">${pct(r.success)}</td><td class="${mOk}">${mm(r.miss_mm)}</td><td class="muted small">${esc(r.date)}</td><td onclick="event.stopPropagation()"><button class="btn" style="padding:4px 10px" title="watch this run in the 3D viewer" onclick="watch('${r.id}',this)">▶</button></td></tr>`;
+  return `<tr class="click" onclick="location.hash='#/run/${r.id}'"><td class="pick" onclick="event.stopPropagation()"><input type="checkbox" title="pick to compare" ${PICK.includes(r.id) ? "checked" : ""} onchange="pick('${r.id}',this.checked)"></td><td${nested ? ' style="padding-left:28px"' : ""}>${nested ? `<span class="t2">seed ${r.seed}</span>` : `<b>${esc(runTitle(r))}</b> <span class="muted small">· seed ${r.seed}</span>`}<div class="tiny muted">${nested ? esc(r.date) : esc(r.algo) + (r.mode ? " · " + esc(r.mode) : "") + " · " + esc(r.date)}</div></td><td>${statusPill(r.status)}</td><td class="t2">${r.learns ? (r.status === "training" ? `${ksteps(r.steps)} / ${ksteps(r.total)}` : ksteps(r.steps)) : "–"}</td><td class="num${sOk}">${pct(r.success)}</td><td class="num${mOk}">${mm(r.miss_mm)}</td><td onclick="event.stopPropagation()"><button class="btn" style="padding:4px 10px" title="watch this run in the 3D viewer" onclick="watch('${r.id}',this)">▶</button></td></tr>`;
 }
 
 // ---------- page: Run ----------
-async function loadRun(id, quiet) { const d = await api("/api/run/" + encodeURIComponent(id)); if (route().arg !== id) return; detail.run = d; pageRun(id); }
+async function loadRun(id) { const d = await api("/api/run/" + encodeURIComponent(id)); if (route().arg !== id) return; detail.run = d; detail.runId = id; pageRun(id); }
 function pageRun(id) {
+  if (detail.run?.error && detail.runId === id) return mount([["h", `<a class="small" href="#/runs">← all runs</a><div class="empty" style="margin-top:14px">No run called “${esc(id)}”. It may have been renamed or deleted.</div>`]]);
   if (!detail.run || detail.run.id !== id) { if (!detail.loading) { detail.loading = 1; mount([["h", `<p class="muted">Loading…</p>`]]); loadRun(id).finally(() => (detail.loading = 0)); } return; }
   const r = detail.run, ev = r.eval || {};
   const fromState = S.runs.find((x) => x.id === id);
@@ -584,15 +632,15 @@ function pageRun(id) {
   const media = `<div class="grid g2" style="margin-top:16px"><div class="card"><h3>Video</h3><p class="muted small" style="margin:4px 0 12px">${r.gif ? "3 test attempts after training: the red ball is the target." : ""}</p>${gif}</div>
     <div class="card"><h3>Watch &amp; inspect</h3><div class="row" style="margin-top:12px"><button class="btn primary" onclick="watch('${r.id}',this)">▶ Watch live in 3D</button><button class="btn" onclick="act({kind:'folder',run:'${r.id}'},this)">Open folder</button><button class="btn" onclick="copy('${r.id}')">Copy run name</button></div>
     <p class="tiny muted" style="margin:12px 0 18px">Watch live opens a MuJoCo window at the speed set below, with the ${r.status === "training" ? "latest saved checkpoint, so you see it improve" : "kept model"}. Close the window to stop.</p><div style="margin:-6px 0 18px">${speedCtl()}</div>
-    <dl class="kv"><dt>Run name</dt><dd class="mono">${esc(r.id)}</dd><dt>Counts for</dt><dd>${esc([r.best, ...r.exp].filter(Boolean).join(", ") || "nothing (archive)")}</dd><dt>Algorithm</dt><dd>${esc(r.algo)}</dd><dt>${tip("action mode", "Action mode")}</dt><dd>${esc(r.mode || "–")}</dd><dt>Kept model</dt><dd>${esc(r.summary?.best_checkpoint || "–")}</dd><dt>Code version</dt><dd class="mono">${esc(r.git_hash || "–")}</dd></dl></div></div>`;
+    <dl class="kv"><dt>Run name</dt><dd class="mono">${esc(r.id)}</dd><dt>Counts for</dt><dd>${esc([r.best, ...r.exp].filter(Boolean).join(", ") || "nothing (archive)")}</dd><dt>Algorithm</dt><dd>${esc(r.algo)}</dd><dt>${tip("action mode", "Action mode")}</dt><dd>${esc(r.mode || "–")}</dd><dt>${tip("checkpoint", "Kept model")}</dt><dd>${keptModel(r)}</dd><dt>Code version</dt><dd><span class="mono">${esc((r.git_hash || "–").replace(/-dirty$/, ""))}</span>${/-dirty$/.test(r.git_hash || "") ? ' <span class="muted small">(plus changes not yet committed)</span>' : ""}</dd></dl></div></div>`;
   const val = s("val/success"), roll = s("rollout/success_rate");
-  const charts = r.learns ? `<div class="sec"><h2>How it learned</h2><span class="hint">hover a chart for exact values · x-axis = training steps</span></div><div class="grid g2">
-    <div class="card"><h3>${tip("test score during training", "Success")}</h3><p class="tiny muted" style="margin:2px 0 10px">Test = separate validation targets, no randomness. Training = recent practice attempts, with exploration noise.</p>${chart([{ name: "test", pts: (val || []).map((p) => [p[0], p[1] * 100]) }, { name: "training attempts", pts: smooth((roll || []).map((p) => [p[0], p[1] * 100])), dash: 1, color: "var(--accent2)" }], { y0: 0, y1: 100, yf: (v) => v.toFixed(0) + "%" })}</div>
-    <div class="card"><h3>${tip("typical miss", "Typical miss on test targets")}</h3><p class="tiny muted" style="margin:2px 0 10px">Median final distance, in mm. Lower is better; 20 mm = success line.</p>${chart([{ name: "miss", pts: (s("val/median_mm") || []).map((p) => [p[0], p[1]]) }], { y0: 0, yf: (v) => v.toFixed(0) + " mm" })}</div>
-    <div class="card"><h3>${tip("reward", "Total reward per attempt")}</h3><p class="tiny muted" style="margin:2px 0 10px">The score the network maximises. It should rise, then flatten.</p>${chart([{ name: "reward", pts: smooth(s("rollout/ep_rew_mean")) }])}</div>
-    <div class="card"><h3>Reward, term by term</h3><p class="tiny muted" style="margin:2px 0 10px">Why the total moves: bonuses rise, penalties shrink toward 0.</p>${chart(Object.keys(sc).filter((k) => k.startsWith("reward/")).map((k) => ({ name: k.slice(7), pts: smooth(sc[k]) })), { legend: true })}<p class="tiny muted" style="margin:6px 0 0">Noisy curves are smoothed, like TensorBoard at 0.9.</p></div>
+  const charts = r.learns ? `<div class="sec"><h2>How it learned</h2><span class="hint">hover a chart for exact values · x-axis = training steps</span></div><div class="grid gc2">
+    <div class="card"><h3>${tip("test score during training", "Success")}</h3><p class="tiny muted" style="margin:2px 0 10px">Test = 100 separate validation targets, no randomness (a different set from the final test above, so the last point needn't match it). Training = recent practice attempts, with exploration noise.</p>${chart([{ name: "test", pts: (val || []).map((p) => [p[0], p[1] * 100]) }, { name: "training attempts", pts: smooth((roll || []).map((p) => [p[0], p[1] * 100])), dash: 1, color: "var(--accent2)" }], { y0: 0, y1: 100, yf: (v) => v.toFixed(0) + "%", cols: 2 })}</div>
+    <div class="card"><h3>${tip("typical miss", "Typical miss on test targets")}</h3><p class="tiny muted" style="margin:2px 0 10px">Median final distance, in mm. Lower is better; 20 mm = success line.</p>${chart([{ name: "miss", pts: (s("val/median_mm") || []).map((p) => [p[0], p[1]]) }], { y0: 0, yf: (v) => v.toFixed(0) + " mm", cols: 2 })}</div>
+    <div class="card"><h3>${tip("reward", "Total reward per attempt")}</h3><p class="tiny muted" style="margin:2px 0 10px">The score the network maximises. It should rise, then flatten.</p>${chart([{ name: "reward", pts: smooth(s("rollout/ep_rew_mean")) }], { cols: 2 })}</div>
+    <div class="card"><h3>Reward, term by term</h3><p class="tiny muted" style="margin:2px 0 10px">Why the total moves: bonuses rise, penalties shrink toward 0.</p>${chart(Object.keys(sc).filter((k) => k.startsWith("reward/")).map((k) => ({ name: k.slice(7), pts: smooth(sc[k]) })), { legend: true, cols: 2 })}<p class="tiny muted" style="margin:6px 0 0">Noisy curves are smoothed, like TensorBoard at 0.9.</p></div>
   </div>
-  <details data-k="internals"><summary>Learning internals (losses, exploration, speed)</summary><div class="in"><p class="small muted">For diagnosis only; don't judge progress from these. See "Every chart explained" in the <a href="#/doc/User Ref/GUIDE.md">guide</a>.</p><div class="grid g2">${Object.keys(sc).filter((k) => k.startsWith("train/") || k.startsWith("time/")).map((k) => `<div><div class="small t2" style="margin-bottom:6px">${esc(k)}</div>${chart([{ name: k, pts: smooth(sc[k]) }], { h: 170 })}</div>`).join("")}</div></div></details>` : `<div class="card" style="margin-top:16px"><p class="t2" style="margin:0">This is the exact-maths controller: nothing is learned, so there are no learning curves. It is the reference the trained networks are compared against.</p></div>`;
+  <details data-k="internals"><summary>Learning internals (losses, exploration, speed)</summary><div class="in"><p class="small muted">For diagnosis only; don't judge progress from these. See "Every chart explained" in the <a href="#/doc/User Ref/GUIDE.md">guide</a>.</p><div class="grid gc2">${Object.keys(sc).filter((k) => k.startsWith("train/") || k.startsWith("time/")).map((k) => `<div><div class="small t2" style="margin-bottom:6px">${esc(k)}</div>${chart([{ name: k, pts: smooth(sc[k]) }], { h: 170, cols: 2 })}</div>`).join("")}</div></div></details>` : `<div class="card" style="margin-top:16px"><p class="t2" style="margin:0">This is the exact-maths controller: nothing is learned, so there are no learning curves. It is the reference the trained networks are compared against.</p></div>`;
   const diffs = r.diff.length ? `<table><tr><th>Setting</th><th>${esc(r.base)}</th><th>This run</th></tr>${r.diff.map((d) => `<tr><td>${esc(d.name)}<div class="tiny muted mono">${esc(d.key)}</div></td><td class="muted mono small">${cfgVal(d.base)}</td><td class="mono small" style="color:var(--cream)">${cfgVal(d.this)}</td></tr>`).join("")}</table>` : `<p class="muted small">${r.base ? "Identical to " + esc(r.base) + " apart from the seed." : "This is a reference setup itself."}</p>`;
   mount([
     ["h", `<a class="small" href="#/runs">← all runs</a><div class="row" style="margin-top:10px">${statusPill(r.status)}${r.best ? `<span class="pill good">counts for ${esc(r.best)}</span>` : ""}${r.exp.map((x) => `<span class="pill">${esc(x.split(" · ")[0])}</span>`).join("")}</div><h1 style="margin-top:10px">${esc(runTitle(r))} <span class="muted" style="font-weight:500">· seed ${r.seed}</span></h1>${r.why ? `<p class="t2" style="max-width:820px;margin:8px 0 0"><span class="muted">Why this run exists:</span> ${esc(r.why)}</p>` : ""}`],
@@ -612,12 +660,13 @@ function md(text, path) {
   el.innerHTML = marked.parse(text.replace(/<!--[\s\S]*?-->/g, ""));
   const resolve = (src) => new URL(src, "http://x/" + (dir ? dir + "/" : "")).pathname.slice(1);
   el.querySelectorAll("img").forEach((i) => { const s = i.getAttribute("src"); if (s && !/^(https?:|data:|\/)/.test(s)) i.src = "/file/" + resolve(s); i.loading = "lazy"; });
-  el.querySelectorAll("a").forEach((a) => { const h = a.getAttribute("href"); if (h && /\.md(#.*)?$/.test(h) && !/^https?:/.test(h)) a.href = "#/doc/" + resolve(h.replace(/#.*/, "")); else if (h && /^https?:/.test(h)) a.target = "_blank"; });
+  el.querySelectorAll("a").forEach((a) => { const h = a.getAttribute("href"); if (h && /^\s*javascript:/i.test(h)) a.removeAttribute("href"); if (h && /\.md(#.*)?$/.test(h) && !/^https?:/.test(h)) a.href = "#/doc/" + resolve(h.replace(/#.*/, "")); else if (h && /^https?:/.test(h)) a.target = "_blank"; });
   el.querySelectorAll("table").forEach((t) => t.classList.add("tablewrap"));
   el.querySelectorAll("h2").forEach((h, i) => (h.id = "h" + i));
+  el.querySelectorAll("td").forEach((td) => { const v = td.textContent.trim(); if (v === "PASS" || v === "FAIL") td.innerHTML = `<span class="pill ${v}">${v}</span>`; });
   return el.innerHTML;
 }
-function inline(s) { return marked.parseInline(esc(s).replace(/&#39;/g, "'").replace(/&quot;/g, '"')); }
+function inline(s) { return marked.parseInline(esc(s).replace(/&#39;/g, "'").replace(/&quot;/g, '"')).replace(/href="\s*javascript:[^"]*"/gi, 'href="#"'); }
 // collapsible groups in the doc list; which ones are shut is remembered per browser
 const SHUT = new Set(store.get("shut", []));
 function toggleGroup(el) { const g = el.dataset.g; SHUT.has(g) ? SHUT.delete(g) : SHUT.add(g); store.set("shut", [...SHUT]); el.classList.toggle("shut"); }
@@ -655,7 +704,7 @@ function pageDecisions() {
   const t = decText.toLowerCase();
   const list = S.decisions.filter((d) => (decPhase === "all" || d.phase === decPhase) && (!t || (d.what + d.why).toLowerCase().includes(t))).slice().reverse();
   mount([
-    ["h", `<h1>Decisions</h1><p class="t2">Every choice Claude made, with its reason, newest first. Source: <a href="#/doc/docs/decisions.md">docs/decisions.md</a>.</p><div class="row" style="margin-top:14px"><div class="filters">${["all", ...phasesList].map((p) => `<button class="${decPhase === p ? "on" : ""}" onclick="decPhase='${p}';$('#main').dataset.keys='';render()">${p === "all" ? "All" : "Phase " + p}</button>`).join("")}</div><span class="sp"></span><input class="filter" id="decq" placeholder="Filter decisions…" oninput="decText=this.value;pageDecisions()"></div>`],
+    ["h", `<h1>Decisions</h1><p class="t2">Claude's engineering log: every technical choice it made, with its reason, newest first. It's written for developers; the results themselves are on the Experiments and Runs pages. Source: <a href="#/doc/docs/decisions.md">docs/decisions.md</a>.</p><div class="row" style="margin-top:14px"><div class="filters">${["all", ...phasesList].map((p) => `<button class="${decPhase === p ? "on" : ""}" onclick="decPhase='${p}';$('#main').dataset.keys='';render()">${p === "all" ? "All" : p === "-" ? "General" : "Phase " + p}</button>`).join("")}</div><span class="sp"></span><input class="filter" id="decq" placeholder="Filter decisions…" oninput="decText=this.value;pageDecisions()"></div>`],
     ["list", list.length ? `<div class="card tablewrap" style="margin-top:16px;padding:6px 8px"><table><tr><th style="width:110px">Date</th><th style="width:70px">Phase</th><th>Decision</th><th>Why</th></tr>${list.map((d) => `<tr><td class="muted small">${esc(d.date)}</td><td><span class="pill">${esc(d.phase)}</span></td><td class="small">${inline(d.what)}</td><td class="small muted">${inline(d.why)}</td></tr>`).join("")}</table></div>` : `<div class="empty" style="margin-top:16px">No decisions match.</div>`],
   ]);
   keepInput("#decq", decText);
@@ -692,7 +741,7 @@ async function pageSearch(q) {
   const hits = detail.search?.q === q ? detail.search.hits : null;
   if (!hits) { mount([["h", `<p class="muted">Searching…</p>`]]); const h = await api("/api/search?q=" + encodeURIComponent(q)); detail.search = { q, hits: h }; return pageSearch(q); }
   mount([["h", `<h1>Search: “${esc(q)}”</h1><p class="muted">${hits.length} result(s)${hits.length >= 80 ? " (first 80)" : ""}</p>`],
-    ["l", hits.length ? `<div class="card" style="padding:6px 8px">${hits.map((h, i) => `<a href="${hitHref(h)}" onclick="detail.hlNext='${esc(q).replace(/'/g, "")}'" style="display:block;padding:10px 12px;border-bottom:1px solid var(--line);color:var(--text)"><div class="tiny" style="color:var(--accent2);text-transform:uppercase;letter-spacing:.06em">${esc(h.kind)} · ${esc(h.title)}</div><div class="small t2">${esc(h.text)}</div></a>`).join("")}</div>` : `<div class="empty">Nothing found.</div>`]]);
+    ["l", hits.length ? `<div class="card" style="padding:6px 8px">${hits.map((h, i) => `<a href="${hitHref(h)}" data-q="${esc(q)}" onclick="detail.hlNext=this.dataset.q" style="display:block;padding:10px 12px;border-bottom:1px solid var(--line);color:var(--text)"><div class="tiny" style="color:var(--accent2);text-transform:uppercase;letter-spacing:.06em">${esc(h.kind)} · ${esc(h.title)}</div><div class="small t2">${esc(h.text)}</div></a>`).join("")}</div>` : `<div class="empty">Nothing found.</div>`]]);
 }
 // filter inputs live in blocks that never re-render while typing; restore their text after a page switch
 function keepInput(sel, val) { const el = $("#main").querySelector(sel); if (el && document.activeElement !== el && el.value !== val) el.value = val; }

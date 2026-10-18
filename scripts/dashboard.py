@@ -24,7 +24,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
 RUNS, STATIC = ROOT / "runs", Path(__file__).resolve().parent / "dashboard"
-NAME = re.compile(r"^(\d{4}-\d\d-\d\d)_(.+)_s(\d+)$")
+NAME = re.compile(r"^(\d{4}-\d\d-\d\d)_([^/]+)_s(\d+)$")
 MEDIA = {
     ".gif": "image/gif",
     ".png": "image/png",
@@ -142,6 +142,7 @@ SKIP_DIFF = ("seed", "name", "val.", "dry_", "gif_episodes", "eval_episodes")
 DOCS = [  # (group, title, path); a missing file is left out
     ("Start here", "Dashboard guide", "User Ref/GUIDE.md"),
     ("Start here", "First-time setup", "User Ref/SETUP.md"),
+    ("Start here", "Phase 5 guide", "docs/PHASE5_GUIDE.md"),
     ("Results", "Experiment results", "docs/results.md"),
     ("Design (yours, locked)", "Spec", "docs/SPEC.md"),
     ("Design (yours, locked)", "Roadmap", "docs/ROADMAP.md"),
@@ -234,7 +235,18 @@ def training() -> set[tuple[str, int | None]]:
         ):
             i = a.index("--config") + 1
             seed = int(a[a.index("--seed") + 1]) if "--seed" in a else None
-            out.add((Path(a[i]).stem if i < len(a) else "?", seed))
+            # runs are named after the config's `name:`, which can differ from the file name (configs/pilot/)
+            c = yread(ROOT / a[i]) if i < len(a) else None
+            out.add(
+                (
+                    c.get("name")
+                    if isinstance(c, dict)
+                    else Path(a[i]).stem
+                    if i < len(a)
+                    else "?",
+                    seed,
+                )
+            )
     return out
 
 
@@ -293,8 +305,11 @@ def scalars(run: Path, live: bool) -> dict:
                 EventAccumulator(str(dirs[-1]), size_guidance={"scalars": 0}),
                 0.0,
                 {},
+                dirs[-1],
             ]
-        if ent[1] == 0 or (live and time.time() - ent[1] > 5):
+        # live runs: at most every 5 s; finished ones: once more if the log grew after the last read
+        grown = max((f.stat().st_mtime for f in ent[3].iterdir()), default=0) > ent[1]
+        if ent[1] == 0 or (grown and (not live or time.time() - ent[1] > 5)):
             acc = ent[0]
             acc.Reload()  # reads only events appended since the last call
             ent[1] = time.time()
@@ -403,7 +418,9 @@ def run_meta(run: Path, live: set, role: dict) -> dict:
     sm = jread(run / "summary.json") or {}
     cfg = yread(run / "config.yaml") or {}
     total = cfg.get("total_steps") or 0
-    alive = (name, seed) in live or ((name, None) in live and cfg.get("seed") == seed)
+    alive = ((name, seed) in live or ((name, None) in live and cfg.get("seed") == seed)) and newest(
+        name, seed
+    ) == run  # an older dated folder of the same config + seed is not the one training
     status = sm.get("status", "?")
     steps, sps = sm.get("steps") or 0, sm.get("steps_per_s")
     val = jread(run / "val.json") or {}
@@ -416,6 +433,8 @@ def run_meta(run: Path, live: set, role: dict) -> dict:
             fps = sc.get("time/fps")
             sps = fps[-1][1] if fps else sps
     elif status == "running":
+        sc = scalars(run, live=False)  # the log goes further than the last checkpoint's summary
+        steps = max(steps, max((v[-1][0] for v in sc.values() if v), default=0))
         status = (
             "stopped"  # summary says running but no process: crashed, killed or the laptop slept
         )
@@ -506,7 +525,7 @@ def phases(g: dict, runs: list[dict]) -> dict:
         "stage": stage if in_phase else "idle",
         "stage_text": STAGES.get(stage, "")
         if in_phase
-        else "Idle between phases. The next phase starts when you paste its /goal in Claude's terminal.",
+        else "Idle between phases. The next phase starts when you give Claude its go-ahead in the terminal (Guide §2).",
         "list": rows,
         "runs": [r["id"] for r in mine],
     }
@@ -701,9 +720,12 @@ def state_cached() -> dict:
     with _state_lock:
         if time.time() - _state["t"] >= 1 or _state["body"] is None:
             body = state()
-            _state.update(
-                t=time.time(), body=body, v=str(hash(json.dumps(body, sort_keys=True, default=str)))
-            )
+            # version without the machine stats (they change every second), so unchanged polls stay tiny
+            stable = {k: v for k, v in body.items() if k != "machine"}
+            v = str(hash(json.dumps(stable, sort_keys=True, default=str)))
+            if v == _state["v"]:
+                body["machine"] = _state["body"]["machine"]  # sent only along with a real change
+            _state.update(t=time.time(), body=body, v=v)
         return _state["body"]
 
 
@@ -755,7 +777,7 @@ def action(body: dict) -> dict:
         return {"ok": "A window opens in a few seconds. Close it or press Ctrl+C in it to stop."}
     if kind == "gate":
         n = body.get("phase")
-        if not isinstance(n, int) or not 0 <= n <= 7:
+        if not isinstance(n, int) or isinstance(n, bool) or not 0 <= n <= 7:
             return {"error": "bad phase"}
         jid = f"gate-{n}"
         if JOBS.get(jid, {}).get("state") == "running":
@@ -803,16 +825,17 @@ def action(body: dict) -> dict:
 # ---------- HTTP ----------
 def safe_path(rel: str, allowed: tuple[str, ...]) -> Path | None:
     """Resolve rel inside the project, only under the allowed prefixes; None for anything else (e.g. ../)."""
-    p = (ROOT / unquote(rel)).resolve()
     try:
+        p = (ROOT / unquote(rel)).resolve()
         r = p.relative_to(ROOT).as_posix()
-    except ValueError:
+    except (ValueError, OSError):  # outside the project, or a NUL byte in the path
         return None
     return p if p.is_file() and r.startswith(allowed) else None
 
 
 class Handler(BaseHTTPRequestHandler):
     server_version = "rlarm-dashboard"
+    timeout = 10  # a client that sends less body than it announced can't hold a thread forever
 
     def log_message(self, *a):  # quiet: the terminal only shows the URL
         pass
@@ -889,8 +912,10 @@ class Handler(BaseHTTPRequestHandler):
             or self.headers.get("Content-Type", "").split(";")[0] != "application/json"
         ):
             return self.send(403, b"forbidden", "text/plain")
-        n = min(int(self.headers.get("Content-Length") or 0), 10_000)
         try:
+            n = int(self.headers.get("Content-Length") or 0)
+            if not 0 <= n <= 10_000:
+                return self.json({"error": "bad length"}, 400)
             body = json.loads(self.rfile.read(n) or b"{}")
         except ValueError:
             return self.json({"error": "bad json"}, 400)

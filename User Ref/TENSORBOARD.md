@@ -4,9 +4,19 @@
 cd ~/Projects/Claude/rl-arm
 uv run python scripts/tb.py             # then open http://localhost:6006
 ```
-It opens your browser in dark mode on the Custom Scalars tab, with lines smoothed (0.85) so trends are easy to see. Options: `--light` (light theme), `--smoothing 0.6`, `--no-open`, `--filter 'e1_|e2_'` (only run names matching a regex), `--since 2026-10-19` (only newer runs), `--port 6007`.
+`tb.py` opens **one browser tab per group of runs**, so each tab's sidebar shows only that group:
 
-`tb.py` gives a tidier view than raw `tensorboard --logdir runs`: dry runs are hidden, runs are named `<config>/s<seed>` instead of long folder paths, and a **Custom Scalars** tab (top bar) shows the charts that matter, grouped:
+| Tab | Contains |
+|---|---|
+| **Best runs** | The runs listed in `docs/best_runs.yaml`: the ones that count (Phase 0 Reacher, Phase 3 reach and hold) |
+| **E1 Action modes**, **E2 SAC vs PPO**, **E3 HER vs shaped** | Phase 4 experiments. They appear automatically once their configs are named `e1_*`, `e2_*`, `e3_*` |
+| **Archive** | Old sweeps and pilots. Hidden unless you pass `--archive` |
+
+Dry runs never appear. Runs are named `phase3/reach/reach_final/s0` (Best) or `delta_pos/s0` (experiments).
+
+It opens in dark mode on the Custom Scalars page, with lines smoothed (0.85). Options: `--archive`, `--light`, `--smoothing 0.6`, `--no-open`, `--port 6006` (first port; later tabs use the next ones). Ctrl+C stops every tab.
+
+Inside each tab, the **Custom Scalars** page (top bar) shows the charts that matter, grouped:
 1. **Headline:** success rate, validation success, median distance in mm, episode reward.
 2. **Reward terms:** every term on one chart.
 3. **Learning internals:** losses, entropy, PPO health.

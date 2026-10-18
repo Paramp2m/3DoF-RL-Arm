@@ -56,3 +56,4 @@ One line per decision: `YYYY-MM-DD | phase | decision | reason`
 2026-10-18 | 3 | scripts/fresh_eval.py: diagnostic eval on fresh goals (seed 100000+) with long-move (>=2 rad joint move) split | Reproducible evidence for the report; not used by checks
 2026-10-18 | 3 | best_runs phase3 -> 2026-10-18_{reach,hold}_final_s{0,1,2} (gate: reach 96.0/96/96, hold 95.3; fresh 1000 goals: reach 94.7/94.2/95.3, hold 92.5/93.1/93.8); GIFs replaced with seed-0 final videos | Beat the 2026-10-17 HER runs on eval and fresh goals for both tasks
 2026-10-18 | 4 | scripts/tb.py: curated TensorBoard view (symlinked runs/_tb, config/seed names, dry runs hidden, Custom Scalars layout) | raw logdir was cluttered for the many runs of Phase 4
+2026-10-18 | 4 | tb.py opens one browser tab per group (Best runs from best_runs.yaml, E1-E3 by config prefix e1_/e2_/e3_, Archive opt-in) | old sweeps cluttered the view; Phase 4 needs clear separation

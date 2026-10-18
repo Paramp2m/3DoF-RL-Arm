@@ -255,7 +255,6 @@ def c16():
 
 # ---- Phase 2: reach environment ----
 REACH_CFG = "configs/reach.yaml"
-from rlarm.envs.base import MODES
 
 
 def _reach(mode: str = "delta_pos", **arm):
@@ -272,6 +271,8 @@ def c21():
 
     from stable_baselines3.common.env_checker import check_env
 
+    from rlarm.envs.base import MODES
+
     out = []
     for mode in MODES:
         with warnings.catch_warnings(record=True) as w:
@@ -282,6 +283,8 @@ def c21():
 
 
 def c22():
+    from rlarm.envs.base import MODES
+
     bad, vmax = [], 0.0
     for mode in MODES:
         env = _reach(mode)
@@ -302,6 +305,8 @@ def c22():
 
 
 def c23():
+    from rlarm.envs.base import MODES
+
     worst = 0.0
     for mode in MODES:
         env = _reach(mode)
@@ -324,6 +329,8 @@ def c23():
 
 
 def c24():
+    from rlarm.envs.base import MODES
+
     same = []
     for mode in MODES:
         trajs, env = [], _reach(mode)

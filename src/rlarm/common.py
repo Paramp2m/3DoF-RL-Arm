@@ -39,7 +39,9 @@ def git_hash() -> str:
     run = lambda *a: subprocess.run(
         ["git", *a], check=False, cwd=ROOT, capture_output=True, text=True
     ).stdout.strip()
-    return run("rev-parse", "HEAD") + ("-dirty" if run("status", "--porcelain") else "")
+    return run("rev-parse", "HEAD") + (
+        "-dirty" if run("status", "--porcelain", "--untracked-files=no") else ""
+    )
 
 
 def algo_class(cfg: dict):

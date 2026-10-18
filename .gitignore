@@ -6,7 +6,8 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 MUJOCO_LOG.TXT
+MJDATA.TXT
 .claude/settings.local.json
 .claude/unlock
 *.egg-info/
-/home/param-hypr/Projects/Claude/rl-arm/User Ref/
+/User Ref/

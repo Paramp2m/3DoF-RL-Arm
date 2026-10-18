@@ -89,7 +89,8 @@ def main() -> None:
     total = cfg["dry_steps"] if a.dry_run else cfg["total_steps"]
     run_id = f"{date.today()}_{cfg['name']}_s{cfg['seed']}" + ("_dry" if a.dry_run else "")
     run = ROOT / "runs" / ("_dry" if a.dry_run else "") / run_id
-    shutil.rmtree(run, ignore_errors=True)
+    if a.dry_run:  # real runs are never overwritten: a repeat launch fails at mkdir
+        shutil.rmtree(run, ignore_errors=True)
     run.mkdir(parents=True)
     (run / "config.yaml").write_text(yaml.safe_dump(cfg))
     (run / "git_hash.txt").write_text(git_hash() + "\n")

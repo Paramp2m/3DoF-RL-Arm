@@ -103,6 +103,7 @@ class ArmGoalEnv(gym.Env):
             get("joint_speed") if w.get("w_settle") else None,
             get("limit_prox") if w.get("w_limit") else None,
             get("collision") if w.get("w_collision") else None,
+            get("reach_dist") if w.get("w_reach") else None,
         )
         return sum(t.values())
 
@@ -137,6 +138,7 @@ class ArmGoalEnv(gym.Env):
             speed,
             prox,
             extra.get("collision"),
+            extra.get("reach_dist"),
         )
         d = float(np.linalg.norm(obs["achieved_goal"] - obs["desired_goal"].astype(float)))
         return (

@@ -10,7 +10,7 @@ POS, MOTOR = 0, 1  # actuator groups in arm.xml
 
 
 def load_model(cfg: dict) -> mujoco.MjModel:
-    """Build the model: enable one actuator set, set gains / damping / torque limit from cfg['arm']."""
+    """Build the model (overrides apply to the 3 arm dofs only; task bodies keep their own): enable one actuator set, set gains / damping / torque limit from cfg['arm']."""
     a = cfg["arm"]
     m = mujoco.MjModel.from_xml_path(str(ROOT / a["xml"]))
     use = {"position": POS, "motor": MOTOR}[a["actuators"]]
@@ -25,9 +25,9 @@ def load_model(cfg: dict) -> mujoco.MjModel:
             m.actuator_forcelimited[i] = 1
         else:
             m.actuator_ctrlrange[i] = [-a["tau_max"], a["tau_max"]]
-    m.dof_damping[:] = a["joint_damping"]
-    m.dof_armature[:] = a["armature"]
-    m.dof_frictionloss[:] = a.get("frictionloss", 0.0)
+    m.dof_damping[:3] = a["joint_damping"]
+    m.dof_armature[:3] = a["armature"]
+    m.dof_frictionloss[:3] = a.get("frictionloss", 0.0)
     for body, mass in a.get("body_mass", {}).items():
         b = m.body(body).id
         m.body_inertia[b] *= mass / m.body_mass[b]  # same shape, new mass

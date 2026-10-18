@@ -18,10 +18,12 @@ def terms(
     speed=None,
     limit_prox=None,
     collision=None,
+    reach_dist=None,
 ) -> dict:
     """Each reward term, shape (...,), keyed by name. speed = ‖q̇‖ (rad/s), needed only for settle;
     limit_prox = Σ_j max(0, 1 - gap_j / margin) over joints (see ArmGoalEnv), needed only for w_limit.
-    collision = 1 if the arm touched the obstacle during the step, needed only for w_collision."""
+    collision = 1 if the arm touched the obstacle during the step, needed only for w_collision.
+    reach_dist = pad->cube distance (push), needed only for w_reach (goal independent, so HER-safe)."""
     d = np.linalg.norm(np.asarray(achieved, float) - np.asarray(desired, float), axis=-1)
     t = {
         "distance": -w["w_distance"] * d,
@@ -33,10 +35,13 @@ def terms(
         limit_prox is not None or not w.get("w_limit")
     ), "w_settle needs speed, w_limit needs limit_prox"
     assert collision is not None or not w.get("w_collision"), "w_collision needs collision"
+    assert reach_dist is not None or not w.get("w_reach"), "w_reach needs reach_dist"
     if w.get("w_settle"):
         t["settle"] = -w["w_settle"] * np.asarray(speed, float) ** 2 * (d < success_dist)
     if w.get("w_limit"):
         t["limits"] = -w["w_limit"] * np.asarray(limit_prox, float)
+    if w.get("w_reach"):
+        t["reach"] = -w["w_reach"] * np.asarray(reach_dist, float)
     if w.get("w_collision"):
         t["collision"] = -w["w_collision"] * np.asarray(collision, float)
     return t

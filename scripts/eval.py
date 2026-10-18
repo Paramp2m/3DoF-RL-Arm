@@ -7,6 +7,7 @@ from pathlib import Path
 import imageio.v2 as imageio
 import yaml
 
+from rlarm.agents import IKAgent
 from rlarm.common import apply_threads, evaluate, evaluate_goal, load_policy, make_env
 
 
@@ -17,7 +18,9 @@ def main() -> None:
     run = Path(a.run)
     cfg = yaml.safe_load((run / "config.yaml").read_text())
     apply_threads(cfg)
-    model = load_policy(cfg, run / "model.zip")
+    model = (
+        IKAgent(make_env(cfg)) if cfg.get("agent") == "ik" else load_policy(cfg, run / "model.zip")
+    )
     if "task" in cfg:  # arm tasks: SPEC §8 schema
         out = evaluate_goal(model, make_env(cfg), cfg["eval_episodes"])
     else:

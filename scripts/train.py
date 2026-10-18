@@ -9,7 +9,10 @@ from datetime import date
 
 import yaml
 from stable_baselines3.common.callbacks import BaseCallback, CallbackList
+from stable_baselines3.common.env_util import make_vec_env
+from stable_baselines3.common.vec_env import SubprocVecEnv
 
+from rlarm.agents import IKAgent
 from rlarm.common import (
     ROOT,
     algo_class,
@@ -117,27 +120,35 @@ def main() -> None:
 
     write("running", 0)
     try:
-        env = make_env(cfg)
-        model = algo_class(cfg)(
-            cfg["algo"]["policy"],
-            env,
-            seed=cfg["seed"],
-            device="cpu",
-            tensorboard_log=str(run / "tb"),
-            **algo_kwargs(cfg),
-        )
-        cbs = [SummaryCallback(write, total, run)]
         v = cfg.get("val")  # optional best-checkpoint selection on validation goals
-        if v:
-            every, n_val = (total // 2, 2) if a.dry_run else (v["every"], v["episodes"])
-            cbs.append(ValCallback(cfg, run, every, n_val, v["seed"]))
-        model.learn(total, callback=CallbackList(cbs), progress_bar=False)
+        if cfg.get("agent") == "ik":  # classical baseline (Phase 4 E4): nothing to learn
+            model, total, v = IKAgent(make_env(cfg)), 0, None
+        else:
+            n_envs = cfg["algo"].get("n_envs", 1)  # PPO: SubprocVecEnv workers (SPEC §6)
+            env = (
+                make_vec_env(lambda: make_env(cfg), n_envs, cfg["seed"], vec_env_cls=SubprocVecEnv)
+                if n_envs > 1
+                else make_env(cfg)
+            )
+            model = algo_class(cfg)(
+                cfg["algo"]["policy"],
+                env,
+                seed=cfg["seed"],
+                device="cpu",
+                tensorboard_log=str(run / "tb"),
+                **algo_kwargs(cfg),
+            )
+            cbs = [SummaryCallback(write, total, run)]
+            if v:
+                every, n_val = (total // 2, 2) if a.dry_run else (v["every"], v["episodes"])
+                cbs.append(ValCallback(cfg, run, every, n_val, v["seed"]))
+            model.learn(total, callback=CallbackList(cbs), progress_bar=False)
         if v and (run / "model_best.zip").exists():
             model.save(run / "final.zip")  # last policy kept for comparison; model.zip = val-best
             os.replace(run / "model_best.zip", run / "model.zip")
             best = f"model.zip (val best @ {cbs[1].best[1]} steps; final.zip = last)"
             model = load_policy(cfg, run / "model.zip")
-        else:
+        elif cfg.get("agent") != "ik":
             model.save(run / "model.zip")
         n_eval = cfg["dry_eval_episodes"] if a.dry_run else cfg["eval_episodes"]
         if "task" in cfg:

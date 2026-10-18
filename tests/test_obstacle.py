@@ -1,0 +1,44 @@
+import numpy as np
+
+from rlarm.agents import IKAgent
+from rlarm.common import ROOT, evaluate_goal, load_config, make_env
+from rlarm.kinematics import ik
+
+
+def env():
+    return make_env(load_config(ROOT / "configs/obstacle_pilot.yaml"))
+
+
+def seg_hits_box(e, a, b) -> bool:
+    """Does the segment a->b pass through the box? (sampled in the box frame)"""
+    box, quat = e.data.mocap_pos[e.omocap], e.data.mocap_quat[e.omocap]
+    yaw = 2 * np.arctan2(quat[3], quat[0])
+    R = np.array([[np.cos(yaw), -np.sin(yaw), 0], [np.sin(yaw), np.cos(yaw), 0], [0, 0, 1]])
+    pts = a + np.linspace(0, 1, 200)[:, None] * (b - a)
+    loc = (pts - box) @ R
+    return bool((np.abs(loc) <= e.half).all(axis=1).any())
+
+
+def test_reset_invariants_200_seeds():
+    e = env()
+    for seed in range(200):
+        obs, info = e.reset(seed=seed)
+        assert not info["collision"] and not e._touching()
+        assert e._box_dist(e.goal) >= 0.04
+        assert e._goal_pose_free() and len(ik(e.goal, lim=e.lim))
+        tip = obs["achieved_goal"].astype(float)
+        assert seg_hits_box(e, tip, e.goal)
+        assert obs["observation"].shape == e.observation_space["observation"].shape
+
+
+def test_ik_baseline_is_blocked_and_collision_reported():
+    e = env()
+    ev = evaluate_goal(IKAgent(e), e, 30)
+    assert ev["collision_rate"] > 0.2
+
+
+def test_collision_reward_term_in_info():
+    e = env()
+    e.reset(seed=0)
+    *_, info = e.step(np.zeros(3))
+    assert "r_collision" in info and info["r_collision"] == -float(info["collision"])

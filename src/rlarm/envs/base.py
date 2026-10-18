@@ -79,6 +79,9 @@ class ArmGoalEnv(gym.Env):
         """Extra info entries (e.g. collision)."""
         return {}
 
+    def _substep(self) -> None:
+        """Called after every physics substep (e.g. to catch contacts between control steps)."""
+
     def _update_goal(self) -> None:
         """Called every control step before the observation: move a moving target."""
 
@@ -99,6 +102,7 @@ class ArmGoalEnv(gym.Env):
             self.ecfg["success_dist"],
             get("joint_speed") if w.get("w_settle") else None,
             get("limit_prox") if w.get("w_limit") else None,
+            get("collision") if w.get("w_collision") else None,
         )
         return sum(t.values())
 
@@ -124,6 +128,7 @@ class ArmGoalEnv(gym.Env):
         q = self.data.qpos[:3]
         gap = np.minimum(q - self.lim[:, 0], self.lim[:, 1] - q)
         prox = float(np.clip(1 - gap / self.ecfg["reward"].get("limit_margin", 0.05), 0, 1).sum())
+        extra = self._info_extra()
         t = rewards.terms(
             obs["achieved_goal"],
             obs["desired_goal"],
@@ -131,6 +136,7 @@ class ArmGoalEnv(gym.Env):
             self.ecfg["success_dist"],
             speed,
             prox,
+            extra.get("collision"),
         )
         d = float(np.linalg.norm(obs["achieved_goal"] - obs["desired_goal"].astype(float)))
         return (
@@ -141,7 +147,7 @@ class ArmGoalEnv(gym.Env):
                 "limit_prox": prox,
             }
             | {f"r_{k}": float(v) for k, v in t.items()}
-            | self._info_extra()
+            | extra
         )
 
     def reset(self, *, seed: int | None = None, options: dict | None = None):
@@ -174,6 +180,7 @@ class ArmGoalEnv(gym.Env):
                 self.data.qfrc_bias if self.mode == "torque_gravcomp" else 0
             )
             mujoco.mj_step(self.model, self.data)
+            self._substep()
             energy += (
                 np.abs(self.data.actuator_force[self.act] * self.data.qvel[:3]).sum()
                 * self.model.opt.timestep

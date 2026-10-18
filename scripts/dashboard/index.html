@@ -228,7 +228,7 @@ const GLOSS = {
   "steps per second": "How fast training runs on this laptop. More parallel runs = each one is slower.",
 };
 const tip = (word, label) => `<span class="term" tabindex="0" data-tip="${esc(GLOSS[word] || "")}">${esc(label || word)}</span>`;
-const TARGETS = { "Phase 3 · reach": [0.95, 10], "Phase 3 · hold": [0.90, null] };
+const TARGETS = { "Phase 3 · reach": [0.95, 10], "Phase 3 · hold": [0.90, null], "Phase 5 · obstacle": [0.85, null], "Phase 5 · push": [0.60, null] };
 const COLORS = ["var(--s1)", "var(--s2)", "var(--s3)", "var(--s4)", "var(--s5)"];
 
 // ---------- helpers ----------
@@ -626,6 +626,8 @@ function pageRun(id) {
     tile(mm(r.miss_mm), tip("typical miss", "Typical miss"), ev.final_dist_mm_mean != null ? `average: ${mm(ev.final_dist_mm_mean)}` : "", tgt && tgt[1] && r.miss_mm != null ? (r.miss_mm <= tgt[1] ? "good" : "bad") : ""),
     tile(ev.steps_to_success_mean != null ? (ev.steps_to_success_mean / 25).toFixed(1) + " s" : "–", tip("time to reach", "Time to reach"), ev.steps_to_success_mean != null ? `${ev.steps_to_success_mean.toFixed(0)} steps` : ""),
     tile(ev.smoothness_mean != null ? ev.smoothness_mean.toFixed(3) : "–", tip("smoothness", "Jerkiness"), "lower is smoother"),
+    ...(r.task === "track" && ev.track_err_mm_mean != null ? [tile(mm(ev.track_err_mm_mean), "Tracking error", "after step 50 · gate ≤ 25 mm", ev.track_err_mm_mean <= 25 ? "good" : "bad")] : []),
+    ...(ev.collision_rate != null ? [tile(pct(ev.collision_rate), "Collisions", "episodes touching the box · gate ≤ 5%", ev.collision_rate <= 0.05 ? "good" : "bad")] : []),
     tile(r.learns ? ksteps(r.status === "training" ? r.steps : r.summary?.steps ?? r.steps) : "–", tip("step", "Training steps"), r.wall_s ? `took ${dur(r.wall_s)}` : r.learns ? "" : "no training (exact maths)"),
   ].join("")}</div>`;
   const gif = r.gif ? `<img class="gif" src="/file/runs/${r.id}/video.gif" alt="recorded test attempts">` : `<div class="empty small">${r.status === "training" ? "The video is recorded when training ends. Meanwhile, Watch live shows the latest checkpoint." : "No video for this run."}</div>`;

@@ -1,0 +1,6 @@
+# Phase 4 E2. The SAC arm reuses the E1 delta_pos runs (identical config).
+title: "E2: algorithms (reach, delta_pos)"
+question: SAC vs PPO with the same env, reward, network and step budget.
+arms:
+  SAC: {config: configs/e1_delta_pos.yaml, seeds: [0, 1, 2]}
+  PPO: {config: configs/e2_ppo.yaml, seeds: [0, 1, 2]}

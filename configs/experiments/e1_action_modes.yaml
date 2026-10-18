@@ -1,0 +1,8 @@
+# Phase 4 E1. Each arm: config x seeds = one run folder runs/<date>_<name>_s<seed>. Read by scripts/make_results.py and check 4.1.
+title: "E1: action modes (SAC, reach)"
+question: Which action interface learns reach best with the same algorithm, reward and budget?
+arms:
+  delta_pos: {config: configs/e1_delta_pos.yaml, seeds: [0, 1, 2]}
+  abs_pos: {config: configs/e1_abs_pos.yaml, seeds: [0, 1, 2]}
+  torque: {config: configs/e1_torque.yaml, seeds: [0, 1, 2]}
+  torque_gravcomp: {config: configs/e1_torque_gravcomp.yaml, seeds: [0, 1, 2]}

@@ -481,6 +481,58 @@ def c35():
     )
 
 
+def c41():
+    from rlarm.common import EVAL_SCHEMA, arm_runs, experiments
+
+    n, bad = 0, []
+    for stem, exp in experiments().items():
+        for label, arm in exp["arms"].items():
+            for run in arm_runs(arm):
+                n += 1
+                f = run / "eval.json"
+                ev = json.loads(f.read_text()) if f.exists() else {}
+                ok = tuple(ev) == EVAL_SCHEMA and ev["episodes"] == 100
+                ok = ok and all(v is None or isinstance(v, int | float) for v in ev.values())
+                if not ok:
+                    bad.append(f"{stem}/{label}/{run.name}")
+    return not bad and n > 0, f"{n} runs, {len(bad)} without a valid eval.json {bad[:4]}"
+
+
+def c42():
+    r = sh(sys.executable, "scripts/make_results.py", "--check")
+    committed = sh("git", "diff", "--quiet", "HEAD", "--", "docs/results.md").returncode == 0
+    tracked = sh("git", "ls-files", "--error-unmatch", "docs/results.md").returncode == 0
+    ok = r.returncode == 0 and committed and tracked
+    return ok, f"{(r.stdout or r.stderr).strip()[-120:]}; committed={committed and tracked}"
+
+
+def c43():
+    from rlarm.common import arm_runs, experiments
+
+    stems = [s for s in experiments() if s[:2] in ("e1", "e2", "e3")]
+    pngs = {s: ROOT / f"docs/media/{s}_curves.png" for s in stems}
+    exps = experiments()
+
+    def fresh(s, p):  # a PNG older than any val.json it plots is stale
+        vals = [r / "val.json" for a in exps[s]["arms"].values() for r in arm_runs(a)]
+        return all(v.stat().st_mtime <= p.stat().st_mtime for v in vals)
+
+    ok = {
+        s: p.exists() and p.read_bytes()[:4] == b"\x89PNG" and fresh(s, p) for s, p in pngs.items()
+    }
+    return len(stems) == 3 and all(ok.values()), "curves " + ", ".join(
+        f"{s}={'ok' if v else 'missing'}" for s, v in ok.items()
+    )
+
+
+def c44():
+    text = (ROOT / "docs/results.md").read_text()
+    secs = [s for s in text.split("\n## ")[1:] if "\n|" in s]  # sections holding a table
+    need = ("Seeds:", "Step budget:", "Configs:")
+    miss = [s.splitlines()[0] for s in secs if not all(k in s for k in need)]
+    return len(secs) >= 4 and not miss, f"{len(secs)} tables, missing seeds/budget/configs: {miss}"
+
+
 CHECKS = {
     0: {"0.1": c01, "0.2": c02, "0.3": c03, "0.4": c04, "0.5": c05, "0.6": c06, "0.7": c07},
     1: {"1.1": c11, "1.2": c12, "1.3": c13, "1.4": c14, "1.5": c15, "1.6": c16},
@@ -495,6 +547,7 @@ CHECKS = {
         "2.8": c28,
     },
     3: {"3.1": c31, "3.2": c32, "3.3": c33, "3.4": c34, "3.5": c35},
+    4: {"4.1": c41, "4.2": c42, "4.3": c43, "4.4": c44},
 }
 
 

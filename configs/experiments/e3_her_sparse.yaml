@@ -1,0 +1,6 @@
+# Phase 4 E3. The shaped arm reuses the E1 delta_pos runs (identical config).
+title: "E3: sparse reward + HER vs shaped reward (SAC, reach)"
+question: Can HER with a pure success reward match SAC with the shaped reward?
+arms:
+  SAC + HER, sparse: {config: configs/e3_her_sparse.yaml, seeds: [0, 1, 2]}
+  SAC, shaped: {config: configs/e1_delta_pos.yaml, seeds: [0, 1, 2]}

@@ -122,7 +122,7 @@ def main() -> None:
     try:
         v = cfg.get("val")  # optional best-checkpoint selection on validation goals
         if cfg.get("agent") == "ik":  # classical baseline (Phase 4 E4): nothing to learn
-            model, total, v = IKAgent(make_env(cfg)), 0, None
+            model, total, v, best = IKAgent(make_env(cfg)), 0, None, "none (agent: ik)"
         else:
             n_envs = cfg["algo"].get("n_envs", 1)  # PPO: SubprocVecEnv workers (SPEC §6)
             env = (

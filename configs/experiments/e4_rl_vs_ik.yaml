@@ -1,0 +1,6 @@
+# Phase 4 E4. Best RL policy = the Phase 3 reach_final runs (docs/best_runs.yaml phase3.reach). IK is deterministic: one run.
+title: "E4: best RL policy vs classical IK controller (reach, delta_pos)"
+question: How close is the learned policy to closed-form IK + a joint-space controller? IK is deterministic and untrained, so it has one run and a 0-step budget.
+arms:
+  RL (reach_final, SAC + HER): {config: configs/reach_final.yaml, seeds: [0, 1, 2]}
+  IK controller: {config: configs/e4_ik.yaml, seeds: [0]}

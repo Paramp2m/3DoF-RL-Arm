@@ -87,6 +87,21 @@ def evaluate(model, env: gym.Env, episodes: int, seed: int = 10_000) -> np.ndarr
     return np.array(rets)
 
 
+EVAL_SCHEMA = (  # eval.json keys for arm tasks (SPEC §8), in the order evaluate_goal writes them
+    "episodes",
+    "success_rate",
+    "ever_success_rate",
+    "final_dist_mm_mean",
+    "final_dist_mm_median",
+    "steps_to_success_mean",
+    "final_joint_speed_mean",
+    "smoothness_mean",
+    "energy_mean",
+    "return_mean",
+    "return_std",
+)
+
+
 def evaluate_goal(
     policy, env: gym.Env, episodes: int, seed: int = 10_000, speed_window: int = 50
 ) -> dict:
@@ -133,3 +148,20 @@ def evaluate_goal(
         "return_mean": float(np.mean(rets)),
         "return_std": float(np.std(rets)),
     }
+
+
+def experiments() -> dict[str, dict]:
+    """Phase 4 manifests: configs/experiments/<stem>.yaml -> {title, question, arms}."""
+    return {p.stem: load_config(p) for p in sorted((ROOT / "configs/experiments").glob("*.yaml"))}
+
+
+def arm_runs(arm: dict) -> list[Path]:
+    """Run folder for each seed of a manifest arm: newest runs/<date>_<name>_s<seed> (dates sort)."""
+    name = load_config(ROOT / arm["config"])["name"]
+    out = []
+    for s in arm["seeds"]:
+        found = sorted((ROOT / "runs").glob(f"????-??-??_{name}_s{s}"))
+        if not found:
+            raise FileNotFoundError(f"no run folder for {name} seed {s}")
+        out.append(found[-1])
+    return out

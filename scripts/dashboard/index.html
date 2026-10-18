@@ -4,15 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>rl-arm dashboard</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%231A1310'/><path d='M7 24 L14 15 L22 18 L25 9' stroke='%23E5B299' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/><circle cx='25' cy='9' r='3' fill='%23FCDEC0'/></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%2312150C'/><path d='M7 24 L14 15 L22 18 L25 9' stroke='%23C9982F' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/><circle cx='25' cy='9' r='3' fill='%23F5EFE3'/></svg>">
 <style>
 :root {
-  /* palette 7D5A50 B4846C E5B299 FCDEC0, stretched darker at the dark end and lighter at the light end */
-  --bg: #1A1310; --panel: #231915; --panel2: #2C211C; --line: #3B2C25; --line2: #4C3830;
-  --brown: #7D5A50; --muted: #A68571; --text2: #E8CDB8; --text: #FFF3E6;
-  --accent: #E5B299; --accent2: #B4846C; --cream: #FCDEC0;
-  --good: #9DBF8E; --bad: #D9735F; --warn: #E8C07A;
-  --s1: #E5B299; --s2: #9DBF8E; --s3: #8EA9C1; --s4: #D98C8C; --s5: #FCDEC0;
+  /* palette F5EFE3 4F5B2A B8892D D8C9A8 (colorhunt), stretched darker at the dark end and lighter at the light end */
+  --bg: #12150C; --panel: #1A1F11; --panel2: #232A16; --line: #303A21; --line2: #414D2B;
+  --olive: #4F5B2A; --muted: #A7A486; --text2: #E2D7BF; --text: #FBF8F1;
+  --accent: #C9982F; --accent2: #D8C9A8; --cream: #F5EFE3;
+  --good: #A9C27A; --bad: #D9735F; --warn: #E8A54B;
+  --s1: #C9982F; --s2: #A9C27A; --s3: #8EB1C1; --s4: #D98C7A; --s5: #F5EFE3;
   --radius: 14px; --mono: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
   color-scheme: dark;
 }
@@ -23,12 +23,12 @@ a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
 code, pre, .mono { font-family: var(--mono); font-size: 0.86em; }
 code { background: var(--panel2); padding: 1px 6px; border-radius: 6px; color: var(--cream); }
-pre { background: #140F0C; border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; overflow: auto; color: var(--text2); max-height: 480px; }
+pre { background: #0C0F08; border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; overflow: auto; color: var(--text2); max-height: 480px; }
 pre code { background: none; padding: 0; }
 h1, h2, h3 { line-height: 1.25; margin: 0; font-weight: 650; letter-spacing: -0.01em; }
 h1 { font-size: 26px; } h2 { font-size: 18px; } h3 { font-size: 15px; }
 .layout { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
-nav.side { position: sticky; top: 0; height: 100vh; padding: 22px 14px; border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; background: #160F0D; }
+nav.side { position: sticky; top: 0; height: 100vh; padding: 22px 14px; border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; background: #0E110A; }
 .brand { display: flex; align-items: center; gap: 10px; padding: 0 10px 18px; font-weight: 700; font-size: 17px; white-space: nowrap; }
 .brand svg { flex: none; }
 .brand small { display: block; font-weight: 500; color: var(--muted); font-size: 12px; }
@@ -41,7 +41,7 @@ nav.side a .n { margin-left: auto; font-size: 12px; color: var(--muted); }
 .dot.off { background: var(--bad); }
 .dot.pulse { animation: pulse 2s infinite; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
-.top { position: sticky; top: 0; z-index: 5; display: flex; gap: 12px; align-items: center; padding: 14px 32px; background: rgba(26, 19, 16, 0.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+.top { position: sticky; top: 0; z-index: 5; display: flex; gap: 12px; align-items: center; padding: 14px 32px; background: rgba(18, 21, 12, 0.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
 .search { position: relative; flex: 1; max-width: 560px; }
 .search input { width: 100%; padding: 10px 14px 10px 38px; background: var(--panel); border: 1px solid var(--line2); border-radius: 12px; color: var(--text); font: inherit; outline: none; }
 .search input:focus { border-color: var(--accent2); }
@@ -59,7 +59,7 @@ main { padding: 28px 32px 80px; max-width: 1200px; width: 100%; }
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; min-width: 0; }
 a.card { display: block; color: inherit; transition: border-color 0.15s, transform 0.15s; }
 a.card:hover { border-color: var(--accent2); text-decoration: none; transform: translateY(-1px); }
-.hero { background: linear-gradient(135deg, #2C201B, #231915 60%); padding: 26px 28px; }
+.hero { background: linear-gradient(135deg, #26301A, #1A1F11 60%); padding: 26px 28px; }
 .sec { margin: 34px 0 14px; display: flex; align-items: baseline; gap: 12px; }
 .sec h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--accent2); font-weight: 650; }
 .sec .hint { color: var(--muted); font-size: 13px; }
@@ -67,10 +67,10 @@ a.card:hover { border-color: var(--accent2); text-decoration: none; transform: t
 .muted { color: var(--muted); } .t2 { color: var(--text2); } .small { font-size: 13px; } .tiny { font-size: 12px; }
 .pill { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: 99px; font-size: 12px; font-weight: 600; background: var(--panel2); color: var(--text2); border: 1px solid var(--line2); white-space: nowrap; }
 .pill.training { color: var(--bg); background: var(--accent); border-color: var(--accent); }
-.pill.done, .pill.PASS, .pill.good { color: var(--good); border-color: #4E6045; background: #1F2A1C; }
+.pill.done, .pill.PASS, .pill.good { color: var(--good); border-color: #56682F; background: #1E2814; }
 .pill.stopped, .pill.FAIL, .pill.bad { color: var(--bad); border-color: #6B3A30; background: #2E1814; }
 .pill.current { color: var(--bg); background: var(--cream); border-color: var(--cream); }
-.pill.running { color: var(--warn); border-color: #6B5A35; }
+.pill.running { color: var(--warn); border-color: #6E5426; }
 .bar { height: 8px; background: var(--panel2); border-radius: 99px; overflow: hidden; }
 .bar > i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent2), var(--accent)); border-radius: 99px; transition: width 0.6s; }
 .stat .v { font-size: 26px; font-weight: 680; letter-spacing: -0.02em; }
@@ -90,7 +90,7 @@ tr.click { cursor: pointer; } tr.click:hover td { background: var(--panel2); }
 .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .sp { flex: 1; }
 .term { border-bottom: 1px dotted var(--accent2); cursor: help; position: relative; }
-.term:hover::after, .term:focus::after { content: attr(data-tip); position: absolute; left: 0; top: 130%; z-index: 20; width: max-content; max-width: 300px; padding: 9px 12px; background: #0F0B09; border: 1px solid var(--line2); border-radius: 10px; color: var(--text2); font-size: 13px; font-weight: 400; line-height: 1.45; text-transform: none; letter-spacing: 0; white-space: normal; box-shadow: 0 10px 30px #000a; }
+.term:hover::after, .term:focus::after { content: attr(data-tip); position: absolute; left: 0; top: 130%; z-index: 20; width: max-content; max-width: 300px; padding: 9px 12px; background: #0A0C06; border: 1px solid var(--line2); border-radius: 10px; color: var(--text2); font-size: 13px; font-weight: 400; line-height: 1.45; text-transform: none; letter-spacing: 0; white-space: normal; box-shadow: 0 10px 30px #000a; }
 .filters { display: flex; gap: 6px; flex-wrap: wrap; }
 .filters button { padding: 6px 13px; border-radius: 99px; border: 1px solid var(--line2); background: transparent; color: var(--text2); font: inherit; font-size: 13px; cursor: pointer; }
 .filters button.on { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 600; }
@@ -102,7 +102,7 @@ details[open] > summary::before { transform: rotate(90deg); }
 details > .in { padding: 0 16px 16px; }
 .chart { position: relative; }
 .chart svg { display: block; width: 100%; height: auto; overflow: visible; }
-.chart .tip { position: absolute; pointer-events: none; background: #0F0B09; border: 1px solid var(--line2); border-radius: 8px; padding: 6px 10px; font-size: 12px; white-space: nowrap; display: none; z-index: 3; }
+.chart .tip { position: absolute; pointer-events: none; background: #0A0C06; border: 1px solid var(--line2); border-radius: 8px; padding: 6px 10px; font-size: 12px; white-space: nowrap; display: none; z-index: 3; }
 .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--text2); margin-top: 8px; }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
 .gif { width: 100%; max-width: 520px; border-radius: 12px; border: 1px solid var(--line); background: #000; display: block; }
@@ -116,7 +116,7 @@ details > .in { padding: 0 16px 16px; }
 .md img { max-width: 100%; max-height: 420px; border-radius: 10px; border: 1px solid var(--line); display: block; margin: 10px 0; }
 .md blockquote { margin: 14px 0; padding: 10px 16px; border-left: 3px solid var(--accent2); background: var(--panel); border-radius: 0 10px 10px 0; }
 .md hr { border: none; border-top: 1px solid var(--line); margin: 26px 0; }
-mark { background: #6B4A2E; color: var(--cream); border-radius: 3px; padding: 0 2px; }
+mark { background: #5E5020; color: var(--cream); border-radius: 3px; padding: 0 2px; }
 .doclayout { display: grid; grid-template-columns: 230px 1fr; gap: 28px; }
 .doclist { position: sticky; top: 90px; align-self: start; font-size: 14px; }
 .doclist .g { color: var(--accent2); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; margin: 16px 0 6px; font-weight: 650; }
@@ -125,8 +125,8 @@ mark { background: #6B4A2E; color: var(--cream); border-radius: 3px; padding: 0 
 .timeline { position: relative; display: grid; gap: 12px; }
 .ph { display: grid; grid-template-columns: 44px 1fr; gap: 16px; }
 .ph .num { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; background: var(--panel2); color: var(--muted); border: 1px solid var(--line2); }
-.ph.done .num { background: #1F2A1C; color: var(--good); border-color: #4E6045; }
-.ph.current .num { background: var(--accent); color: var(--bg); border-color: var(--accent); box-shadow: 0 0 0 5px #E5B29922; }
+.ph.done .num { background: #1E2814; color: var(--good); border-color: #56682F; }
+.ph.current .num { background: var(--accent); color: var(--bg); border-color: var(--accent); box-shadow: 0 0 0 5px #C9982F22; }
 .ph.upcoming { opacity: 0.75; }
 .steps { display: flex; gap: 6px; margin-top: 18px; }
 .steps span { flex: 1; height: 6px; border-radius: 99px; background: var(--line2); }
@@ -140,7 +140,7 @@ mark { background: #6B4A2E; color: var(--cream); border-radius: 3px; padding: 0 
 .kv dt { color: var(--muted); } .kv dd { margin: 0; color: var(--text2); }
 .chip { display: inline-block; padding: 2px 9px; margin: 2px 4px 2px 0; border-radius: 8px; background: var(--panel2); border: 1px solid var(--line2); font-size: 12px; color: var(--text2); }
 a.chip:hover { border-color: var(--accent2); text-decoration: none; }
-.banner { padding: 12px 16px; border-radius: 12px; border: 1px solid #6B5A35; background: #2A2215; color: var(--warn); font-size: 14px; margin-bottom: 16px; }
+.banner { padding: 12px 16px; border-radius: 12px; border: 1px solid #6E5426; background: #2A2010; color: var(--warn); font-size: 14px; margin-bottom: 16px; }
 @media (max-width: 860px) {
   .layout { grid-template-columns: 1fr; }
   nav.side { position: static; height: auto; flex-direction: row; overflow-x: auto; padding: 10px 16px; border-right: none; border-bottom: 1px solid var(--line); }
@@ -154,7 +154,7 @@ a.chip:hover { border-color: var(--accent2); text-decoration: none; }
 <div class="layout">
   <nav class="side" id="nav">
     <div class="brand">
-      <svg width="30" height="30" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#2C211C"/><path d="M7 24 L14 15 L22 18 L25 9" stroke="#E5B299" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="25" cy="9" r="3" fill="#FCDEC0"/></svg>
+      <svg width="30" height="30" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#232A16"/><path d="M7 24 L14 15 L22 18 L25 9" stroke="#C9982F" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="25" cy="9" r="3" fill="#F5EFE3"/></svg>
       <div>rl-arm<small>robot arm that learns</small></div>
     </div>
     <a href="#/" data-r="">Now</a>
@@ -169,7 +169,7 @@ a.chip:hover { border-color: var(--accent2); text-decoration: none; }
   <div>
     <div class="top">
       <div class="search">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#A68571" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#A7A486" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
         <input id="q" placeholder="Search docs, decisions and runs…  ( / )" autocomplete="off">
         <div class="results" id="qres" hidden></div>
       </div>
@@ -268,8 +268,8 @@ function chart(series, o = {}) {
   const X = (x) => L + ((x - x0) / (x1 - x0)) * (W - L - R), Y = (y) => T + (1 - (y - y0) / (y1 - y0)) * (H - T - B);
   const yf = o.yf || ((v) => (Math.abs(v) >= 1000 ? (v / 1000).toFixed(1) + "k" : +v.toPrecision(3)));
   let g = "";
-  for (let i = 0; i <= 4; i++) { const v = y0 + ((y1 - y0) * i) / 4; g += `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="#3B2C25" stroke-width="1"/><text x="${L - 8}" y="${Y(v) + 4}" text-anchor="end" font-size="11" fill="#A68571">${yf(v)}</text>`; }
-  for (let i = 0; i <= 4; i++) { const v = x0 + ((x1 - x0) * i) / 4; g += `<text x="${X(v)}" y="${H - 8}" text-anchor="middle" font-size="11" fill="#A68571">${ksteps(v)}</text>`; }
+  for (let i = 0; i <= 4; i++) { const v = y0 + ((y1 - y0) * i) / 4; g += `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="#303A21" stroke-width="1"/><text x="${L - 8}" y="${Y(v) + 4}" text-anchor="end" font-size="11" fill="#A7A486">${yf(v)}</text>`; }
+  for (let i = 0; i <= 4; i++) { const v = x0 + ((x1 - x0) * i) / 4; g += `<text x="${X(v)}" y="${H - 8}" text-anchor="middle" font-size="11" fill="#A7A486">${ksteps(v)}</text>`; }
   let body = "";
   series.forEach((s, i) => {
     const c = s.color || COLORS[i % COLORS.length];
@@ -283,7 +283,7 @@ function chart(series, o = {}) {
   const id = "c" + (hsh >>> 0).toString(36);
   CHARTS[id] = { series, X, Y, x0, x1, L, R, W, H, T, B, yf: o.tf || yf };
   const legend = series.length > 1 || o.legend ? `<div class="legend">${series.map((s, i) => `<span><i style="background:${s.color || COLORS[i % COLORS.length]}"></i>${esc(s.name)}</span>`).join("")}</div>` : "";
-  return `<div class="chart" data-c="${id}"><svg viewBox="0 0 ${W} ${H}" onmousemove="hover(event,'${id}')" onmouseleave="unhover('${id}')">${g}${body}<line class="xh" y1="${T}" y2="${H - B}" stroke="#A68571" stroke-dasharray="3 3" opacity="0"/></svg><div class="tip"></div>${legend}</div>`;
+  return `<div class="chart" data-c="${id}"><svg viewBox="0 0 ${W} ${H}" onmousemove="hover(event,'${id}')" onmouseleave="unhover('${id}')">${g}${body}<line class="xh" y1="${T}" y2="${H - B}" stroke="#A7A486" stroke-dasharray="3 3" opacity="0"/></svg><div class="tip"></div>${legend}</div>`;
 }
 function hover(e, id) {
   const c = CHARTS[id], svg = e.currentTarget, box = svg.getBoundingClientRect();
@@ -306,7 +306,7 @@ function spark(pts) {
   if (!pts || pts.length < 2) return "";
   const W = 120, H = 30, x0 = pts[0][0], x1 = pts.at(-1)[0];
   const d = pts.map((p) => `${((p[0] - x0) / (x1 - x0 || 1)) * W},${H - p[1] * H}`).join("L");
-  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="overflow:visible"><path d="M${d}" fill="none" stroke="#E5B299" stroke-width="1.8"/></svg>`;
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="overflow:visible"><path d="M${d}" fill="none" stroke="#C9982F" stroke-width="1.8"/></svg>`;
 }
 
 // ---------- state + polling ----------
@@ -344,11 +344,13 @@ function render() {
 // ---------- page: Now ----------
 function phaseName(n) { return S.phase.list.find((p) => p.n === n)?.title || ""; }
 function pageNow() {
-  const ph = S.phase, cur = ph.list.find((p) => p.n === ph.current);
+  const ph = S.phase;
+  // between phases, the hero shows the phase that starts next
+  const cur = ph.in_phase ? ph.list.find((p) => p.n === ph.current) : ph.list.find((p) => p.n === ph.current + 1) || ph.list.at(-1);
   const live = S.runs.filter((r) => r.status === "training");
   const m = S.machine;
   const hero = `<div class="card hero">
-    <div class="row"><span class="pill current">Phase ${ph.current} of ${ph.list.length - 1}</span><span class="pill ${ph.stage === "train" ? "training" : ""}">${{ train: "● training", build: "building", gate: "checking results", report: "writing report", idle: "idle" }[ph.stage]}</span></div>
+    <div class="row">${ph.in_phase ? "" : `<span class="pill done">Phase ${ph.current} done</span><span class="muted small">Next up:</span>`}<span class="pill current">Phase ${cur.n} of ${ph.list.length - 1}</span><span class="pill ${ph.stage === "train" ? "training" : ""}">${{ train: "● training", build: "building", gate: "checking results", report: "writing report", idle: "idle" }[ph.stage]}</span></div>
     <h1 style="margin-top:12px">${esc(cur?.title || "")}</h1>
     <p class="t2" style="margin:8px 0 0;max-width:760px">${esc(cur?.builds || "")}.</p>
     <p class="muted small" style="margin:10px 0 0"><b class="t2">Claude right now:</b> ${esc(ph.stage_text)}</p>

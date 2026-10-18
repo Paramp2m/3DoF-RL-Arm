@@ -9,3 +9,4 @@ MUJOCO_LOG.TXT
 .claude/settings.local.json
 .claude/unlock
 *.egg-info/
+/home/param-hypr/Projects/Claude/rl-arm/User Ref/

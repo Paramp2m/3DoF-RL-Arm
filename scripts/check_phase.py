@@ -255,7 +255,7 @@ def c16():
 
 # ---- Phase 2: reach environment ----
 REACH_CFG = "configs/reach.yaml"
-MODES = ("delta_pos", "abs_pos", "torque", "torque_gravcomp")
+from rlarm.envs.base import MODES
 
 
 def _reach(mode: str = "delta_pos", **arm):

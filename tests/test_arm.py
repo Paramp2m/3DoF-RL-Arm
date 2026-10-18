@@ -32,6 +32,10 @@ def test_ik_roundtrip_and_unreachable():
     assert len(sols) == 4
     assert any(np.allclose(s, q, atol=1e-9) for s in sols)
     assert np.abs(fk(sols) - fk(q)).max() < 1e-9
+    lim = np.array([[-3.1, 3.1], [0.4, 1.7], [-1.1, 1.4]])  # arm.xml joint ranges
+    ok = ik(fk(q), lim=lim)
+    assert 1 <= len(ok) < 4 and any(np.allclose(s, q, atol=1e-9) for s in ok)
+    assert np.all((ok >= lim[:, 0] - 1e-6) & (ok <= lim[:, 1] + 1e-6))
     assert ik(np.array([1.0, 0.0, 0.1])).shape == (0, 3)
     assert len(ik(np.array([0.55, 0.0, 0.1]))) == 2  # fully stretched: singular
 

@@ -35,10 +35,10 @@ def _wrap(x: np.ndarray) -> np.ndarray:
     return np.pi - np.mod(np.pi - x, 2 * np.pi)
 
 
-def ik(p: np.ndarray, tol: float = 1e-9) -> np.ndarray:
+def ik(p: np.ndarray, tol: float = 1e-9, lim: np.ndarray | None = None) -> np.ndarray:
     """All joint solutions (n,3) reaching tip position p; n == 0 means unreachable.
 
-    Up to 4: {yaw, yaw+pi} x {elbow up, elbow down}; joint limits are NOT applied.
+    Up to 4: {yaw, yaw+pi} x {elbow up, elbow down}; only those within lim (3,2) if given.
     On the yaw axis (x=y=0) yaw is free and 0 is returned. Straight arm (singular) gives 2 solutions.
     """
     x, y, z = np.asarray(p, dtype=float)
@@ -55,4 +55,7 @@ def ik(p: np.ndarray, tol: float = 1e-9) -> np.ndarray:
             q3 = np.arctan2(sgn * s, D)
             q2 = np.arctan2(w, rr) - np.arctan2(L2 * np.sin(q3), L1 + L2 * np.cos(q3))
             sols.append((yaw + np.pi * flip, q2, q3))
-    return _wrap(np.array(sols))
+    sols = _wrap(np.array(sols))
+    if lim is None:
+        return sols
+    return sols[np.all((sols >= lim[:, 0] - 1e-6) & (sols <= lim[:, 1] + 1e-6), axis=1)]

@@ -58,3 +58,4 @@ One line per decision: `YYYY-MM-DD | phase | decision | reason`
 2026-10-18 | 4 | scripts/tb.py: curated TensorBoard view (symlinked runs/_tb, config/seed names, dry runs hidden, Custom Scalars layout) | raw logdir was cluttered for the many runs of Phase 4
 2026-10-18 | 4 | tb.py opens one browser tab per group (Best runs from best_runs.yaml, E1-E3 by config prefix e1_/e2_/e3_, Archive opt-in) | old sweeps cluttered the view; Phase 4 needs clear separation
 2026-10-18 | 4 | train.py deletes an existing run folder only for --dry-run; real runs fail on a name clash; git_hash ignores untracked files | a same-day relaunch could wipe phase-3 best runs; untracked files marked every run -dirty
+2026-10-18 | 4 | render_snapshot renders the bare arm only for configs without task:; ik(p, lim=) holds the single in-limit filter; check_phase imports MODES from the env | task configs were rendering the bare arm; removes two duplicated rules

@@ -33,7 +33,6 @@ class IKAgent:
     def predict(self, obs, deterministic: bool = True):
         o = obs["observation"].astype(float)
         q = np.arctan2(o[:3], o[3:6])
-        sols = ik(obs["desired_goal"])
-        ok = sols[np.all((sols >= self.lim[:, 0] - 1e-6) & (sols <= self.lim[:, 1] + 1e-6), axis=1)]
+        ok = ik(obs["desired_goal"], lim=self.lim)
         goal = ok[np.abs(ok - q).sum(axis=1).argmin()] if len(ok) else q
         return np.clip((goal - q) * self.k, -1, 1).astype(np.float32), None

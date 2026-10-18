@@ -28,12 +28,10 @@ def main() -> None:
     apply_threads(cfg)
     model, env = load_policy(cfg, run / a.model), make_env(cfg)
     u = env.unwrapped
-    lo, hi = u.lim.T
     succ, dist, long_ = [], [], []
     for ep in range(a.episodes):
         obs, _ = env.reset(seed=a.seed + ep)
-        sols = ik(u.goal)
-        ok = sols[np.all((sols >= lo - 1e-6) & (sols <= hi + 1e-6), axis=1)]
+        ok = ik(u.goal, lim=u.lim)
         long_.append(len(ok) > 0 and np.abs(ok - u.data.qpos).max(1).min() >= 2.0)
         done = False
         while not done:

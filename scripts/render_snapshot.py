@@ -19,7 +19,9 @@ def main() -> None:
     p.add_argument("--size", type=int, default=480)
     a = p.parse_args()
     cfg, size = load_config(a.config), min(a.size, 640)
-    if "arm" in cfg:  # raw arm model (Phase 1): home pose, target placed at the tip
+    if (
+        "arm" in cfg and "task" not in cfg
+    ):  # raw arm model (Phase 1): home pose, target placed at the tip
         m = load_model(cfg)
         d = mujoco.MjData(m)
         d.qpos[:] = cfg["arm"]["home"]

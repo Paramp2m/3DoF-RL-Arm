@@ -1,46 +1,54 @@
 # Phase 3: Learned reach (task A) and hold (task B)
 
-**Status:** FAIL (3.1 short by 0.7 pt; 3.2–3.5 PASS) · **Date:** 2026-10-18 · **Commit:** 7036dea
+**Status:** PASS · **Date:** 2026-10-18
 
 ## What was built
-`hold` task (success = tip within 2 cm for the final 50 of 250 steps), SAC + HER configs for both tasks (`configs/reach_her.yaml`, `configs/hold_her.yaml`), a goal-difference feature extractor, and the SPEC §5 settle term. There were 3 seeds × 1M steps per task, and checks 3.1–3.5.
+- A `hold` task: success means the tip stays within 2 cm for the final 50 of 250 steps.
+- SAC + HER configs for both tasks: `configs/reach_final.yaml` and `configs/hold_final.yaml`.
+- A goal-difference feature extractor, plus SPEC §5's settle term (hold only) and joint-limit term.
+- Val-best checkpoint selection on validation goals (seeds 50000+, which don't overlap the eval set).
+- Checks 3.1–3.5 and `scripts/fresh_eval.py`.
 
 ## Checks
 | ID | Check | Target | Measured (mean of 3 seeds) | Result |
 |---|---|---|---|---|
-| 3.1 | Reach success | ≥ 95% | 94.3% (96 / 91 / 96) | FAIL |
-| 3.2 | Reach median final distance | ≤ 10 mm | 6.0 mm (6.1 / 5.5 / 6.5) | PASS |
-| 3.3 | Hold success | ≥ 90% | 92.3% (94 / 92 / 91) | PASS |
-| 3.4 | Hold joint speed, final 50 steps | < 0.05 rad/s | 0.0156 rad/s | PASS |
-| 3.5 | GIFs in docs/media | < 3 MB each | reach 1.49 MB, hold 1.75 MB | PASS |
+| 3.1 | Reach success | ≥ 95% | 96.0% (96 / 96 / 96) | PASS |
+| 3.2 | Reach median final distance | ≤ 10 mm | 5.7 mm | PASS |
+| 3.3 | Hold success | ≥ 90% | 95.3% (93 / 95 / 98) | PASS |
+| 3.4 | Hold joint speed, final 50 steps | < 0.05 rad/s | 0.0175 rad/s | PASS |
+| 3.5 | GIFs in docs/media | < 3 MB each | reach 1.79 MB, hold 1.36 MB | PASS |
 
 ## Key numbers
-- Runs: `runs/2026-10-17_{reach,hold}_her_s{0,1,2}`. Each has 1M steps and took about 4.6 h of wall time with 7 jobs in parallel (≈60 steps/s each).
-- How reach success changed (seed 0, deterministic eval):
+- **Runs:** `runs/2026-10-18_{reach,hold}_final_s{0,1,2}`. Each run is 1M steps and took about 4.8 h, with 6 runs in parallel. Val-best checkpoints came from 650k–950k steps.
+- **How reach success changed** (seed 0):
 
-  | Setup | Steps | Success | Median distance |
+  | Version | Steps | Eval success | Success on 1000 fresh goals |
   |---|---|---|---|
-  | Baseline dense reward | 300k | 43% | 25 mm |
-  | Tip→target vector scaled ×30 | 300k | 76% | 9.8 mm |
-  | Same, dense reward | 1M | 88% | |
-  | HER, no distance term | 1M | 96% | |
+  | Baseline dense reward | 300k | 43% | – |
+  | Tip→target vector ×30 | 300k | 76% | – |
+  | HER, no distance term | 1M | 96% | 92.1% |
+  | + joint-limit term + val-best | 1M | 96% | **94.7%** |
 
-- 8 hyperparameter variants all landed at 73–76%: entropy target, gradient steps, learning rate, discount, batch size, Tanh activation, wider network, initial entropy.
+- **Fresh goals, 1000 per seed:** reach 94.7 / 94.2 / 95.3%, hold 92.5 / 93.1 / 93.8%. The previous 3-seed reach mean was 92.4%.
+- **Pilot at 300k steps** (fresh goals): base 86.3%, γ=0.99 83.6%, max_delta 0.1 89.0%, joint-limit term **91.6%**. The joint-limit term won and went into the final configs.
 
 ## Look at this
 - ![](../media/phase3_reach.gif) Reach, seed 0: does the tip settle on the red target without drifting?
 - ![](../media/phase3_hold.gif) Hold, seed 0: does the arm arrive and then stay still?
 
 ## How it works (say this in an interview)
-The agent sees the joint angles (sin/cos), velocities, tip position and goal. Inside the network, the tip→goal difference is multiplied by 30 so that millimetre errors are visible. It outputs 3 joint-angle increments (≤ 0.05 rad/step). Its reward is a precision bump exp(−(d/3 cm)²) plus +1 inside 2 cm, and hold also has a speed penalty inside the zone.
+The agent sees joint sin/cos, velocities, tip position and goal. Inside the network, the tip→goal difference is scaled ×30 so that millimetre errors are visible. It outputs joint-angle increments of at most 0.05 rad per step.
 
-There is deliberately no "−distance" term. Greedy descent on distance gets stuck at a joint limit in 27% of episodes, and that was the 75% ceiling. HER replays every episode as if the place it ended up had been the goal, so the critic learns the real way around the limits.
+The reward is a precision bump exp(−(d/3 cm)²), plus +1 inside 2 cm, minus a penalty near joint limits. Hold also gets a speed penalty inside the 2 cm zone.
+
+There is no "−distance" term. Greedy descent on distance pins the arm at a joint limit in 27% of episodes, and that was the old 75% ceiling. HER replays each episode as if its end point had been the goal, so the critic learns the way around the limits.
 
 ## Decisions made
-See docs/decisions.md, lines dated 2026-10-17 / 2026-10-18 with phase 3: the hold definition, the 3.4 metric (‖q̇‖ L2), err_scale and the dead-end diagnosis, the HER plan (user-approved), and the final results.
+See the phase-3 lines dated 2026-10-17 and 2026-10-18 in docs/decisions.md. They cover the hold definition, the 3.4 metric, the dead-end diagnosis, HER, the debug findings, the pilot, and the final configs (option 2, approved by the user).
 
 ## Known issues / next
-- **3.1 is 0.7 pt short.** 17/300 reach episodes fail. 12 of them end pinned at a joint limit (yaw 3, shoulder 7, elbow 7) and 8 end 2–4 cm out. Training success has been flat since about 400k, so more steps under the 1M cap won't fix it. The candidate fix is SPEC §5's joint-limit term for reach, which needs a ~3 h retrain of the 3 reach seeds.
-- Reach without the settle term moves at 0.10 rad/s at the end. This is not gated, but it matters for Phase 4 smoothness comparisons.
-- Dry-run ETAs underestimate parallel wall time by about 4× because CPU is shared, and the ETA is measured before learning starts.
-- The exploratory configs `configs/reach_sac_*.yaml` are kept because decisions.md references their results.
+- **Reach has little margin.** It is 96% on the 100-goal eval set but 94.7% on 1000 fresh goals, so the true rate is about 95%.
+- **Long joint moves (≥ 2 rad) are the remaining failure mode:** 83–87% success on reach and 81–82% on hold, against about 98% for short moves.
+- Reach has no settle term and moves at about 0.1 rad/s at the end. This is not gated, but it matters for Phase 4 smoothness.
+- Dry-run ETAs underestimate parallel wall time by about 4×.
+- The `configs/reach_sac_*`, `reach_her_lim` and `pilot/*` configs are kept because decisions.md cites their results.

@@ -12,6 +12,8 @@ import re
 import shutil
 import subprocess
 import sys
+import threading
+import webbrowser
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -21,10 +23,10 @@ NAME = re.compile(r"^(\d{4}-\d\d-\d\d)_(.+)_s(\d+)$")
 # Custom Scalars tab: {section: {chart title: ["Multiline", [tag regexes]]}}
 LAYOUT = {
     "1 Headline": {
-        "Success rate (training)": ["Multiline", [r"rollout/success_rate"]],
-        "Success rate (validation goals)": ["Multiline", [r"val/success"]],
-        "Median final distance, mm (validation)": ["Multiline", [r"val/median_mm"]],
-        "Episode reward": ["Multiline", [r"rollout/ep_rew_mean"]],
+        "Success rate, training (higher is better)": ["Multiline", [r"rollout/success_rate"]],
+        "Success rate, validation goals (higher is better)": ["Multiline", [r"val/success"]],
+        "Median final distance, mm (lower is better)": ["Multiline", [r"val/median_mm"]],
+        "Episode reward (higher is better)": ["Multiline", [r"rollout/ep_rew_mean"]],
     },
     "2 Reward terms": {"All reward terms": ["Multiline", [r"reward/.*"]]},
     "3 Learning internals": {
@@ -74,12 +76,19 @@ def main() -> None:
     ap.add_argument("--filter", default="", help="regex on the run folder name")
     ap.add_argument("--since", default="0000-00-00", help="YYYY-MM-DD")
     ap.add_argument("--port", default="6006")
+    ap.add_argument("--light", action="store_true", help="light theme (default: dark)")
+    ap.add_argument("--smoothing", default="0.85", help="line smoothing 0-0.99 (default 0.85)")
+    ap.add_argument("--no-open", action="store_true", help="don't open the browser")
     a = ap.parse_args()
     n = build_view(a.filter, a.since)
     if not n:
         sys.exit("no runs match")
     write_layout()
     print(f"{n} runs -> http://localhost:{a.port}  (Custom Scalars tab = grouped charts)")
+    if not a.no_open:  # dark theme + smoothing + Custom Scalars tab preselected via URL
+        url = f"http://localhost:{a.port}/?darkMode={str(not a.light).lower()}"
+        url += f"#custom_scalars&_smoothingWeight={a.smoothing}"
+        threading.Timer(4, webbrowser.open, [url]).start()
     subprocess.run(
         ["tensorboard", "--logdir", str(VIEW), "--port", a.port, "--reload_interval", "15"],
         check=False,

@@ -4,7 +4,7 @@
 cd ~/Projects/Claude/rl-arm
 uv run python scripts/tb.py             # then open http://localhost:6006
 ```
-Options: `--filter 'e1_|e2_'` (only run names matching a regex), `--since 2026-10-19` (only newer runs), `--port 6007`.
+It opens your browser in dark mode on the Custom Scalars tab, with lines smoothed (0.85) so trends are easy to see. Options: `--light` (light theme), `--smoothing 0.6`, `--no-open`, `--filter 'e1_|e2_'` (only run names matching a regex), `--since 2026-10-19` (only newer runs), `--port 6007`.
 
 `tb.py` gives a tidier view than raw `tensorboard --logdir runs`: dry runs are hidden, runs are named `<config>/s<seed>` instead of long folder paths, and a **Custom Scalars** tab (top bar) shows the charts that matter, grouped:
 1. **Headline:** success rate, validation success, median distance in mm, episode reward.

@@ -25,7 +25,7 @@ def get(url: str, headers: dict | None = None) -> tuple[int, bytes]:
         r = urllib.request.urlopen(urllib.request.Request(url, headers=headers or {}))
         return r.status, r.read()
     except urllib.error.HTTPError as e:
-        return e.code, b""
+        return e.code, e.read()
 
 
 def test_state_lists_phases_runs_docs_and_unchanged_poll_is_tiny(url):
@@ -34,7 +34,29 @@ def test_state_lists_phases_runs_docs_and_unchanged_poll_is_tiny(url):
     assert code == 200 and len(s["phase"]["list"]) == 8
     assert {"runs", "machine", "decisions", "docs", "experiments"} <= s.keys()
     assert all(dashboard.NAME.match(r["id"]) for r in s["runs"])
-    assert json.loads(get(url + "/api/state?v=" + s["v"])[1]) == {"v": s["v"], "same": True}
+    same = json.loads(get(url + "/api/state?v=" + s["v"])[1])
+    assert same["same"] and same["v"] == s["v"] and "runs" not in same
+
+
+def test_unchanged_poll_still_carries_fresh_machine_stats(url, monkeypatch):
+    cpu = iter([1, 99])
+    monkeypatch.setattr(dashboard, "machine", lambda: {"cpu": next(cpu)})
+    dashboard._state.update(t=0.0)  # expire the 1 s cache
+    v = json.loads(get(url + "/api/state")[1])["v"]
+    dashboard._state.update(t=0.0)
+    r = json.loads(get(url + "/api/state?v=" + v)[1])
+    assert r["same"] and r["machine"]["cpu"] == 99
+
+
+def test_a_crash_while_reading_the_project_returns_the_error(url, monkeypatch):
+    def boom():
+        raise KeyError("success")
+
+    monkeypatch.setattr(dashboard, "state", boom)
+    dashboard._state.update(t=0.0)
+    code, body = get(url + "/api/state")
+    assert code == 500 and "KeyError" in json.loads(body)["error"]
+    dashboard._state.update(t=0.0, body=None)
 
 
 def test_page_and_bundled_markdown_renderer_are_served(url):

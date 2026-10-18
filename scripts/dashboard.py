@@ -194,10 +194,6 @@ def git() -> dict:
             for ln in sh("git", "status", "--porcelain").splitlines()
             if "User Ref/" not in ln
         ]
-        log = [
-            ln.split("\x1f")
-            for ln in sh("git", "log", "-30", "--format=%h\x1f%cs\x1f%s").splitlines()
-        ]
         tags = set(sh("git", "tag").split())
         starts = {
             t: int(sh("git", "log", "-1", "--format=%ct", t) or 0)
@@ -215,7 +211,7 @@ def git() -> dict:
                 for t in tags
                 if re.fullmatch(r"phase-\d+-done", t)
             }
-        _git.update(t=time.time(), tags=tags, starts=starts, dirty=dirty, log=log)
+        _git.update(t=time.time(), tags=tags, starts=starts, dirty=dirty)
     return _git
 
 
@@ -253,7 +249,7 @@ def training() -> set[tuple[str, int | None]]:
 _cpu = {"prev": None, "pct": 0.0}
 
 
-def machine(n_train: int) -> dict:
+def machine() -> dict:
     """CPU % since the last call, memory, battery: what decides whether training is being slowed down."""
     f = [int(x) for x in Path("/proc/stat").read_text().split("\n", 1)[0].split()[1:]]
     idle, total = f[3] + f[4], sum(f)
@@ -275,11 +271,9 @@ def machine(n_train: int) -> dict:
             pass
     return {
         "cpu": round(_cpu["pct"]),
-        "threads": os.cpu_count(),
         "mem_used": round((kb("MemTotal") - kb("MemAvailable")) / 2**20, 1),
         "mem_total": round(kb("MemTotal") / 2**20, 1),
         "battery": bat,
-        "train_procs": n_train,
     }
 
 
@@ -460,7 +454,6 @@ def run_meta(run: Path, live: set, role: dict) -> dict:
         "wall_s": sm.get("wall_s"),
         "success": ev.get("success_rate", (sm.get("final_eval") or {}).get("success")),
         "miss_mm": ev.get("final_dist_mm_median", (sm.get("final_eval") or {}).get("median_mm")),
-        "return": ev.get("mean_return", ev.get("return_mean")),
         "val_last": hist[-1]["success"] if hist else None,
         "val": [[h["step"], h["success"]] for h in hist],
         "best": role.get("best"),
@@ -556,9 +549,8 @@ def state() -> dict:
     return {
         "phase": ph,
         "runs": runs,
-        "machine": machine(len(live)),
+        "machine": machine(),
         "dirty": g["dirty"],
-        "commits": [{"hash": h, "date": d, "msg": m} for h, d, m in g["log"]],
         "decisions": decisions(),
         "docs": docs,
         "experiments": [
@@ -581,13 +573,14 @@ def run_detail(rid: str) -> dict | None:
     live = training()
     meta = run_meta(run, live, roles().get(rid, {}))
     cfg = yread(run / "config.yaml") or {}
-    cfg_src = config_index().get(meta["config"])
+    idx = config_index()
+    cfg_src = idx.get(meta["config"])
     base_name = (
         "e1_delta_pos"
         if meta["exp"] and meta["config"] != "e1_delta_pos"
         else f"{meta['task']}_final"
     )
-    base_path = config_index().get(base_name)
+    base_path = idx.get(base_name)
     base = yread(base_path) if base_path and base_name != meta["config"] else None
     sc = scalars(run, live=meta["status"] == "training")
     log = RUNS / "_logs" / f"{meta['config']}-s{meta['seed']}.log"
@@ -597,6 +590,7 @@ def run_detail(rid: str) -> dict | None:
         "eval": jread(run / "eval.json"),
         "summary": jread(run / "summary.json"),
         "base": base_name if base else None,
+        "base_missing": base_path is None,
         "diff": diff(cfg, base) if base else [],
         "config_text": (run / "config.yaml").read_text() if (run / "config.yaml").exists() else "",
         "git_hash": (run / "git_hash.txt").read_text().strip()
@@ -723,8 +717,6 @@ def state_cached() -> dict:
             # version without the machine stats (they change every second), so unchanged polls stay tiny
             stable = {k: v for k, v in body.items() if k != "machine"}
             v = str(hash(json.dumps(stable, sort_keys=True, default=str)))
-            if v == _state["v"]:
-                body["machine"] = _state["body"]["machine"]  # sent only along with a real change
             _state.update(t=time.time(), body=body, v=v)
         return _state["body"]
 
@@ -876,7 +868,7 @@ class Handler(BaseHTTPRequestHandler):
             if u.path == "/api/state":
                 body = state_cached()
                 if q.get("v") == _state["v"]:
-                    return self.json({"v": _state["v"], "same": True})
+                    return self.json({"v": _state["v"], "same": True, "machine": body["machine"]})
                 return self.json({"v": _state["v"], **body})
             if u.path.startswith("/api/run/"):
                 d = run_detail(u.path[len("/api/run/") :])
@@ -904,6 +896,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(200, p.read_bytes(), MEDIA[p.suffix])
         except (BrokenPipeError, ConnectionResetError):
             return
+        except Exception as e:  # noqa: BLE001 - one odd run file must not make the page look dead
+            return self.json({"error": f"{type(e).__name__}: {e}"}, 500)
         self.send(404, b"not found", "text/plain")
 
     def do_POST(self):

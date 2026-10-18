@@ -359,19 +359,20 @@ function spark(pts) {
 }
 
 // ---------- state + polling ----------
-let S = null, V = null, lastOk = 0, detail = {}, failing = false;
+let S = null, V = null, lastOk = 0, detail = {}, failing = false, serverErr = null;
 async function poll() {
   try {
     const r = await api("/api/state" + (V ? "?v=" + V : ""));
-    lastOk = Date.now(); failing = false;
-    if (!r.same) { notifyFinished(S, r); V = r.v; S = r; render(); }
+    lastOk = Date.now(); failing = false; serverErr = r.error || null;
+    if (r.error) return liveBadge();
+    if (r.same) { S.machine = r.machine; if (route().page === "") render(); }
+    else { notifyFinished(S, r); V = r.v; S = r; render(); }
   } catch { failing = true; }
   liveBadge();
 }
 function liveBadge() {
   const ok = !failing && Date.now() - lastOk < 6000;
-  const training = S && S.runs.some((r) => r.status === "training");
-  $("#live").innerHTML = ok ? `<span class="dot pulse"></span>Live · updates every 2 s${training ? "" : ""}` : `<span class="dot off"></span>Disconnected. Is <code>scripts/dashboard.py</code> still running?`;
+  $("#live").innerHTML = serverErr ? `<span class="dot off"></span>The server hit an error reading the project: <code>${esc(serverErr)}</code>. Showing the last good data; tell Claude.` : ok ? `<span class="dot pulse"></span>Live · updates every 2 s` : `<span class="dot off"></span>Disconnected. Is <code>scripts/dashboard.py</code> still running?`;
 }
 // desktop notification when a run stops training (needs the tab open and permission once)
 function notifyFinished(old, now) {
@@ -403,7 +404,6 @@ function render() {
 
 // ---------- page: Now ----------
 const mediaName = (f) => { const s = f.replace(/^phase\d+_/, "").replace(/\.\w+$/, "").replace(/_/g, " "); return ({ reach: "Reach (task A)", hold: "Hold (task B)", reacher: "Reacher (2-joint warm-up)", arm: "The arm" })[s] || s[0].toUpperCase() + s.slice(1); };
-function phaseName(n) { return S.phase.list.find((p) => p.n === n)?.title || ""; }
 function pageNow() {
   const ph = S.phase;
   // between phases, the hero shows the phase that starts next
@@ -422,7 +422,7 @@ function pageNow() {
   const cards = live.length ? `<div class="grid g3">${live.map(liveCard).join("")}</div>` : `<div class="empty">Nothing is training right now.${lastDone ? ` The last run, <a href="#/run/${lastDone.id}">${esc(runTitle(lastDone))} · seed ${lastDone.seed}</a>, finished ${ago(lastDone.mtime)}. <a href="#/runs">All runs →</a>` : ""}</div>`;
   const stopped = S.runs.filter((r) => r.status === "stopped" && S.phase.runs.includes(r.id));
   const warn = stopped.length ? `<div class="banner">${stopped.length} run(s) from this phase stopped without finishing (crash, killed, or the laptop slept): ${stopped.map((r) => `<a href="#/run/${r.id}">${esc(runTitle(r))} s${r.seed}</a>`).join(", ")}. Tell Claude in the terminal.</div>` : "";
-  const exps = S.phase.current === 4 || S.experiments.length ? `<div class="sec"><h2>Experiments</h2><span class="hint">what Phase 4 is measuring</span><a class="r" href="#/exp">all results →</a></div><div class="grid g4c">${S.experiments.map(expCard).join("")}</div>` : "";
+  const exps = S.phase.current === 4 ? `<div class="sec"><h2>Experiments</h2><span class="hint">what Phase 4 is measuring</span><a class="r" href="#/exp">all results →</a></div><div class="grid g4c">${S.experiments.map(expCard).join("")}</div>` : "";
   const onBattery = m.battery && m.battery.status === "Discharging";
   const machine = `<div class="card">
     <h3>This laptop</h3>
@@ -540,7 +540,7 @@ async function pagePhase(n) {
 // ---------- page: Runs ----------
 let runFilter = "count", runText = "";
 function pageRuns() {
-  const f = { count: (r) => r.best || r.exp.length || r.status === "training", phase: (r) => S.phase.runs.includes(r.id), training: (r) => r.status === "training", all: () => true }[runFilter];
+  const f = { count: (r) => r.best || r.exp.length || r.status === "training" || S.phase.runs.includes(r.id), phase: (r) => S.phase.runs.includes(r.id), training: (r) => r.status === "training", all: () => true }[runFilter];
   const t = runText.toLowerCase();
   const list = S.runs.filter(f).filter((r) => !t || (r.id + " " + runTitle(r) + " " + r.exp.join(" ") + " " + r.algo).toLowerCase().includes(t));
   const groups = [];
@@ -555,6 +555,7 @@ function pageRuns() {
   }
   take("Best runs", "the ones the phase gates use (docs/best_runs.yaml)", (r) => r.best);
   list.forEach((r) => { if (r.exp.length) r._g = 1; });
+  take(`Phase ${S.phase.current}: this phase's runs`, "pilots and attempts since the phase started", (r) => S.phase.runs.includes(r.id));
   take("Archive", "earlier attempts, tuning sweeps and pilots: kept for the record", () => true);
   const head = `<h1>Runs</h1><p class="t2">Each ${tip("run")} is one training attempt. By default you see only the ones that matter; the rest are in the archive.</p>
     <div class="row" style="margin-top:16px"><div class="filters">${[["count", "Important"], ["phase", "This phase"], ["training", "Training"], ["all", `All (${S.runs.length})`]].map(([k, l]) => `<button class="${runFilter === k ? "on" : ""}" onclick="runFilter='${k}';render()">${l}</button>`).join("")}</div><span class="sp"></span><input class="filter" id="runq" placeholder="Filter runs…" oninput="runText=this.value;pageRuns()"></div>
@@ -643,7 +644,7 @@ function pageRun(id) {
     <div class="card"><h3>Reward, term by term</h3><p class="tiny muted" style="margin:2px 0 10px">Why the total moves: bonuses rise, penalties shrink toward 0.</p>${chart(Object.keys(sc).filter((k) => k.startsWith("reward/")).map((k) => ({ name: k.slice(7), pts: smooth(sc[k]) })), { legend: true, cols: 2 })}<p class="tiny muted" style="margin:6px 0 0">Noisy curves are smoothed, like TensorBoard at 0.9.</p></div>
   </div>
   <details data-k="internals"><summary>Learning internals (losses, exploration, speed)</summary><div class="in"><p class="small muted">For diagnosis only; don't judge progress from these. See "Every chart explained" in the <a href="#/doc/User Ref/GUIDE.md">guide</a>.</p><div class="grid gc2">${Object.keys(sc).filter((k) => k.startsWith("train/") || k.startsWith("time/")).map((k) => `<div><div class="small t2" style="margin-bottom:6px">${esc(k)}</div>${chart([{ name: k, pts: smooth(sc[k]) }], { h: 170, cols: 2 })}</div>`).join("")}</div></div></details>` : `<div class="card" style="margin-top:16px"><p class="t2" style="margin:0">This is the exact-maths controller: nothing is learned, so there are no learning curves. It is the reference the trained networks are compared against.</p></div>`;
-  const diffs = r.diff.length ? `<table><tr><th>Setting</th><th>${esc(r.base)}</th><th>This run</th></tr>${r.diff.map((d) => `<tr><td>${esc(d.name)}<div class="tiny muted mono">${esc(d.key)}</div></td><td class="muted mono small">${cfgVal(d.base)}</td><td class="mono small" style="color:var(--cream)">${cfgVal(d.this)}</td></tr>`).join("")}</table>` : `<p class="muted small">${r.base ? "Identical to " + esc(r.base) + " apart from the seed." : "This is a reference setup itself."}</p>`;
+  const diffs = r.diff.length ? `<table><tr><th>Setting</th><th>${esc(r.base)}</th><th>This run</th></tr>${r.diff.map((d) => `<tr><td>${esc(d.name)}<div class="tiny muted mono">${esc(d.key)}</div></td><td class="muted mono small">${cfgVal(d.base)}</td><td class="mono small" style="color:var(--cream)">${cfgVal(d.this)}</td></tr>`).join("")}</table>` : `<p class="muted small">${r.base ? "Identical to " + esc(r.base) + " apart from the seed." : r.base_missing ? `There is no reference config for the ${esc(r.task)} task yet, so there is nothing to compare against.` : "This is a reference setup itself."}</p>`;
   mount([
     ["h", `<a class="small" href="#/runs">← all runs</a><div class="row" style="margin-top:10px">${statusPill(r.status)}${r.best ? `<span class="pill good">counts for ${esc(r.best)}</span>` : ""}${r.exp.map((x) => `<span class="pill">${esc(x.split(" · ")[0])}</span>`).join("")}</div><h1 style="margin-top:10px">${esc(runTitle(r))} <span class="muted" style="font-weight:500">· seed ${r.seed}</span></h1>${r.why ? `<p class="t2" style="max-width:820px;margin:8px 0 0"><span class="muted">Why this run exists:</span> ${esc(r.why)}</p>` : ""}`],
     ["prog", prog ? `<div style="margin-top:18px">${prog}</div>` : ""],
@@ -688,7 +689,7 @@ async function loadDoc(path, quiet) {
 }
 function pageDoc(path) {
   if (!detail.doc || (detail.doc.path !== path && !detail.doc.error)) { mount([["doc", `<div class="doclayout"><div class="doclist">${docNav(path)}</div><p class="muted">Loading…</p></div>`]]); return loadDoc(path); }
-  const d = detail.doc, q = new URLSearchParams(location.search).get("q");
+  const d = detail.doc;
   let html = d.error ? `<div class="empty">${esc(d.error)}</div>` : md(d.text, d.path);
   const hl = detail.hl;
   if (hl) html = html.replace(/>([^<]+)</g, (m, t) => ">" + t.replace(new RegExp(hl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"), (x) => `<mark>${x}</mark>`) + "<");
@@ -696,7 +697,6 @@ function pageDoc(path) {
   const tocHtml = toc.length > 2 ? navGroup("On this page", toc.map((m) => `<a href="javascript:void 0" onclick="document.getElementById('${m[1]}').scrollIntoView({behavior:'smooth'})">${m[2]}</a>`)) : "";
   mount([["doc", `<div class="doclayout"><div class="doclist">${tocHtml}${docNav(path)}</div><div><div class="row tiny muted" style="margin-bottom:6px"><span class="mono">${esc(d.path || path)}</span><span class="sp"></span>${d.mtime ? "last edited " + new Date(d.mtime * 1000).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) + " · refreshes by itself" : ""}</div><div class="md">${html}</div></div></div>`]]);
   if (hl) setTimeout(() => { document.querySelector("mark")?.scrollIntoView({ block: "center" }); detail.hl = null; }, 50);
-  void q;
 }
 
 // ---------- decisions ----------

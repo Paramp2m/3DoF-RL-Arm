@@ -62,3 +62,14 @@ def test_early_stop_creeping_run_that_cannot_reach_floor():
     assert early_stop_reason(creep, 300, 1000, es) == "stuck_low"
     fast = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5][:5]  # +0.1/pt reaches the floor easily
     assert early_stop_reason(fast, 500, 1000, es) is None
+
+
+def test_early_stop_flat_trend_with_noisy_new_best_is_plateau():
+    from rlarm.common import early_stop_reason
+
+    es = {"min_frac": 0.3, "min_points": 5, "patience": 6, "delta": 0.01, "floor": 0.3}
+    noisy = [0.5, 0.52, 0.49, 0.53, 0.5, 0.56, 0.51]  # lucky new best 0.56, trend flat
+    assert early_stop_reason(noisy, 900, 1500, es) == "plateau"
+    assert (
+        early_stop_reason([0.3, 0.36, 0.42, 0.48, 0.54, 0.6], 600, 1500, es) is None
+    )  # real climb

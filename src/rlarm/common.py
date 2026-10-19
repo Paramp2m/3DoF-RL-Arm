@@ -186,7 +186,8 @@ def arm_runs(arm: dict) -> list[Path]:
 def early_stop_reason(scores: list[float], steps: int, total: int, es: dict) -> str | None:
     """Automatic triage of a training run from its validation scores (one per val point).
 
-    None = keep going. "plateau" = best score has not improved by `delta` for `patience` val points (the run
+    None = keep going. "plateau" = best score has not improved by `delta` for `patience` val points, or the
+    least-squares trend over the last 6 points gains < 2*delta (the run
     is finalised from its val-best checkpoint: a good plateau is saved, not wasted). "stuck_low" = under
     `floor` and either stalled (>= patience // 2 points) or creeping up too slowly to reach it with the budget
     left (last-5-point slope extrapolated; a useless run, marked unusable). Nothing triggers before `min_frac` of the budget and `min_points` val points.
@@ -207,4 +208,11 @@ def early_stop_reason(scores: list[float], steps: int, total: int, es: dict) -> 
         slope, left = (w[-1] - w[0]) / (len(w) - 1), (total - steps) / (steps / len(scores))
         if best + max(slope, 0.0) * left < floor:
             return "stuck_low"
-    return "plateau" if since >= es.get("patience", 6) else None
+    if since >= es.get("patience", 6):
+        return "plateau"
+    w = scores[
+        -6:
+    ]  # flat trend: noise can set a new best now and then, so also fit a line to the last 6 points
+    if len(w) == 6 and np.polyfit(np.arange(6), w, 1)[0] * 5 < es.get("delta", 0.01) * 2:
+        return "plateau"
+    return None

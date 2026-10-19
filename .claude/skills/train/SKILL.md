@@ -39,6 +39,8 @@ argument-hint: "[launch <config> [seeds] | status]"
 
 **1b. Babysitter (every launch batch).** Right after launching, start `uv run python scripts/babysit.py 300 "<run glob>"` with `run_in_background: true`. It re-applies each running job's `early_stop` rule to its `val.json` every 5 min (free: no tokens) and `touch STOP`s runs the rule condemns, logging to `runs/_logs/babysit.log`; it exits (notifying you) when nothing is training. It covers runs started with an older train.py. Read only `tail -n 20 runs/_logs/babysit.log` when a turn happens.
 
+**Be aggressive (user rule).** Stop runs on your own, without asking and without waiting to be prompted. When in doubt between keeping and stopping a run that is behind or flat, stop it (STOP if it might be a usable plateau). The babysitter also stops a run whose best val score trails the batch leader by > 0.10 once past min_frac, and one whose last-6-point trend gains < 2*delta.
+
 **2. By hand (mid-run triage).** Whenever a turn happens anyway (user message, goal check-in, a sibling finishing) and a run over ~30 min is underway, spend one cheap call: read only the last 5 `val.json` history entries and the steps of each running job (never logs). Do not schedule extra wake-ups for it. Decide per run:
 - Running, rising, or within ~3 val points of its best: leave it.
 - Plateaued at a good score (>= gate or within 0.05 of the best sibling) but the auto rule has not fired yet: `touch STOP` (saves it). Do not `kill`: that leaves no `model.zip`.

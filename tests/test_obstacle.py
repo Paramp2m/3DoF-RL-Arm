@@ -1,3 +1,4 @@
+import mujoco
 import numpy as np
 
 from rlarm.agents import IKAgent
@@ -52,3 +53,26 @@ def test_a3_start_clearance_and_yaw_obs():
         assert obs["observation"].shape == e.observation_space["observation"].shape
     c, s = obs["observation"][-2:]
     assert np.isclose(c * c + s * s, 1, atol=1e-5)
+
+
+def test_clearance_obs_reward_and_curriculum_scale():
+    cfg = load_config(ROOT / "configs/obstacle_a3.yaml")
+    cfg["env"].update(obs_clearance=True, clear_margin=0.04)
+    cfg["env"]["reward"]["w_clear"] = 0.5
+    e = make_env(cfg)
+    obs, info = e.reset(seed=0)
+    assert obs["observation"].shape == e.observation_space["observation"].shape
+    assert info["r_clear"] <= 0 and info["r_clear"] == -0.5 * info["clear_prox"]
+    gaps = [g for g, _ in e._link_gaps()]
+    assert min(gaps) >= 0.05  # start clearance > margin: no penalty at reset
+    assert info["clear_prox"] == 0
+    e.data.mocap_pos[e.omocap] = e.data.site("tip").xpos  # box on the forearm: full penalty
+    mujoco.mj_forward(e.model, e.data)
+    assert e._info_extra()["clear_prox"] >= 1.0
+    # HER-style batched call uses info["clear_prox"]
+    *_, sinfo = e.step(np.zeros(3))
+    r = e.compute_reward(np.zeros((2, 3)), np.ones((2, 3)), np.array([sinfo] * 2))
+    assert r.shape == (2,)
+    e.difficulty = 0.3
+    e.reset(seed=1)
+    assert np.allclose(e.half, e.full_half * 0.3)

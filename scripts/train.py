@@ -56,6 +56,7 @@ class ValCallback(BaseCallback):
 
     def __init__(self, cfg: dict, run, every: int, episodes: int, seed: int):
         super().__init__()
+        self.clean = cfg["val"].get("clean", False)
         self.env, self.run, self.every, self.n, self.seed = (
             make_env(cfg),
             run,
@@ -68,7 +69,12 @@ class ValCallback(BaseCallback):
     def _on_step(self) -> bool:
         if self.num_timesteps % self.every == 0:
             ev = evaluate_goal(self.model, self.env, self.n, seed=self.seed)
-            key = (ev["success_rate"], -ev["final_dist_mm_median"])
+            score = ev["success_rate"]
+            if (
+                self.clean and ev["collision_rate"] is not None
+            ):  # val.clean: keep the best collision-free policy
+                score -= ev["collision_rate"]
+            key = (score, -ev["final_dist_mm_median"])
             self.logger.record("val/success", ev["success_rate"])
             self.logger.record("val/median_mm", ev["final_dist_mm_median"])
             self.hist.append({"step": self.num_timesteps, "success": key[0], "median_mm": -key[1]})

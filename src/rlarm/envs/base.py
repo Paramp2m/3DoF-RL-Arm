@@ -105,6 +105,7 @@ class ArmGoalEnv(gym.Env):
             get("collision") if w.get("w_collision") else None,
             get("reach_dist") if w.get("w_reach") else None,
             get("action_delta") if w.get("w_smooth") else None,
+            get("clear_prox") if w.get("w_clear") else None,
         )
         return sum(t.values())
 
@@ -141,6 +142,7 @@ class ArmGoalEnv(gym.Env):
             extra.get("collision"),
             extra.get("reach_dist"),
             self.action_delta,
+            extra.get("clear_prox"),
         )
         d = float(np.linalg.norm(obs["achieved_goal"] - obs["desired_goal"].astype(float)))
         return (

@@ -17,10 +17,12 @@ class ObstacleEnv(ReachEnv):
     the box, the target is >= 4 cm from it, and some in-limit IK pose at the target is contact-free."""
 
     def __init__(self, cfg: dict, **kw):
+        self.obs_yaw = cfg["env"].get("obs_box_yaw", False)
         super().__init__(cfg, **kw)
         e = cfg["env"]
         self.half = np.array(e["box_half"], float)
         self.min_span = e.get("min_span", 0.2)
+        self.clearance = e.get("start_clearance", 0.0)  # min gap [m] between arm and box at reset
         self.gid = self.model.geom("obstacle").id
         self.model.geom_size[self.gid] = self.half
         self.model.geom_rbound[self.gid] = np.linalg.norm(
@@ -31,10 +33,15 @@ class ObstacleEnv(ReachEnv):
         self._hit = False
 
     def _extras_dim(self) -> int:
-        return 3
+        return 5 if self.obs_yaw else 3
 
     def _extras(self) -> np.ndarray:
-        return self.data.mocap_pos[self.omocap].copy()
+        e = self.data.mocap_pos[self.omocap].copy()
+        if self.obs_yaw:  # box heading, else the policy cannot know which way the box faces
+            q = self.data.mocap_quat[self.omocap]
+            yaw = 2 * np.arctan2(q[3], q[0])
+            e = np.r_[e, np.cos(yaw), np.sin(yaw)]
+        return e
 
     def _touching(self) -> bool:
         """Is any contact between the box and another geom active right now?"""
@@ -50,6 +57,17 @@ class ObstacleEnv(ReachEnv):
 
     def _info_extra(self) -> dict:
         return {"collision": self._hit}
+
+    def _arm_gap(self) -> float:
+        """Smallest distance from any arm link to the box (capped at 0.5 m)."""
+        fromto = np.zeros(6)
+        gaps = [
+            mujoco.mj_geomDistance(
+                self.model, self.data, self.model.geom(n).id, self.gid, 0.5, fromto
+            )
+            for n in ("upper_arm", "forearm")
+        ]
+        return min(gaps)
 
     def _box_dist(self, p: np.ndarray) -> float:
         """Distance from point p to the box surface (0 inside)."""
@@ -86,7 +104,12 @@ class ObstacleEnv(ReachEnv):
                 yaw = np.arctan2(d[1], d[0]) if np.hypot(d[0], d[1]) > 1e-6 else 0.0
                 self.data.mocap_quat[self.omocap] = [np.cos(yaw / 2), 0, 0, np.sin(yaw / 2)]
                 mujoco.mj_forward(self.model, self.data)
-                if not self._touching() and self._box_dist(goal) >= 0.04 and self._goal_pose_free():
+                if (
+                    not self._touching()
+                    and self._arm_gap() >= self.clearance
+                    and self._box_dist(goal) >= 0.04
+                    and self._goal_pose_free()
+                ):
                     return
             # resample start pose and target (same distributions as reach)
             q = self.np_random.uniform(self.lim[:, 0], self.lim[:, 1])

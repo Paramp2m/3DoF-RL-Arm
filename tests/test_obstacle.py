@@ -42,3 +42,13 @@ def test_collision_reward_term_in_info():
     e.reset(seed=0)
     *_, info = e.step(np.zeros(3))
     assert "r_collision" in info and info["r_collision"] == -float(info["collision"])
+
+
+def test_a3_start_clearance_and_yaw_obs():
+    e = make_env(load_config(ROOT / "configs/obstacle_a3.yaml"))
+    for seed in range(40):
+        obs, _ = e.reset(seed=seed)
+        assert e._arm_gap() >= 0.05
+        assert obs["observation"].shape == e.observation_space["observation"].shape
+    c, s = obs["observation"][-2:]
+    assert np.isclose(c * c + s * s, 1, atol=1e-5)

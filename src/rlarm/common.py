@@ -181,3 +181,23 @@ def arm_runs(arm: dict) -> list[Path]:
             raise FileNotFoundError(f"no run folder for {name} seed {s}")
         out.append(found[-1])
     return out
+
+
+def early_stop_reason(scores: list[float], steps: int, total: int, es: dict) -> str | None:
+    """Automatic triage of a training run from its validation scores (one per val point).
+
+    None = keep going. "plateau" = best score has not improved by `delta` for `patience` val points (the run
+    is finalised from its val-best checkpoint: a good plateau is saved, not wasted). "stuck_low" = same
+    stall (>= patience // 2 points) while the best score is still under `floor` (a useless run; mark it
+    unusable). Nothing triggers before `min_frac` of the budget and `min_points` val points.
+    """
+    if steps < es.get("min_frac", 0.3) * total or len(scores) < es.get("min_points", 5):
+        return None
+    best, last = float("-inf"), 0
+    for i, sc in enumerate(scores):
+        if sc > best + es.get("delta", 0.01):
+            best, last = sc, i
+    since, floor = len(scores) - 1 - last, es.get("floor")
+    if floor is not None and best < floor and since >= max(es.get("patience", 6) // 2, 1):
+        return "stuck_low"
+    return "plateau" if since >= es.get("patience", 6) else None

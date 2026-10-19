@@ -21,6 +21,7 @@ def terms(
     reach_dist=None,
     action_delta=None,
     clear_prox=None,
+    wp_dist=None,
 ) -> dict:
     """Each reward term, shape (...,), keyed by name. speed = ‖q̇‖ (rad/s), needed only for settle;
     limit_prox = Σ_j max(0, 1 - gap_j / margin) over joints (see ArmGoalEnv), needed only for w_limit.
@@ -39,11 +40,14 @@ def terms(
     assert collision is not None or not w.get("w_collision"), "w_collision needs collision"
     assert reach_dist is not None or not w.get("w_reach"), "w_reach needs reach_dist"
     assert action_delta is not None or not w.get("w_smooth"), "w_smooth needs action_delta"
+    assert wp_dist is not None or not w.get("w_wp"), "w_wp needs wp_dist"
     assert clear_prox is not None or not w.get("w_clear"), "w_clear needs clear_prox"
     if w.get("w_settle"):
         t["settle"] = -w["w_settle"] * np.asarray(speed, float) ** 2 * (d < success_dist)
     if w.get("w_limit"):
         t["limits"] = -w["w_limit"] * np.asarray(limit_prox, float)
+    if w.get("w_wp"):
+        t["waypoint"] = -w["w_wp"] * np.asarray(wp_dist, float)
     if w.get("w_clear"):
         t["clear"] = -w["w_clear"] * np.asarray(clear_prox, float)
     if w.get("w_smooth"):

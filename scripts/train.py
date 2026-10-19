@@ -18,6 +18,7 @@ from rlarm.common import (
     algo_class,
     algo_kwargs,
     apply_threads,
+    early_stop_reason,
     evaluate,
     evaluate_goal,
     git_hash,
@@ -64,9 +65,15 @@ class ValCallback(BaseCallback):
             episodes,
             seed,
         )
-        self.best, self.hist = None, []
+        self.best, self.hist, self.stop_reason = None, [], None
+        self.es, self.total = cfg["val"].get("early_stop"), cfg["total_steps"]
 
     def _on_step(self) -> bool:
+        if self.num_timesteps % 5000 == 0 and (self.run / "STOP").exists():
+            self.stop_reason = (
+                "manual"  # `touch runs/<id>/STOP` ends the run; val-best is still saved + evaluated
+            )
+            return False
         if self.num_timesteps % self.every == 0:
             ev = evaluate_goal(self.model, self.env, self.n, seed=self.seed)
             score = ev["success_rate"]
@@ -85,6 +92,12 @@ class ValCallback(BaseCallback):
             (self.run / "val.json").write_text(
                 json.dumps({"best_step": self.best[1], "history": self.hist}, indent=1)
             )
+            if self.es:  # config val.early_stop: stop plateaued / stuck runs by themselves
+                self.stop_reason = early_stop_reason(
+                    [h["success"] for h in self.hist], self.num_timesteps, self.total, self.es
+                )
+                if self.stop_reason:
+                    return False
         return True
 
 
@@ -115,7 +128,7 @@ def main() -> None:
     (run / "git_hash.txt").write_text(git_hash() + "\n")
     t0 = time.time()
 
-    best = "model.zip"
+    best, extra = "model.zip", {}
 
     def write(status, steps, final_eval=None):
         wall = time.time() - t0
@@ -129,6 +142,7 @@ def main() -> None:
                     "torch_threads": threads,
                     "final_eval": final_eval,
                     "best_checkpoint": best,
+                    **extra,
                 },
                 indent=1,
             )
@@ -161,6 +175,13 @@ def main() -> None:
                 every, n_val = (total // 2, 2) if a.dry_run else (v["every"], v["episodes"])
                 cbs.append(ValCallback(cfg, run, every, n_val, v["seed"]))
             model.learn(total, callback=CallbackList(cbs), progress_bar=False)
+            if (
+                v and cbs[1].stop_reason
+            ):  # ended early: record why and where (usable unless "stuck_low")
+                total = model.num_timesteps
+                extra["stopped_early"] = cbs[1].stop_reason
+                extra["budget"] = cfg["total_steps"]
+                extra["usable"] = cbs[1].stop_reason != "stuck_low"
         if v and (run / "model_best.zip").exists():
             model.save(run / "final.zip")  # last policy kept for comparison; model.zip = val-best
             os.replace(run / "model_best.zip", run / "model.zip")

@@ -26,14 +26,24 @@ argument-hint: "[launch <config> [seeds] | status]"
    `uv run python scripts/train.py --config <C> --seed <S> > runs/_logs/<name>-s<S>.log 2>&1`
 4. Tell the user one line: run ids, plus the ETA from the dry run.
 5. **End the turn.** Do not sleep, poll, tail or re-check. Claude Code delivers the job's completion as a new turn.
-   Exception, the **mid-run triage**: whenever a turn happens anyway (a user message, a goal check-in, a sibling job finishing) and a run over ~30 min is underway, spend one cheap call on it: read only the last few `val.json` history entries and `summary.json` steps of every running job (never the logs). Do not schedule extra wake-ups just for this.
+   Exception: the run triage below (automatic `early_stop` in every config, plus a cheap `val.json` peek whenever a turn happens anyway).
 
-## Mid-run triage: kill useless runs
-- Only judge a run past ~30% of its budget and at least 5 validation points.
-- Kill it if it is clearly worse than a sibling (same config family, other seed/variant) or than its own pilot at the same step, **and** its score is flat or falling over the last 3 validation points. A seed that is merely lower than its siblings but still rising is not clearly useless.
-- A run that already plateaued above its gate (e.g. >90% for 3 validation points while the gate is lower) may be stopped early too, but only if a `model.zip` can still be produced: otherwise let it finish.
-- Kill by PID from `ps -eo pid,args` (never `pkill -f` from the same shell: it matches itself and kills the tool call). Then log one line in docs/decisions.md (run, step, scores, reason) and commit; stopped runs are never used for results.
-- Freed threads go to the next queued job. Update any watcher that waits for the killed runs.
+## Run triage: automatic first, then by hand
+**1. Automatic (every new config).** Put `early_stop` in the config's `val:` block:
+`val: {every: .., episodes: .., seed: .., early_stop: {min_frac: 0.3, min_points: 5, patience: 6, delta: 0.01, floor: <gate-ish score>}}`.
+`train.py` then ends the run itself (rule in `rlarm.common.early_stop_reason`, tested):
+- `plateau`: best val score has not improved by `delta` for `patience` val points, after >= `min_frac` of the budget and `min_points` val points. The run is **finalised, not discarded**: val-best becomes `model.zip`, final eval runs, `summary.json` gets `stopped_early: plateau`, the real step count and `usable: true`. A plateau at a good score is a finished run, so use it.
+- `stuck_low`: best score still under `floor` and stalled for >= patience/2 val points. Also finalised (so the evidence exists) but `usable: false`: never put it in best_runs.yaml or results.
+- `manual`: `touch runs/<id>/STOP` ends a run at its next 5000-step boundary with the same finalisation (val-best saved, eval run, `stopped_early: manual`). Use it instead of `kill` whenever the run is worth keeping (good plateau you spotted before the rule fired).
+- Choose `floor` per task from the gate: ~half of it for success-type scores (obstacle uses success minus collision rate, floor 0.45; reach-type 0.5). `patience` 6 and `delta` 0.01 suit val points every 5% of the budget; with sparser val points use patience 4. Use `val.every` <= total_steps/20 so there are enough points.
+
+**2. By hand (mid-run triage).** Whenever a turn happens anyway (user message, goal check-in, a sibling finishing) and a run over ~30 min is underway, spend one cheap call: read only the last 5 `val.json` history entries and the steps of each running job (never logs). Do not schedule extra wake-ups for it. Decide per run:
+- Running, rising, or within ~3 val points of its best: leave it.
+- Plateaued at a good score (>= gate or within 0.05 of the best sibling) but the auto rule has not fired yet: `touch STOP` (saves it). Do not `kill`: that leaves no `model.zip`.
+- Clearly useless, i.e. score under the floor (e.g. < 0.45) or far below a sibling or its pilot at the same step, **and** flat or falling over the last 3 points, past ~30% of budget: `touch STOP` if you may want the evidence, else kill by PID from `ps -eo pid,args` (never `pkill -f` from the same shell: it matches itself and kills the tool call). Fix `touch STOP` first when in doubt: it finalises.
+- Several seeds of one config where one is lagging but still rising: leave it. Where **all** seeds of a variant are below floor: stop the variant (all seeds), keep the siblings.
+- Never judge before ~30% of budget or 5 val points. Never stop a run only because it is lower than a sibling while still rising.
+- Always: log one line in docs/decisions.md (run, step, score trajectory, rule, action), commit, free the threads for the next queued job, and update any watcher waiting on the stopped runs. Stopped-useless runs are never used for results.
 
 ## On completion
 - Read only `runs/<id>/summary.json`.

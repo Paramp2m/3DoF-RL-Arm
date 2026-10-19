@@ -76,3 +76,62 @@ def test_clearance_obs_reward_and_curriculum_scale():
     e.difficulty = 0.3
     e.reset(seed=1)
     assert np.allclose(e.half, e.full_half * 0.3)
+
+
+def _cfg_v(**env):
+    cfg = load_config(ROOT / "configs/obstacle_c1.yaml")
+    cfg["env"].update(env)
+    return cfg
+
+
+def test_safe_action_filter_blocks_contact_and_keeps_state_consistent():
+    e = make_env(_cfg_v(safe_action=True))
+    hits = blocked = steps = 0
+    for seed in range(8):
+        e.reset(seed=seed)
+        for t in range(
+            120
+        ):  # drive hard toward the goal pose, straight into the box when it is in the way
+            sol = ik(e.goal, lim=e.lim)
+            qd = sol[np.abs(sol - e.data.qpos[:3]).sum(1).argmin()]
+            *_, info = e.step(np.clip((qd - e.target_q) / 0.05, -1, 1))
+            hits += info["collision"]
+            blocked += info["blocked"]
+            steps += 1
+    plain = make_env(_cfg_v())
+    plain_hits = 0
+    for seed in range(8):
+        plain.reset(seed=seed)
+        for t in range(120):
+            sol = ik(plain.goal, lim=plain.lim)
+            qd = sol[np.abs(sol - plain.data.qpos[:3]).sum(1).argmin()]
+            *_, info = plain.step(np.clip((qd - plain.target_q) / 0.05, -1, 1))
+            plain_hits += info["collision"]
+    assert blocked > 0 and hits < plain_hits * 0.3, (hits, plain_hits, blocked)
+
+
+def test_planner_waypoint_path_is_collision_free_and_obs_shape():
+    e = make_env(_cfg_v(obs_waypoint=True))
+    for seed in range(15):
+        obs, _ = e.reset(seed=seed)
+        assert obs["observation"].shape == e.observation_space["observation"].shape
+        assert e.wp == 1 and len(e.path) in (2, 3)
+        assert np.allclose(obs["observation"][-4:-1], e.path[1] - e.path[0], atol=1e-5)
+        assert all(e._seg_free(a, b) for a, b in zip(e.path[:-1], e.path[1:], strict=True))
+    e.reset(seed=0)
+    for _ in range(300):  # following the path with IK-style joint steps reaches the last waypoint
+        e.step(np.clip((e.path[e.wp] - e.target_q) / 0.05, -1, 1))
+    assert e.wp == len(e.path) - 1
+
+
+def test_waypoint_reward_term():
+    e = make_env(
+        _cfg_v(
+            obs_waypoint=True,
+            safe_action=True,
+            reward={**load_config(ROOT / "configs/obstacle_c1.yaml")["env"]["reward"], "w_wp": 0.3},
+        )
+    )
+    e.reset(seed=1)
+    *_, info = e.step(np.zeros(3))
+    assert np.isclose(info["r_waypoint"], -0.3 * info["wp_dist"])

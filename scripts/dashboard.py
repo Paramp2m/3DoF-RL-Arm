@@ -10,13 +10,17 @@ Imports no torch/mujoco (rlarm.common pulls both in), so the run-folder rules ar
 """
 
 import argparse
+import functools
+import gzip
 import json
 import os
 import re
+import shutil
 import subprocess
 import threading
 import time
 import webbrowser
+from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
@@ -219,10 +223,10 @@ def git() -> dict:
     return _git
 
 
-# ---------- training processes and machine ----------
-def training() -> set[tuple[str, int | None]]:
-    """(config stem, seed) of every live, non-dry train.py, from /proc (no subprocess)."""
-    out = set()
+# ---------- training processes ----------
+def train_procs() -> dict[int, tuple[str, int | None]]:
+    """pid -> (config name, seed) of every live, non-dry train.py, from /proc (no subprocess)."""
+    out = {}
     for c in Path("/proc").glob("[0-9]*/cmdline"):
         try:
             a = [x.decode(errors="replace") for x in c.read_bytes().split(b"\0")]
@@ -236,48 +240,274 @@ def training() -> set[tuple[str, int | None]]:
             i = a.index("--config") + 1
             seed = int(a[a.index("--seed") + 1]) if "--seed" in a else None
             # runs are named after the config's `name:`, which can differ from the file name (configs/pilot/)
-            c = yread(ROOT / a[i]) if i < len(a) else None
-            out.add(
-                (
-                    c.get("name")
-                    if isinstance(c, dict)
-                    else Path(a[i]).stem
-                    if i < len(a)
-                    else "?",
-                    seed,
-                )
+            cfg = yread(ROOT / a[i]) if i < len(a) else None
+            name = (
+                cfg.get("name") if isinstance(cfg, dict) else Path(a[i]).stem if i < len(a) else "?"
             )
+            out[int(c.parent.name)] = (name, seed)
     return out
 
 
-_cpu = {"prev": None, "pct": 0.0}
+def training() -> set[tuple[str, int | None]]:
+    return set(train_procs().values())
 
 
-def machine() -> dict:
-    """CPU % since the last call, memory, battery: what decides whether training is being slowed down."""
-    f = [int(x) for x in Path("/proc/stat").read_text().split("\n", 1)[0].split()[1:]]
-    idle, total = f[3] + f[4], sum(f)
-    if _cpu["prev"] and total > _cpu["prev"][1]:
-        _cpu["pct"] = 100 * (1 - (idle - _cpu["prev"][0]) / (total - _cpu["prev"][1]))
-    _cpu["prev"] = (idle, total)
+# ---------- machine vitals (sampled every 2 s by a background thread, ~1 ms each) ----------
+def _read(p: Path) -> str | None:
+    try:
+        return p.read_text().strip()
+    except OSError:
+        return None
+
+
+def _num(p: Path, div: float = 1) -> float | None:
+    try:
+        return float(p.read_text()) / div
+    except (OSError, ValueError):
+        return None
+
+
+_sensors: dict[str, Path] = {}
+
+
+def sensor(*keys: str, div: float = 1000) -> float | None:
+    """First readable hwmon value among keys '<chip>/<label>/<input|average>', e.g. 'k10temp/Tctl/input'."""
+    if not _sensors:
+        for h in Path("/sys/class/hwmon").glob("hwmon*"):
+            chip = _read(h / "name") or h.name
+            for f in h.glob("*_*"):
+                m = re.fullmatch(r"(temp|power|fan)(\d+)_(input|average)", f.name)
+                if m:
+                    label = _read(h / f"{m[1]}{m[2]}_label") or f"{m[1]}{m[2]}"
+                    _sensors.setdefault(f"{chip}/{label}/{m[3]}", f)
+    for k in keys:
+        if k in _sensors:
+            v = _num(_sensors[k], div)
+            if v is None:
+                _sensors.clear()  # hwmon numbers can change after a resume: look them up again next time
+            return None if v is None else round(v, 1)
+    return None
+
+
+def battery() -> dict | None:
+    """Charge, plugged in or not (from the charger, not the battery: at a charge limit it reads 'Discharging'), health."""
+    ps = Path("/sys/class/power_supply")
+    if not ps.exists():
+        return None
+    plugged = any(_read(p / "online") == "1" for p in ps.iterdir() if _read(p / "type") == "Mains")
+    for b in sorted(ps.glob("BAT*")):
+        pct = _num(b / "capacity")
+        if pct is None:
+            continue
+        full = _num(b / "energy_full") or _num(b / "charge_full")
+        design = _num(b / "energy_full_design") or _num(b / "charge_full_design")
+        watts, wh = _num(b / "power_now", 1e6), _num(b / "energy_now", 1e6)
+        return {
+            "pct": int(pct),
+            "status": _read(b / "status") or "?",
+            "plugged": plugged,
+            "watts": round(watts, 1) if watts else None,
+            "health": round(100 * full / design) if full and design else None,
+            "cycles": int(_num(b / "cycle_count") or 0) or None,
+            "hours_left": round(wh / watts, 1)
+            if not plugged and watts and watts > 0.5 and wh
+            else None,
+        }
+    return None
+
+
+_vit: dict = {"prev": None, "latest": {}, "hist": deque(maxlen=600), "n": 0}
+_vit_lock = threading.Lock()
+
+
+def sample() -> dict:
+    """One reading of every vital; every 3rd one also goes into the last hour's history."""
+    rows = [
+        ln.split() for ln in Path("/proc/stat").read_text().splitlines() if ln.startswith("cpu")
+    ]
+    now = {r[0]: (int(r[4]) + int(r[5]), sum(int(x) for x in r[1:9])) for r in rows}
+    with _vit_lock:
+        prev, _vit["prev"] = _vit["prev"] or {}, now
+
+    def busy(k: str) -> int:
+        p = prev.get(k)
+        if not p or now[k][1] <= p[1]:
+            return 0
+        return round(100 * (1 - (now[k][0] - p[0]) / (now[k][1] - p[1])))
+
     mem = dict(
         ln.split(":", 1) for ln in Path("/proc/meminfo").read_text().splitlines() if ":" in ln
     )
-    kb = lambda k: int(mem[k].split()[0])
-    bat = None
-    for b in Path("/sys/class/power_supply").glob("BAT*"):
+    gb = lambda k: round(int(mem[k].split()[0]) / 2**20, 1)
+    cpus = Path("/sys/devices/system/cpu")
+    ghz = [g for f in cpus.glob("cpu[0-9]*/cpufreq/scaling_cur_freq") if (g := _num(f, 1e6))]
+    busy_gpu = [_read(p) for p in Path("/sys/class/drm").glob("card*/device/gpu_busy_percent")]
+    v = {
+        "t": time.time(),
+        "cpu": busy("cpu"),
+        "cores": [
+            busy(k) for k in sorted((k for k in now if k != "cpu"), key=lambda k: int(k[3:]))
+        ],
+        "cpu_temp": sensor(
+            "k10temp/Tctl/input",
+            "zenpower/Tdie/input",
+            "coretemp/Package id 0/input",
+            "acpitz/temp1/input",
+        ),
+        "gpu_temp": sensor("amdgpu/edge/input"),
+        "ssd_temp": sensor("nvme/Composite/input"),
+        "chip_w": sensor("amdgpu/PPT/average", "amdgpu/PPT/input", div=1e6),
+        "ghz": round(sum(ghz) / len(ghz), 2) if ghz else None,
+        "ghz_max": _num(cpus / "cpu0/cpufreq/cpuinfo_max_freq", 1e6),
+        "gpu_busy": next((int(b) for b in busy_gpu if b and b.isdigit()), None),
+        "mem_used": round(gb("MemTotal") - gb("MemAvailable"), 1),
+        "mem_total": gb("MemTotal"),
+        "swap_used": round(gb("SwapTotal") - gb("SwapFree"), 1),
+        "swap_total": gb("SwapTotal"),
+        "load": [float(x) for x in Path("/proc/loadavg").read_text().split()[:3]],
+        "battery": battery(),
+    }
+    with _vit_lock:
+        _vit["latest"] = v
+        _vit["n"] += 1
+        if _vit["n"] % 3 == 1:
+            _vit["hist"].append(
+                [round(v["t"]), v["cpu"], v["cpu_temp"], v["chip_w"], v["mem_used"]]
+            )
+    return v
+
+
+def sampler() -> None:
+    while True:
         try:
-            bat = {
-                "pct": int((b / "capacity").read_text()),
-                "status": (b / "status").read_text().strip(),
-            }
+            sample()
+        except (OSError, ValueError, KeyError, IndexError):
+            pass  # one odd reading; the next one comes in 2 s
+        time.sleep(2)
+
+
+def machine() -> dict:
+    """The vitals every poll carries (the Laptop page asks /api/system for the rest)."""
+    v = _vit["latest"] or sample()
+    return {k: v[k] for k in ("cpu", "cpu_temp", "chip_w", "mem_used", "mem_total", "battery")}
+
+
+_procs: dict = {"prev": None, "t": 0.0}
+_procs_lock = threading.Lock()
+
+
+def proc_times() -> dict[int, tuple[str, int, int, int]]:
+    """pid -> (name, CPU ticks used so far, resident memory in pages, parent pid)."""
+    out = {}
+    for d in Path("/proc").iterdir():
+        if not d.name.isdigit():
+            continue
+        try:
+            s = (d / "stat").read_text()
         except OSError:
-            pass
+            continue
+        f = s[s.rindex(")") + 2 :].split()  # f[k-3] = field k of proc(5)
+        out[int(d.name)] = (
+            s[s.index("(") + 1 : s.rindex(")")],
+            int(f[11]) + int(f[12]),
+            int(f[21]),
+            int(f[1]),
+        )
+    return out
+
+
+def procs() -> list[dict]:
+    """Who uses the CPU since the last call: training runs (with their worker processes), apps, this dashboard."""
+    with _procs_lock:
+        now, t = proc_times(), time.time()
+        prev, t0 = _procs["prev"], _procs["t"]
+        if prev is None or t - t0 > 30:  # first look, or a stale one: measure over half a second
+            time.sleep(0.5)
+            prev, t0 = now, t
+            now, t = proc_times(), time.time()
+        _procs.update(prev=now, t=t)
+    tick, page, ncpu = os.sysconf("SC_CLK_TCK"), os.sysconf("SC_PAGE_SIZE"), os.cpu_count() or 1
+    runs = train_procs()
+
+    def run_of(pid: int) -> tuple[str, int | None] | None:
+        for _ in range(4):  # vec-env workers are children of the train.py process
+            if pid in runs:
+                return runs[pid]
+            pid = now[pid][3] if pid in now else 0
+        return None
+
+    groups: dict[tuple, dict] = {}
+    for pid, (name, ticks, rss, _) in now.items():
+        r = run_of(pid)
+        if r:
+            rd = newest(r[0], r[1]) if r[1] is not None else None
+            key = ("run", rd.name if rd else f"{r[0]} s{r[1]}")
+        else:
+            key = ("self", "this dashboard") if pid == os.getpid() else ("app", name)
+        g = groups.setdefault(
+            key, {"kind": key[0], "name": key[1], "cpu": 0.0, "mem_gb": 0.0, "n": 0}
+        )
+        if pid in prev:
+            g["cpu"] += 100 * (ticks - prev[pid][1]) / tick / max(t - t0, 1e-3) / ncpu
+        g["mem_gb"] += rss * page / 2**30
+        g["n"] += 1
+    rows = sorted(groups.values(), key=lambda g: -g["cpu"])
+    apps = [g for g in rows if g["kind"] == "app" and g["cpu"] >= 0.2][:8]
+    keep = [g for g in rows if g["kind"] != "app"] + apps
+    for g in keep:
+        g["cpu"], g["mem_gb"] = round(g["cpu"], 1), round(g["mem_gb"], 2)
+    return keep
+
+
+_inh: dict = {"t": 0.0, "v": None}
+
+
+def sleep_blockers() -> list[dict] | None:
+    """Apps holding a 'block' inhibitor on sleep/idle/lid (systemd-logind); None if logind can't be asked."""
+    if time.time() - _inh["t"] > 15:
+        try:
+            out = subprocess.run(
+                [
+                    "busctl",
+                    "--json=short",
+                    "call",
+                    "org.freedesktop.login1",
+                    "/org/freedesktop/login1",
+                    "org.freedesktop.login1.Manager",
+                    "ListInhibitors",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=3,
+            ).stdout
+            rows = json.loads(out)["data"][0]
+            v = [
+                {"what": what, "who": who, "why": why}
+                for what, who, why, mode, *_ in rows
+                if mode == "block" and {"sleep", "idle", "handle-lid-switch"} & set(what.split(":"))
+            ]
+        except (OSError, ValueError, KeyError, IndexError, TypeError, subprocess.TimeoutExpired):
+            v = None
+        _inh.update(t=time.time(), v=v)
+    return _inh["v"]
+
+
+def system() -> dict:
+    """Everything the Laptop page shows."""
+    du = shutil.disk_usage(ROOT)
     return {
-        "cpu": round(_cpu["pct"]),
-        "mem_used": round((kb("MemTotal") - kb("MemAvailable")) / 2**20, 1),
-        "mem_total": round(kb("MemTotal") / 2**20, 1),
-        "battery": bat,
+        **(_vit["latest"] or sample()),
+        "hist": list(_vit["hist"]),
+        "procs": procs(),
+        "sleep_blockers": sleep_blockers(),
+        "disk_free": round(du.free / 2**30, 1),
+        "disk_total": round(du.total / 2**30),
+        "uptime_s": float(Path("/proc/uptime").read_text().split()[0]),
+        "profile": _read(Path("/sys/firmware/acpi/platform_profile")),
+        "kernel": os.uname().release,
+        "host": os.uname().nodename,
+        "threads": os.cpu_count(),
     }
 
 
@@ -460,6 +690,12 @@ def run_meta(run: Path, live: set, role: dict) -> dict:
         "miss_mm": ev.get("final_dist_mm_median", (sm.get("final_eval") or {}).get("median_mm")),
         "val_last": hist[-1]["success"] if hist else None,
         "val": [[h["step"], h["success"]] for h in hist],
+        # val.clean configs score validation as success rate minus collision rate, so it can go below 0
+        "val_kind": "clean" if (cfg.get("val") or {}).get("clean") else "success",
+        "stopped_early": sm.get(
+            "stopped_early"
+        ),  # plateau / stuck_low / manual (val.early_stop, STOP file)
+        "usable": sm.get("usable", True),
         "best": role.get("best"),
         "exp": role.get("exp", []),
         "gif": (run / "video.gif").exists(),
@@ -528,6 +764,12 @@ def phases(g: dict, runs: list[dict]) -> dict:
     }
 
 
+@functools.cache
+def me() -> str:
+    """The user's first name (git user.name), for the greeting."""
+    return (sh("git", "config", "user.name").split() or [""])[0]
+
+
 def decisions() -> list[dict]:
     out = []
     for ln in (ROOT / "docs/decisions.md").read_text().splitlines():
@@ -554,6 +796,7 @@ def state() -> dict:
         "phase": ph,
         "runs": runs,
         "machine": machine(),
+        "me": me(),
         "dismissed": jread(DISMISSED) or [],
         "dirty": g["dirty"],
         "decisions": decisions(),
@@ -867,8 +1110,19 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
     def send(self, code: int, body: bytes, ctype: str, cache: bool = False) -> None:
+        # gzip text: the full state is ~100 kB and changes every few seconds while training (phone data)
+        gz = (
+            len(body) > 1400
+            and ctype.startswith(("application/json", "text/"))
+            and "gzip" in self.headers.get("Accept-Encoding", "")
+        )
+        if gz:
+            body = gzip.compress(body, 5)
         self.send_response(code)
         self.send_header("Content-Type", ctype)
+        if gz:
+            self.send_header("Content-Encoding", "gzip")
+            self.send_header("Vary", "Accept-Encoding")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "max-age=3600" if cache else "no-store")
         self.end_headers()
@@ -904,6 +1158,8 @@ class Handler(BaseHTTPRequestHandler):
                 if q.get("v") == _state["v"]:
                     return self.json({"v": _state["v"], "same": True, "machine": body["machine"]})
                 return self.json({"v": _state["v"], **body})
+            if u.path == "/api/system":
+                return self.json(system())
             if u.path.startswith("/api/run/"):
                 d = run_detail(u.path[len("/api/run/") :])
                 return self.json(d) if d else self.json({"error": "no such run"}, 404)
@@ -959,6 +1215,8 @@ class Handler(BaseHTTPRequestHandler):
 def serve(port: int) -> ThreadingHTTPServer:
     srv = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     srv.daemon_threads = True
+    if not any(th.name == "vitals" for th in threading.enumerate()):
+        threading.Thread(target=sampler, name="vitals", daemon=True).start()
     return srv
 
 

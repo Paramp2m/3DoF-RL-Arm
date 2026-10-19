@@ -1,4 +1,6 @@
+import gzip
 import json
+import os
 import sys
 import threading
 import urllib.error
@@ -34,6 +36,8 @@ def test_state_lists_phases_runs_docs_and_unchanged_poll_is_tiny(url):
     assert code == 200 and len(s["phase"]["list"]) == 8
     assert {"runs", "machine", "decisions", "docs", "experiments"} <= s.keys()
     assert all(dashboard.NAME.match(r["id"]) for r in s["runs"])
+    assert {"val_kind", "stopped_early", "usable"} <= s["runs"][0].keys()
+    assert {"cpu", "cpu_temp", "chip_w", "mem_used", "battery"} <= s["machine"].keys()
     same = json.loads(get(url + "/api/state?v=" + s["v"])[1])
     assert same["same"] and same["v"] == s["v"] and "runs" not in same
 
@@ -120,3 +124,21 @@ def test_phone_via_tailscale_sees_everything_but_cannot_open_laptop_windows(url,
         headers={"Content-Type": "application/json", "Host": ts, "Origin": f"https://{ts}"},
     )
     assert "laptop" in json.loads(urllib.request.urlopen(req).read())["error"]
+
+
+def test_laptop_page_data_covers_every_thread_and_names_this_dashboard(url):
+    code, body = get(url + "/api/system")
+    v = json.loads(body)
+    assert code == 200 and len(v["cores"]) == os.cpu_count() and 0 <= v["cpu"] <= 100
+    assert v["mem_total"] > 0 and v["disk_free"] > 0 and isinstance(v["hist"], list)
+    assert any(p["kind"] == "self" for p in v["procs"])
+    assert v["sleep_blockers"] is None or isinstance(v["sleep_blockers"], list)
+
+
+def test_text_is_gzipped_for_browsers_that_accept_it(url):
+    r = urllib.request.urlopen(
+        urllib.request.Request(url + "/", headers={"Accept-Encoding": "gzip"})
+    )
+    assert r.headers["Content-Encoding"] == "gzip"
+    assert gzip.decompress(r.read()).startswith(b"<!doctype html>")
+    assert get(url + "/")[1].startswith(b"<!doctype html>")  # and plain for clients that don't

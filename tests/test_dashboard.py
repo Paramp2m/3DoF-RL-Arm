@@ -76,6 +76,13 @@ def test_only_project_docs_and_media_are_readable(url):
     assert get(url + "/file/docs/media/../../CLAUDE.md")[0] == 404
 
 
+def test_search_finds_docs_and_shows_plain_text_snippets(url):
+    code, body = get(url + "/api/search?q=reach")
+    hits = json.loads(body)
+    assert code == 200 and any(h["kind"] == "doc" for h in hits)
+    assert not any("**" in h["text"] for h in hits if h["kind"] == "doc")
+
+
 def test_requests_from_other_sites_are_refused(url):
     assert get(url + "/api/state", {"Host": "evil.example"})[0] == 403
     req = urllib.request.Request(
@@ -124,6 +131,20 @@ def test_phone_via_tailscale_sees_everything_but_cannot_open_laptop_windows(url,
         headers={"Content-Type": "application/json", "Host": ts, "Origin": f"https://{ts}"},
     )
     assert "laptop" in json.loads(urllib.request.urlopen(req).read())["error"]
+    bad = urllib.request.Request(
+        url + "/api/action",
+        data=b'{"kind": ["watch"]}',  # not a string: refused, not a dropped connection
+        headers={"Content-Type": "application/json", "Host": ts, "Origin": f"https://{ts}"},
+    )
+    with pytest.raises(urllib.error.HTTPError) as e:
+        urllib.request.urlopen(bad)
+    assert e.value.code == 400
+
+
+def test_changed_polls_skip_the_decision_log_the_page_already_has(url):
+    s = json.loads(get(url + "/api/state")[1])
+    again = json.loads(get(url + f"/api/state?v=stale&dv={s['dv']}")[1])
+    assert "decisions" in s and "decisions" not in again and again["runs"]
 
 
 def test_laptop_page_data_covers_every_thread_and_names_this_dashboard(url):

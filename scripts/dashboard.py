@@ -10,6 +10,7 @@ Imports no torch/mujoco (rlarm.common pulls both in), so the run-folder rules ar
 """
 
 import argparse
+import contextlib
 import functools
 import gzip
 import json
@@ -21,12 +22,15 @@ import threading
 import time
 import webbrowser
 from collections import deque
+from email.utils import formatdate
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
 import yaml
 
+# tensorboard pulls in numpy: one BLAS thread instead of 15 idle ones
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
 ROOT = Path(__file__).resolve().parent.parent
 RUNS, STATIC = ROOT / "runs", Path(__file__).resolve().parent / "dashboard"
 DISMISSED = (
@@ -70,7 +74,7 @@ PHASES = {
         "~6 h",
     ),
     5: (
-        "Harder tasks: track a moving target, avoid an obstacle, push a cube",
+        "Track a moving target, avoid an obstacle, push a cube",
         "Judge 3 GIFs; decide what to change if push stalls after 3 tries",
         "10 h+",
     ),
@@ -87,7 +91,7 @@ PHASES = {
 }
 STAGES = {
     "build": "Writing this phase's checks and code. Short messages in the terminal.",
-    "train": "Training in the background. Claude is idle and wakes up by itself when the runs finish. Keep the laptop awake and plugged in.",
+    "train": "Resting while the runs train; it wakes up by itself when they finish. Keep the laptop awake and plugged in.",
     "gate": "Checking results against the phase gate, retraining if a check fails, then a review.",
     "report": "Writing the report, copying media, committing.",
 }
@@ -225,26 +229,30 @@ def git() -> dict:
 
 # ---------- training processes ----------
 def train_procs() -> dict[int, tuple[str, int | None]]:
-    """pid -> (config name, seed) of every live, non-dry train.py, from /proc (no subprocess)."""
+    """pid -> (config name, seed) of every live, non-dry train.py of this project, from /proc (no subprocess)."""
     out = {}
     for c in Path("/proc").glob("[0-9]*/cmdline"):
         try:
             a = [x.decode(errors="replace") for x in c.read_bytes().split(b"\0")]
-        except OSError:
+            if not (
+                Path(a[0]).name.startswith("python")  # not the `uv run` wrapper around it
+                and "--config" in a
+                and "--dry-run" not in a
+            ):
+                continue
+            cwd = Path(os.readlink(c.parent / "cwd"))
+        except (OSError, IndexError):
             continue
-        if (
-            any(x.endswith("scripts/train.py") for x in a)
-            and "--config" in a
-            and "--dry-run" not in a
-        ):
-            i = a.index("--config") + 1
-            seed = int(a[a.index("--seed") + 1]) if "--seed" in a else None
-            # runs are named after the config's `name:`, which can differ from the file name (configs/pilot/)
-            cfg = yread(ROOT / a[i]) if i < len(a) else None
-            name = (
-                cfg.get("name") if isinstance(cfg, dict) else Path(a[i]).stem if i < len(a) else "?"
-            )
-            out[int(c.parent.name)] = (name, seed)
+        # same script name in another project (or a checkout of this one) is not ours
+        if not any(x.endswith("train.py") and cwd / x == ROOT / "scripts/train.py" for x in a):
+            continue
+        i = a.index("--config") + 1
+        # runs are named after the config's `name:`, which can differ from the file name (configs/pilot/)
+        cfg = yread(cwd / a[i]) if i < len(a) else None
+        cfg = cfg if isinstance(cfg, dict) else {}
+        name = cfg.get("name") or (Path(a[i]).stem if i < len(a) else "?")
+        seed = a[a.index("--seed") + 1] if "--seed" in a else cfg.get("seed")
+        out[int(c.parent.name)] = (name, int(seed) if str(seed).isdigit() else None)
     return out
 
 
@@ -283,9 +291,9 @@ def sensor(*keys: str, div: float = 1000) -> float | None:
     for k in keys:
         if k in _sensors:
             v = _num(_sensors[k], div)
-            if v is None:
-                _sensors.clear()  # hwmon numbers can change after a resume: look them up again next time
-            return None if v is None else round(v, 1)
+            if v is not None:
+                return round(v, 1)
+            _sensors.clear()  # hwmon numbers can change after a resume: look them up again next time
     return None
 
 
@@ -294,7 +302,12 @@ def battery() -> dict | None:
     ps = Path("/sys/class/power_supply")
     if not ps.exists():
         return None
-    plugged = any(_read(p / "online") == "1" for p in ps.iterdir() if _read(p / "type") == "Mains")
+    # a charger is any online supply that isn't a battery (Mains here; USB-C on some laptops)
+    plugged = any(
+        _read(p / "online") == "1"
+        for p in ps.iterdir()
+        if _read(p / "type") not in ("Battery", None)
+    )
     for b in sorted(ps.glob("BAT*")):
         pct = _num(b / "capacity")
         if pct is None:
@@ -302,16 +315,18 @@ def battery() -> dict | None:
         full = _num(b / "energy_full") or _num(b / "charge_full")
         design = _num(b / "energy_full_design") or _num(b / "charge_full_design")
         watts, wh = _num(b / "power_now", 1e6), _num(b / "energy_now", 1e6)
+        status = _read(b / "status") or "?"
+        # at a charge limit a plugged-in battery also reads "Discharging", but near-full and at ~0 W
+        draining = status == "Discharging" and (watts or 0) > 1 and (not plugged or pct < 95)
         return {
             "pct": int(pct),
-            "status": _read(b / "status") or "?",
+            "status": status,
             "plugged": plugged,
+            "weak_charger": plugged and draining,  # plugged in, yet the battery still drains
             "watts": round(watts, 1) if watts else None,
             "health": round(100 * full / design) if full and design else None,
             "cycles": int(_num(b / "cycle_count") or 0) or None,
-            "hours_left": round(wh / watts, 1)
-            if not plugged and watts and watts > 0.5 and wh
-            else None,
+            "hours_left": round(wh / watts, 1) if draining and wh else None,
         }
     return None
 
@@ -327,11 +342,14 @@ def sample() -> dict:
     ]
     now = {r[0]: (int(r[4]) + int(r[5]), sum(int(x) for x in r[1:9])) for r in rows}
     with _vit_lock:
-        prev, _vit["prev"] = _vit["prev"] or {}, now
+        prev, _vit["prev"] = _vit["prev"], now
+    if not prev:  # first reading: measure over a quarter second instead of reporting 0% busy
+        time.sleep(0.25)
+        return sample()
 
     def busy(k: str) -> int:
         p = prev.get(k)
-        if not p or now[k][1] <= p[1]:
+        if not p or now[k][1] <= p[1]:  # a CPU that came online since the last reading
             return 0
         return round(100 * (1 - (now[k][0] - p[0]) / (now[k][1] - p[1])))
 
@@ -356,7 +374,8 @@ def sample() -> dict:
         ),
         "gpu_temp": sensor("amdgpu/edge/input"),
         "ssd_temp": sensor("nvme/Composite/input"),
-        "chip_w": sensor("amdgpu/PPT/average", "amdgpu/PPT/input", div=1e6),
+        # instantaneous first: the APU's average sits flat at its sustained power limit
+        "chip_w": sensor("amdgpu/PPT/input", "amdgpu/PPT/average", div=1e6),
         "ghz": round(sum(ghz) / len(ghz), 2) if ghz else None,
         "ghz_max": _num(cpus / "cpu0/cpufreq/cpuinfo_max_freq", 1e6),
         "gpu_busy": next((int(b) for b in busy_gpu if b and b.isdigit()), None),
@@ -379,10 +398,8 @@ def sample() -> dict:
 
 def sampler() -> None:
     while True:
-        try:
+        with contextlib.suppress(Exception):  # one odd reading must not stop the vitals for good
             sample()
-        except (OSError, ValueError, KeyError, IndexError):
-            pass  # one odd reading; the next one comes in 2 s
         time.sleep(2)
 
 
@@ -392,13 +409,14 @@ def machine() -> dict:
     return {k: v[k] for k in ("cpu", "cpu_temp", "chip_w", "mem_used", "mem_total", "battery")}
 
 
-_procs: dict = {"prev": None, "t": 0.0}
+_procs: dict = {"prev": None, "up": 0.0, "t": 0.0, "rows": []}
 _procs_lock = threading.Lock()
 
 
-def proc_times() -> dict[int, tuple[str, int, int, int]]:
-    """pid -> (name, CPU ticks used so far, resident memory in pages, parent pid)."""
-    out = {}
+def proc_times() -> tuple[float, dict[tuple[int, int], tuple[str, int, int, int]]]:
+    """(uptime in ticks, {(pid, start tick): (name, CPU ticks used so far, resident pages, parent pid)})."""
+    tick, me, out = os.sysconf("SC_CLK_TCK"), os.getpid(), {}
+    up = float(Path("/proc/uptime").read_text().split()[0]) * tick
     for d in Path("/proc").iterdir():
         if not d.name.isdigit():
             continue
@@ -407,55 +425,60 @@ def proc_times() -> dict[int, tuple[str, int, int, int]]:
         except OSError:
             continue
         f = s[s.rindex(")") + 2 :].split()  # f[k-3] = field k of proc(5)
-        out[int(d.name)] = (
-            s[s.index("(") + 1 : s.rindex(")")],
-            int(f[11]) + int(f[12]),
-            int(f[21]),
-            int(f[1]),
-        )
-    return out
+        pid, ticks = int(d.name), int(f[11]) + int(f[12])
+        if pid == me:
+            ticks += int(f[13]) + int(f[14])  # + the git/busctl calls this server waited for
+        out[(pid, int(f[19]))] = (s[s.index("(") + 1 : s.rindex(")")], ticks, int(f[21]), int(f[1]))
+    return up, out
 
 
 def procs() -> list[dict]:
-    """Who uses the CPU since the last call: training runs (with their worker processes), apps, this dashboard."""
+    """Who uses the CPU since the last look: training runs (with their worker processes), apps, this dashboard."""
     with _procs_lock:
-        now, t = proc_times(), time.time()
-        prev, t0 = _procs["prev"], _procs["t"]
-        if prev is None or t - t0 > 30:  # first look, or a stale one: measure over half a second
+        if time.time() - _procs["t"] < 1:  # a second viewer right after the first: same numbers
+            return _procs["rows"]
+        up, now = proc_times()
+        prev, up0 = _procs["prev"], _procs["up"]
+        # first look, or a stale one: measure over half a second
+        if prev is None or time.time() - _procs["t"] > 30:
             time.sleep(0.5)
-            prev, t0 = now, t
-            now, t = proc_times(), time.time()
-        _procs.update(prev=now, t=t)
-    tick, page, ncpu = os.sysconf("SC_CLK_TCK"), os.sysconf("SC_PAGE_SIZE"), os.cpu_count() or 1
-    runs = train_procs()
+            prev, up0 = now, up
+            up, now = proc_times()
+        tick, page, ncpu = os.sysconf("SC_CLK_TCK"), os.sysconf("SC_PAGE_SIZE"), os.cpu_count() or 1
+        secs, runs = max((up - up0) / tick, 1e-3), train_procs()
+        parent = {k[0]: v[3] for k, v in now.items()}
 
-    def run_of(pid: int) -> tuple[str, int | None] | None:
-        for _ in range(4):  # vec-env workers are children of the train.py process
-            if pid in runs:
-                return runs[pid]
-            pid = now[pid][3] if pid in now else 0
-        return None
+        def run_of(pid: int) -> tuple[str, int | None] | None:
+            for _ in range(4):  # vec-env workers are children of the train.py process
+                if pid in runs:
+                    return runs[pid]
+                pid = parent.get(pid, 0)
+            return None
 
-    groups: dict[tuple, dict] = {}
-    for pid, (name, ticks, rss, _) in now.items():
-        r = run_of(pid)
-        if r:
-            rd = newest(r[0], r[1]) if r[1] is not None else None
-            key = ("run", rd.name if rd else f"{r[0]} s{r[1]}")
-        else:
-            key = ("self", "this dashboard") if pid == os.getpid() else ("app", name)
-        g = groups.setdefault(
-            key, {"kind": key[0], "name": key[1], "cpu": 0.0, "mem_gb": 0.0, "n": 0}
-        )
-        if pid in prev:
-            g["cpu"] += 100 * (ticks - prev[pid][1]) / tick / max(t - t0, 1e-3) / ncpu
-        g["mem_gb"] += rss * page / 2**30
-        g["n"] += 1
-    rows = sorted(groups.values(), key=lambda g: -g["cpu"])
-    apps = [g for g in rows if g["kind"] == "app" and g["cpu"] >= 0.2][:8]
-    keep = [g for g in rows if g["kind"] != "app"] + apps
-    for g in keep:
-        g["cpu"], g["mem_gb"] = round(g["cpu"], 1), round(g["mem_gb"], 2)
+        groups: dict[tuple, dict] = {}
+        for (pid, start), (name, ticks, rss, _) in now.items():
+            r = run_of(pid)
+            if r:
+                rd = newest(r[0], r[1]) if r[1] is not None else None
+                key = ("run", rd.name if rd else r[0])
+            else:
+                key = ("self", "this dashboard") if pid == os.getpid() else ("app", name)
+            g = groups.setdefault(
+                key, {"kind": key[0], "name": key[1], "cpu": 0.0, "mem_gb": 0.0, "n": 0}
+            )
+            if (pid, start) in prev:  # same pid and start time: not a reused pid
+                used = ticks - prev[(pid, start)][1]
+            else:  # not seen last time: count it all if it was born inside the window
+                used = ticks if start > up0 else 0
+            g["cpu"] += 100 * used / tick / secs / ncpu
+            g["mem_gb"] += rss * page / 2**30
+            g["n"] += 1
+        rows = sorted(groups.values(), key=lambda g: -g["cpu"])
+        apps = [g for g in rows if g["kind"] == "app" and g["cpu"] >= 0.2][:8]
+        keep = [g for g in rows if g["kind"] != "app"] + apps
+        for g in keep:
+            g["cpu"], g["mem_gb"] = round(g["cpu"], 1), round(g["mem_gb"], 2)
+        _procs.update(prev=now, up=up, t=time.time(), rows=keep)
     return keep
 
 
@@ -463,7 +486,9 @@ _inh: dict = {"t": 0.0, "v": None}
 
 
 def sleep_blockers() -> list[dict] | None:
-    """Apps holding a 'block' inhibitor on sleep/idle/lid (systemd-logind); None if logind can't be asked."""
+    """Apps holding a 'block' inhibitor on sleep/idle/lid (systemd-logind); None if logind can't be asked.
+
+    Only 'sleep' stops a suspend (idle timer, `systemctl suspend`); 'handle-lid-switch' stops the lid one."""
     if time.time() - _inh["t"] > 15:
         try:
             out = subprocess.run(
@@ -512,7 +537,8 @@ def system() -> dict:
 
 
 # ---------- TensorBoard scalars (incremental) ----------
-_tb: dict[str, list] = {}  # run name -> [accumulator, last reload time, scalars at that reload]
+# run name -> [accumulator (live runs only), last reload time, thinned scalars, log dir]
+_tb: dict[str, list] = {}
 _tb_lock = threading.Lock()
 
 
@@ -529,19 +555,18 @@ def scalars(run: Path, live: bool) -> dict:
             dirs = sorted({p.parent for p in tb.rglob("events.out.tfevents.*")})
             if not dirs:
                 return {}
-            ent = _tb[run.name] = [
-                EventAccumulator(str(dirs[-1]), size_guidance={"scalars": 0}),
-                0.0,
-                {},
-                dirs[-1],
-            ]
+            ent = _tb[run.name] = [None, 0.0, {}, dirs[-1]]
         # live runs: at most every 5 s; finished ones: once more if the log grew after the last read
         grown = max((f.stat().st_mtime for f in ent[3].iterdir()), default=0) > ent[1]
         if ent[1] == 0 or (grown and (not live or time.time() - ent[1] > 5)):
-            acc = ent[0]
+            acc = ent[0] or EventAccumulator(str(ent[3]), size_guidance={"scalars": 0})
             acc.Reload()  # reads only events appended since the last call
             ent[1] = time.time()
-            ent[2] = {t: [[e.step, e.value] for e in acc.Scalars(t)] for t in acc.Tags()["scalars"]}
+            ent[2] = {
+                t: thin([[e.step, e.value] for e in acc.Scalars(t)]) for t in acc.Tags()["scalars"]
+            }
+            # a finished run keeps only its thinned curves (~2 MB less each)
+            ent[0] = acc if live else None
         return ent[2]
 
 
@@ -688,13 +713,14 @@ def run_meta(run: Path, live: set, role: dict) -> dict:
         "wall_s": sm.get("wall_s"),
         "success": ev.get("success_rate", (sm.get("final_eval") or {}).get("success")),
         "miss_mm": ev.get("final_dist_mm_median", (sm.get("final_eval") or {}).get("median_mm")),
+        "collisions": ev.get("collision_rate"),  # obstacle task: attempts that touched the box
+        "track_mm": ev.get("track_err_mm_mean"),  # track task: error while following the target
         "val_last": hist[-1]["success"] if hist else None,
         "val": [[h["step"], h["success"]] for h in hist],
         # val.clean configs score validation as success rate minus collision rate, so it can go below 0
         "val_kind": "clean" if (cfg.get("val") or {}).get("clean") else "success",
-        "stopped_early": sm.get(
-            "stopped_early"
-        ),  # plateau / stuck_low / manual (val.early_stop, STOP file)
+        # plateau / stuck_low / manual (val.early_stop, STOP file)
+        "stopped_early": sm.get("stopped_early"),
         "usable": sm.get("usable", True),
         "best": role.get("best"),
         "exp": role.get("exp", []),
@@ -917,7 +943,7 @@ def search(q: str) -> list[dict]:
     if len(q) < 2:
         return []
     hits = []
-    s = state_cached()
+    s = state_cached()[0]
     for d in s["docs"]:
         text = (ROOT / d["path"]).read_text(errors="replace")
         for i, ln in enumerate(text.splitlines()):
@@ -928,7 +954,7 @@ def search(q: str) -> list[dict]:
                         "title": d["title"],
                         "path": d["path"],
                         "line": i,
-                        "text": ln.strip()[:200],
+                        "text": " ".join(re.sub(r"\]\([^)]*\)|[*`|#>\[]", " ", ln).split())[:200],
                     }
                 )
     for d in s["decisions"]:
@@ -957,16 +983,17 @@ _state = {"t": 0.0, "v": None, "body": None}
 _state_lock = threading.Lock()
 
 
-def state_cached() -> dict:
-    """state() at most once per second, however many tabs poll."""
+def state_cached() -> tuple[dict, str, str]:
+    """(state(), its version, the decision log's version) at most once per second, however many tabs poll."""
     with _state_lock:
         if time.time() - _state["t"] >= 1 or _state["body"] is None:
             body = state()
             # version without the machine stats (they change every second), so unchanged polls stay tiny
             stable = {k: v for k, v in body.items() if k != "machine"}
             v = str(hash(json.dumps(stable, sort_keys=True, default=str)))
-            _state.update(t=time.time(), body=body, v=v)
-        return _state["body"]
+            dv = str(hash(json.dumps(body["decisions"], default=str)))
+            _state.update(t=time.time(), body=body, v=v, dv=dv)
+        return _state["body"], _state["v"], _state["dv"]
 
 
 # ---------- actions (viewers + read-only gate) ----------
@@ -1109,7 +1136,15 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, *a):  # quiet: the terminal only shows the URL
         pass
 
-    def send(self, code: int, body: bytes, ctype: str, cache: bool = False) -> None:
+    def handle(self):
+        try:
+            super().handle()
+        except (ConnectionError, TimeoutError):  # the browser hung up or stalled: nobody to answer
+            pass
+
+    def send(
+        self, code: int, body: bytes, ctype: str, cache: str = "no-store", modified: str = ""
+    ) -> None:
         # gzip text: the full state is ~100 kB and changes every few seconds while training (phone data)
         gz = (
             len(body) > 1400
@@ -1124,7 +1159,9 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Encoding", "gzip")
             self.send_header("Vary", "Accept-Encoding")
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Cache-Control", "max-age=3600" if cache else "no-store")
+        self.send_header("Cache-Control", cache)
+        if modified:
+            self.send_header("Last-Modified", modified)
         self.end_headers()
         self.wfile.write(body)
 
@@ -1151,13 +1188,18 @@ class Handler(BaseHTTPRequestHandler):
                 )
             if u.path == "/marked.min.js":
                 return self.send(
-                    200, (STATIC / "marked.min.js").read_bytes(), "text/javascript", cache=True
+                    200, (STATIC / "marked.min.js").read_bytes(), "text/javascript", "max-age=3600"
                 )
             if u.path == "/api/state":
-                body = state_cached()
-                if q.get("v") == _state["v"]:
-                    return self.json({"v": _state["v"], "same": True, "machine": body["machine"]})
-                return self.json({"v": _state["v"], **body})
+                body, v, dv = state_cached()
+                if q.get("v") == v:
+                    return self.json({"v": v, "same": True, "machine": body["machine"]})
+                out = {"v": v, "dv": dv, **body}
+                if (
+                    q.get("dv") == dv
+                ):  # the decision log is half the reply: resend it only when it changed
+                    del out["decisions"]
+                return self.json(out)
             if u.path == "/api/system":
                 return self.json(system())
             if u.path.startswith("/api/run/"):
@@ -1183,9 +1225,15 @@ class Handler(BaseHTTPRequestHandler):
                 p = safe_path(u.path[len("/file/") :], ("docs/media/", "runs/"))
                 if p is None or p.suffix not in MEDIA:
                     return self.send(404, b"not found", "text/plain")
-                return self.send(200, p.read_bytes(), MEDIA[p.suffix])
-        except (BrokenPipeError, ConnectionResetError):
-            return
+                # GIFs are MBs: the browser keeps them and asks "changed?" instead (phone data)
+                lm = formatdate(p.stat().st_mtime, usegmt=True)
+                if self.headers.get("If-Modified-Since") == lm:
+                    self.send_response(304)
+                    self.end_headers()
+                    return None
+                return self.send(200, p.read_bytes(), MEDIA[p.suffix], "no-cache", lm)
+        except ConnectionError:
+            raise  # hung up: handle() drops it, no 500 to send
         except Exception as e:  # noqa: BLE001 - one odd run file must not make the page look dead
             return self.json({"error": f"{type(e).__name__}: {e}"}, 500)
         self.send(404, b"not found", "text/plain")
@@ -1196,14 +1244,16 @@ class Handler(BaseHTTPRequestHandler):
             or self.headers.get("Content-Type", "").split(";")[0] != "application/json"
         ):
             return self.send(403, b"forbidden", "text/plain")
+        n = self.headers.get("Content-Length") or "0"
+        if not n.isdigit() or int(n) > 10_000:
+            return self.json({"error": "bad length"}, 400)
         try:
-            n = int(self.headers.get("Content-Length") or 0)
-            if not 0 <= n <= 10_000:
-                return self.json({"error": "bad length"}, 400)
-            body = json.loads(self.rfile.read(n) or b"{}")
-        except ValueError:
+            body = json.loads(self.rfile.read(int(n)) or b"{}")
+        except (ValueError, RecursionError):  # RecursionError: [[[[…]]]] nested too deep
             return self.json({"error": "bad json"}, 400)
         if self.path == "/api/action" and isinstance(body, dict):
+            if not isinstance(body.get("kind"), str):
+                return self.json({"error": "unknown action"}, 400)
             if self.host() not in ("127.0.0.1", "localhost") and body.get("kind") in LAPTOP_ONLY:
                 return self.json(
                     {"error": "That opens a window on the laptop, so it only works there."}

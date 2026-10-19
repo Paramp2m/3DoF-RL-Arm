@@ -65,7 +65,8 @@ nav.side a .n.hot { color: var(--accent-hi); }
 .search { position: relative; flex: 1; max-width: 560px; }
 .search input { width: 100%; padding: 10px 14px 10px 40px; background: var(--panel); border: 1px solid var(--line2); border-radius: 12px; color: var(--text); font: inherit; outline: none; transition: border-color 0.15s, background 0.15s; }
 .search input:focus { border-color: var(--accent2); background: var(--panel2); }
-.search .ic { position: absolute; left: 13px; top: 11px; color: var(--muted); width: 17px; height: 17px; }
+.search .ic { position: absolute; left: 13px; top: 11px; color: var(--muted); width: 17px; height: 17px; pointer-events: none; }
+.search input:focus-visible { box-shadow: 0 0 0 3px rgba(201, 152, 47, 0.3); }
 .results { position: absolute; top: 48px; left: 0; right: 0; background: var(--panel); border: 1px solid var(--line2); border-radius: 14px; max-height: 60vh; overflow: auto; box-shadow: 0 18px 50px #000a; }
 .results a { display: block; padding: 10px 14px; border-bottom: 1px solid var(--line); color: var(--text); }
 .results a:hover, .results a.sel { background: var(--panel2); text-decoration: none; }
@@ -78,6 +79,7 @@ nav.side a .n.hot { color: var(--accent-hi); }
 .vit .ld { width: 7px; height: 7px; border-radius: 50%; background: var(--good); }
 .vit .ld.off { background: var(--bad); }
 main { padding: 28px 32px 90px; max-width: 1240px; width: 100%; margin: 0 auto; }
+main:focus { outline: none; }
 main.enter { animation: enter 0.28s ease-out; }
 @keyframes enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .foot { margin-top: 56px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; display: flex; gap: 14px; flex-wrap: wrap; }
@@ -88,10 +90,11 @@ main.enter { animation: enter 0.28s ease-out; }
 .g3 { grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); }
 .gc2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .g4c { grid-template-columns: repeat(auto-fill, minmax(215px, 1fr)); }
-.g4 { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.g4 { grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); }
 .card { background: linear-gradient(180deg, rgba(255, 255, 255, 0.012), transparent 40%), var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; min-width: 0; box-shadow: var(--lift); }
-a.card { display: block; color: inherit; transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s; }
-a.card:hover { border-color: var(--line2); text-decoration: none; transform: translateY(-2px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 16px 40px rgba(0, 0, 0, 0.3); }
+/* lifted with top, not transform: a transform would re-anchor the fixed glossary tooltips inside it */
+a.card { display: block; color: inherit; position: relative; top: 0; transition: border-color 0.15s, top 0.15s, box-shadow 0.15s; }
+a.card:hover { border-color: var(--line2); text-decoration: none; top: -2px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 16px 40px rgba(0, 0, 0, 0.3); }
 .card h3 { display: flex; align-items: center; gap: 8px; }
 .card h3 .ic { color: var(--accent2); width: 17px; height: 17px; }
 .sec { margin: 38px 0 14px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
@@ -110,6 +113,7 @@ a.card:hover { border-color: var(--line2); text-decoration: none; transform: tra
 .bar { height: 8px; background: var(--panel3); border-radius: 99px; overflow: hidden; }
 .bar.thin { height: 4px; margin-top: 6px; }
 .bar > i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent2), var(--accent)); border-radius: 99px; transition: width 0.6s; }
+.bar > i.dim { background: linear-gradient(90deg, #5C5B49, var(--muted)); }
 .bar > i.good { background: linear-gradient(90deg, #7E9656, var(--good)); } .bar > i.warn { background: linear-gradient(90deg, #B98232, var(--warn)); } .bar > i.bad { background: linear-gradient(90deg, #A4503F, var(--bad)); }
 .stat .v { font-size: 27px; font-weight: 750; letter-spacing: -0.02em; line-height: 1.15; }
 .stat .l { color: var(--muted); font-size: 13px; margin-top: 2px; }
@@ -120,6 +124,8 @@ th { text-align: left; font-weight: 650; color: var(--muted); font-size: 11.5px;
 td { padding: 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
 tr:last-child td { border-bottom: 0; }
 tr.click { cursor: pointer; }
+a.rl { color: var(--text); } /* a run's name: a real link for the keyboard, styled like the text around it */
+button.arw { background: none; border: 0; padding: 4px; margin: -4px; color: var(--muted); font: inherit; cursor: pointer; }
 table.runs { table-layout: fixed; min-width: 640px; }
 table.runs td { vertical-align: middle; }
 tr.setup td { background: rgba(255, 255, 255, 0.012); }
@@ -136,7 +142,8 @@ tr.setup td { background: rgba(255, 255, 255, 0.012); }
 .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .sp { flex: 1; }
 .term { border-bottom: 1px dotted var(--accent2); cursor: help; position: relative; }
-.term:hover::after, .term:focus::after { content: attr(data-tip); position: absolute; left: 0; top: 130%; z-index: 20; width: max-content; max-width: min(300px, 76vw); padding: 9px 12px; background: #0A0C06; border: 1px solid var(--line2); border-radius: 10px; color: var(--text2); font-size: 13px; font-weight: 400; line-height: 1.45; text-transform: none; letter-spacing: 0; white-space: normal; box-shadow: 0 10px 30px #000a; }
+/* fixed to the screen (placed by placeTip), so a tooltip never widens the page or gets cut off by a scrolling table */
+.term:hover::after, .term:focus::after { content: attr(data-tip); position: fixed; left: var(--tx, 16px); top: var(--ty, auto); bottom: var(--tb, auto); z-index: 40; width: max-content; max-width: min(300px, calc(100vw - 32px)); padding: 9px 12px; background: #0A0C06; border: 1px solid var(--line2); border-radius: 10px; color: var(--text2); font-size: 13px; font-weight: 400; line-height: 1.45; text-transform: none; letter-spacing: 0; white-space: normal; box-shadow: 0 10px 30px #000a; }
 .filters { display: flex; gap: 6px; flex-wrap: wrap; }
 .filters button { padding: 6px 13px; border-radius: 99px; border: 1px solid var(--line2); background: transparent; color: var(--text2); font: inherit; font-size: 13px; cursor: pointer; transition: background 0.15s; }
 .filters button:hover { background: var(--panel); }
@@ -183,7 +190,7 @@ mark { background: #5E5020; color: var(--cream); border-radius: 3px; padding: 0 
 input[type="range"] { accent-color: var(--accent); width: 160px; vertical-align: middle; }
 .speed { display: inline-flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text2); }
 .speed b { min-width: 52px; display: inline-block; color: var(--text); }
-td.pick { width: 34px; } td.pick input { accent-color: var(--accent); width: 16px; height: 16px; cursor: pointer; }
+td.pick { width: 34px; } td.pick label { display: grid; place-items: center; min-height: 36px; cursor: pointer; } td.pick input { accent-color: var(--accent); width: 17px; height: 17px; cursor: pointer; margin: 0; }
 .cmpbar { position: sticky; bottom: 16px; z-index: 6; margin-top: 18px; display: flex; gap: 12px; align-items: center; padding: 12px 16px; background: var(--panel2); border: 1px solid var(--accent); border-radius: 14px; box-shadow: 0 10px 30px #000a; flex-wrap: wrap; }
 .timeline { position: relative; display: grid; gap: 12px; }
 .timeline::before { content: ""; position: absolute; left: 21px; top: 22px; bottom: 22px; width: 2px; background: linear-gradient(var(--olive), var(--line)); }
@@ -191,7 +198,7 @@ td.pick { width: 34px; } td.pick input { accent-color: var(--accent); width: 16p
 .ph .num { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-weight: 750; background: var(--panel2); color: var(--muted); border: 1px solid var(--line2); position: relative; }
 .ph.done .num { background: #1C2612; color: var(--good); border-color: var(--olive); }
 .ph.current .num { background: var(--accent); color: #1A1406; border-color: var(--accent); box-shadow: 0 0 0 6px rgba(201, 152, 47, 0.16); }
-.ph.upcoming { opacity: 0.72; }
+.ph.upcoming { opacity: 0.86; } /* still readable: muted text stays above 4.5:1 contrast */
 .steps { display: flex; gap: 6px; margin-top: 20px; }
 .steps > div { flex: 1; text-align: center; }
 .steps span { display: block; height: 6px; border-radius: 99px; background: var(--line2); }
@@ -250,7 +257,7 @@ a.chip:hover { border-color: var(--accent2); text-decoration: none; }
 
 /* ---------- live cards, numbers, milestones ---------- */
 .live-card .pct { font-size: 22px; font-weight: 750; letter-spacing: -0.02em; }
-.nums { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 14px; margin-top: 14px; }
+.nums { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 14px; }
 .nums .v { font-size: 24px; font-weight: 750; letter-spacing: -0.02em; color: var(--text); }
 .nums .l { font-size: 12px; color: var(--muted); }
 .badges { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-top: 14px; }
@@ -271,6 +278,10 @@ a.chip:hover { border-color: var(--accent2); text-decoration: none; }
 .gauge .gv small { font-size: 14px; color: var(--muted); font-weight: 600; margin-left: 2px; }
 .gauge .gl { font-size: 13px; color: var(--text2); font-weight: 650; margin-top: 8px; }
 .gauge .gs { font-size: 12px; color: var(--muted); }
+.gate { display: grid; grid-template-columns: max-content minmax(0, 1fr) max-content; gap: 6px 12px; align-items: baseline; font-size: 13.5px; margin-top: 12px; }
+.gate .k { color: var(--muted); }
+.skip { position: absolute; left: 12px; top: -60px; z-index: 90; padding: 8px 14px; border-radius: 10px; background: var(--accent); color: #1A1406; font-weight: 700; }
+.skip:focus { top: 12px; }
 .cores { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
 .core { border-radius: 10px; padding: 8px 6px 6px; text-align: center; border: 1px solid var(--line2); background: color-mix(in oklab, var(--accent) var(--l), var(--panel2)); transition: background 0.6s; }
 .core b { display: block; font-size: 15px; color: var(--text); text-shadow: 0 1px 2px #0008; }
@@ -312,6 +323,9 @@ nav.tabs, .more { display: none; }
   .more:not([hidden]) { display: grid; position: fixed; right: 10px; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 31; min-width: 220px; padding: 8px; gap: 2px; background: var(--panel2); border: 1px solid var(--line2); border-radius: 16px; box-shadow: 0 16px 50px #000c; }
   .more a { display: flex; align-items: center; gap: 12px; padding: 11px 12px; border-radius: 10px; color: var(--text); font-weight: 560; }
   .more a .ic { color: var(--accent2); }
+  /* phone: tooltips sit as a sheet above the tab bar, readable while the page scrolls */
+  .term:hover::after, .term:focus::after { left: 16px; right: 16px; top: auto; bottom: calc(80px + env(safe-area-inset-bottom)); width: auto; max-width: none; }
+  .results { position: fixed; left: 12px; right: 12px; top: 58px; }
   .more a:hover { background: var(--panel3); text-decoration: none; }
   .gauge .gv { font-size: 22px; }
   .cores { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -321,6 +335,13 @@ nav.tabs, .more { display: none; }
   .search input::placeholder { color: transparent; }
   .sec .r { margin-left: 0; }
   .card { padding: 16px; }
+  table.runs { min-width: 0; } /* narrow() drops the Steps and ▶ columns */
+  /* the decision log reads as a list on a phone: date and phase above each decision */
+  table.stack, table.stack tbody, table.stack tr, table.stack td { display: block; }
+  table.stack tr:first-child { display: none; }
+  table.stack tr { padding: 10px 4px; border-bottom: 1px solid var(--line); }
+  table.stack td { border: 0; padding: 2px 6px; overflow-wrap: anywhere; }
+  table.stack td:first-child, table.stack td:nth-child(2) { display: inline-block; }
 }
 </style>
 </head>
@@ -347,8 +368,9 @@ nav.tabs, .more { display: none; }
   <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></symbol>
   <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3"/></symbol>
 </svg>
+<a class="skip" href="javascript:void 0" onclick="$('#main').focus()">Skip to content</a>
 <div class="layout">
-  <nav class="side" id="nav">
+  <nav class="side" id="nav" aria-label="Pages">
     <a class="brand" href="#/">
       <span class="logo"><svg width="22" height="22" viewBox="0 0 32 32"><g class="j"><path d="M9 24 L14 15 L22 18 L25 9" stroke="#C9982F" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="25" cy="9" r="3" fill="#F5EFE3"/></g><circle cx="9" cy="24" r="2.6" fill="#D8C9A8"/></svg></span>
       <div>rl-arm<small>a robot arm that learns</small></div>
@@ -374,10 +396,10 @@ nav.tabs, .more { display: none; }
       </div>
       <a class="vit" id="vit" href="#/laptop" title="The laptop's vitals: open the Laptop page"><span class="ld off"></span></a>
     </div>
-    <main id="main"><div class="skel" style="height:220px"></div></main>
+    <main id="main" tabindex="-1"><div class="skel" style="height:220px"></div></main>
   </div>
 </div>
-<nav class="tabs" id="tabs">
+<nav class="tabs" id="tabs" aria-label="Pages">
   <a href="#/" data-r=""><svg class="ic"><use href="#i-now"/></svg>Now</a>
   <a href="#/runs" data-r="runs"><svg class="ic"><use href="#i-runs"/></svg>Runs</a>
   <a href="#/phases" data-r="phases"><svg class="ic"><use href="#i-phases"/></svg>Phases</a>
@@ -390,7 +412,7 @@ nav.tabs, .more { display: none; }
   <a href="#/decisions"><svg class="ic"><use href="#i-dec"/></svg>Decisions</a>
   <a href="#/help"><svg class="ic"><use href="#i-help"/></svg>Words explained</a>
 </div>
-<div class="toasts" id="toasts"></div>
+<div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 <script src="/marked.min.js"></script>
 <script>
 "use strict";
@@ -404,7 +426,7 @@ const GLOSS = {
   "typical miss": "The median distance between the tip and the target at the end of a test attempt. Lower is better.",
   "test score during training": "Every 20k–50k steps, training pauses briefly and the current network is tested on 100 separate 'validation' targets. This draws the learning curve; the best point is the model that is kept.",
   "time to reach": "How long the arm takes to first get within 2 cm, averaged over the successful attempts.",
-  "smoothness": "How much the command changes from one step to the next. Lower = smoother, less jerky movement.",
+  "jerkiness": "How much the command changes from one step to the next. Lower = smoother, less jerky movement.",
   "energy": "Work done by the motors in one attempt (joules). Only measured when the network commands forces directly (torque modes).",
   "reward": "The score the network is trained to maximise. It's built from several terms (precision bonus, success bonus, penalties), each logged separately.",
   "SAC": "Soft Actor-Critic: a learning algorithm that keeps a big memory of past experience and reuses it. The main algorithm in this project.",
@@ -419,6 +441,12 @@ const GLOSS = {
   "dry run": "A tiny ~6k-step trial that runs before every real training job, only to catch crashes early. Hidden from this dashboard.",
   "reach": "Task A: move the arm's tip to a random target within 2 cm.",
   "hold": "Task B: reach the target and then stay still on it for the last 2 seconds.",
+  "track": "Task C: keep the tip on a target that moves around a circle. Scored by the average distance to it after the first 2 seconds (step 50).",
+  "obstacle": "Task D: reach the target with a box in the way. Any touch between the arm and the box counts as a bump (a collision).",
+  "push": "Task E: a flat pad on the tip pushes a cube across the floor until the cube's centre is within 3 cm of a goal marker.",
+  "bumps": "Collision rate: out of 100 test attempts, how many touched the obstacle box at least once. Phase 5 allows at most 5%.",
+  "safety filter": "A guard between the network and the motors: a move that would touch the box is retried at half size, a quarter, zero, then reversed. The network still decides where to go.",
+  "waypoint": "A hint from an exact path planner: a safe in-between position the network sees when the straight route to the target is blocked, with a small reward for passing it.",
   "steps per second": "How fast training runs on this laptop. More parallel runs = each one is slower.",
   "CPU temperature": "The processor's own sensor (Tctl). Laptop chips sit at 85–95 °C under full load by design; near 100 °C they slow themselves down to cool off.",
   "throttling": "When the chip gets too hot it lowers its own speed to cool down. Nothing breaks, training just runs slower.",
@@ -430,7 +458,16 @@ const GLOSS = {
   "sleep blocker": "A program that tells the laptop not to sleep. Training dies if the laptop sleeps, so something should block sleep while runs train.",
 };
 const tip = (word, label) => `<span class="term" tabindex="0" data-tip="${esc(GLOSS[word] || "")}">${esc(label || word)}</span>`;
-const TARGETS = { "Phase 3 · reach": [0.95, 10], "Phase 3 · hold": [0.90, null], "Phase 5 · obstacle": [0.85, null], "Phase 5 · push": [0.60, null] };
+// the measurable pass/fail targets of docs/ROADMAP.md: [task, field, at least (1) or at most (-1), value]; each is the mean over the best runs' seeds
+const GATES = {
+  3: [["reach", "success", 1, 0.95], ["reach", "miss_mm", -1, 10], ["hold", "success", 1, 0.9]],
+  5: [["track", "track_mm", -1, 25], ["obstacle", "success", 1, 0.85], ["obstacle", "collisions", -1, 0.05], ["push", "success", 1, 0.6]],
+};
+const FIELD = { success: ["success", (v) => pct(v)], miss_mm: ["typical miss", (v) => mm(v)], track_mm: ["tracking error", (v) => mm(v)], collisions: ["bumps", (v) => pct(v)] };
+const meets = (g, v) => (v == null ? null : g[2] > 0 ? v >= g[3] : v <= g[3]);
+const checksFor = (best) => { const m = /^Phase (\d+) · (\w+)$/.exec(best || ""); return m ? (GATES[m[1]] || []).filter((g) => g[0] === m[2]) : []; };
+// "good"/"bad" against the run's own gate target; no colour for runs that no gate uses
+const okCls = (r, k) => { const g = checksFor(r.best).find((x) => x[1] === k), ok = g && meets(g, r[k]); return ok == null ? "" : ok ? "good" : "bad"; };
 const COLORS = ["var(--s1)", "var(--s2)", "var(--s3)", "var(--s4)", "var(--s5)"];
 const TASKS = { reach: "reaching for targets", hold: "reaching and holding still", track: "following a moving target", obstacle: "reaching around an obstacle", push: "pushing a cube", reacher: "the warm-up task" };
 
@@ -451,6 +488,8 @@ const big = (n) => (n >= 1e9 ? (n / 1e9).toFixed(1) + "B" : n >= 1e6 ? (n / 1e6)
 const dur = (s) => { if (s == null) return "–"; s = Math.round(s); if (s < 60) return s + " s"; const m = Math.round(s / 60); if (m < 60) return m + " min"; const h = Math.floor(m / 60); if (h < 48) return `${h} h ${m % 60} min`; return `${Math.floor(h / 24)} days${h % 24 ? ` ${h % 24} h` : ""}`; };
 const ago = (t) => (t ? dur(Date.now() / 1000 - t) + " ago" : "");
 const clock = (secFromNow) => new Date(Date.now() + secFromNow * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+const stop = (s) => (/[.?!]$/.test(s) ? s : s + "."); // end a sentence once, even if it ends with "?"
 const list = (a) => (a.length < 2 ? a.join("") : a.slice(0, -1).join(", ") + " and " + a.at(-1));
 const statusPill = (s) => `<span class="pill ${esc(s)}">${{ training: "training", done: "finished", stopped: "stopped" }[s] || esc(s)}</span>`;
 const valLabel = (r, word = "so far") => (r.val_kind === "clean" ? tip("clean score", `Clean score ${word}`) : tip("test score during training", `Test score ${word}`));
@@ -461,7 +500,25 @@ const cfgVal = (v) => (v === "—" ? '<span class="muted">not set</span>' : esc(
 const heat = (t) => (t == null ? ["no sensor", ""] : t >= 97 ? ["throttling", "bad"] : t >= 92 ? ["hot", "warn"] : t >= 80 ? ["warm", "accent"] : ["cool", "good"]);
 // TensorBoard-style exponential smoothing for noisy per-episode curves
 const smooth = (pts, a = 0.9) => { if (!pts || pts.length < 60) return pts; let m = pts[0][1]; return pts.map((p) => [p[0], (m = a * m + (1 - a) * p[1])]); };
-function prettyCfg(c) { return c.replace(/_s\d+$/, "").replace(/_/g, " "); }
+// config names are Claude's shorthand (obstacle_d3_safewp): spell out the parts a newcomer can't guess
+const WORDS = { safe: "safety filter", wp: "waypoint", safewp: "safety filter + waypoint", noreach: "no reach bonus", her: "HER" };
+function prettyCfg(c) {
+  const [task, ...rest] = c.replace(/_s\d+$/, "").split("_");
+  if (!TASKS[task]) return c.replace(/_s\d+$/, "").replace(/_/g, " ");
+  const code = /^[a-z]\d$/.test(rest[0]) ? rest.shift() : "";
+  return `${task}${rest.length ? " · " + rest.map((w) => WORDS[w] || w).join(" ") : ""}${code ? ` (${code})` : ""}`;
+}
+// a missing run / experiment / page: the resting arm and a way back
+const lost = (what, back) => `<div class="empty" style="margin-top:28px;padding:36px 20px"><div style="width:110px;margin:0 auto 10px">${mascot("idle")}</div><b class="t2">${what}</b><p class="small" style="margin:8px 0 0">${back}</p></div>`;
+// glossary tooltips are fixed to the screen: put each one under (or above) its word, inside the window
+function placeTip(e) {
+  const t = e.target.closest?.(".term"); if (!t) return;
+  const r = t.getBoundingClientRect(), w = Math.min(300, innerWidth - 32), below = r.bottom < innerHeight * 0.62;
+  t.style.setProperty("--tx", Math.max(16, Math.min(r.left, innerWidth - w - 16)) + "px");
+  t.style.setProperty("--ty", below ? r.bottom + 8 + "px" : "auto");
+  t.style.setProperty("--tb", below ? "auto" : innerHeight - r.top + 8 + "px");
+}
+document.addEventListener("mouseover", placeTip); document.addEventListener("focusin", placeTip);
 function keptModel(r) {
   const m = /val best @ (\d+)/.exec(r.summary?.best_checkpoint || "");
   return m ? `the best test score during training, at ${ksteps(+m[1])} steps <span class="muted small">(model.zip; the last one is final.zip)</span>` : esc(r.summary?.best_checkpoint || "–");
@@ -489,7 +546,8 @@ function setSpeed(i) { store.set("speedIdx", +i); syncSpeed(); }
 function syncSpeed() {
   const i = store.get("speedIdx", 2);
   document.querySelectorAll(".speedin").forEach((el) => { if (document.activeElement !== el) el.value = i; });
-  document.querySelectorAll(".speedout").forEach((el) => (el.textContent = speedName(SPEEDS[i]) + (SPEEDS[i] === 1 ? " (real time)" : "")));
+  const t = speedName(SPEEDS[i]) + (SPEEDS[i] === 1 ? " (real time)" : "");
+  document.querySelectorAll(".speedout").forEach((el) => { if (el.textContent !== t) el.textContent = t; });
 }
 const watch = (id, btn) => act({ kind: "watch", run: id, speed: speedVal() }, btn);
 function copy(text) {
@@ -516,6 +574,9 @@ function mount(blocks) {
   }
   syncSpeed();
   for (const id in CHARTS) if (!main.querySelector(`[data-c="${id}"]`)) delete CHARTS[id];
+  // a refresh redrew the chart under the pointer: show its tooltip again instead of letting it vanish
+  const svg = pointer && document.elementFromPoint(pointer.clientX, pointer.clientY)?.closest(".chart svg");
+  if (svg && !svg.parentNode.querySelector(".tip").style.display) hover({ currentTarget: svg, clientX: pointer.clientX, clientY: pointer.clientY }, svg.parentNode.dataset.c);
 }
 function footer() {
   if (!S) return "";
@@ -565,9 +626,12 @@ function chart(series, o = {}) {
   const legend = series.length > 1 || o.legend ? `<div class="legend">${series.map((s, i) => `<span><i style="background:${s.color || COLORS[i % COLORS.length]}"></i>${esc(s.name)}</span>`).join("")}</div>` : "";
   return `<div class="chart" data-c="${id}"><svg viewBox="0 0 ${W} ${H}" onmousemove="hover(event,'${id}')" onmouseleave="unhover('${id}')" ontouchstart="hover(event,'${id}')" ontouchmove="hover(event,'${id}')" ontouchend="setTimeout(()=>unhover('${id}'),1500)"><defs>${defs}</defs>${g}${body}<line class="xh" y1="${T}" y2="${H - B}" stroke="#A3A084" stroke-dasharray="3 3" opacity="0"/></svg><div class="tip"></div>${legend}</div>`;
 }
+let pointer = null; // where the pointer rests on a chart
+document.addEventListener("mousemove", (e) => { if (pointer && !e.target.closest?.(".chart")) pointer = null; }); // left it while it was being redrawn
 function hover(e, id) {
   const c = CHARTS[id], svg = e.currentTarget, box = svg.getBoundingClientRect(), pt = e.touches ? e.touches[0] : e;
   if (!c || !pt) return;
+  pointer = { clientX: pt.clientX, clientY: pt.clientY };
   const x = ((pt.clientX - box.left) / box.width) * c.W;
   const sx = c.x0 + ((x - c.L) / (c.W - c.L - c.R)) * (c.x1 - c.x0);
   let rows = [], px = null;
@@ -582,7 +646,7 @@ function hover(e, id) {
   t.innerHTML = `<div class="muted">${c.xt(px)}</div>${rows.join("")}`; t.style.display = "block";
   const left = (c.X(px) / c.W) * box.width; t.style.left = Math.max(0, Math.min(left + 12, box.width - t.offsetWidth)) + "px"; t.style.top = "8px";
 }
-function unhover(id) { const el = document.querySelector(`[data-c="${id}"]`); if (!el) return; el.querySelector(".tip").style.display = "none"; el.querySelector(".xh").setAttribute("opacity", 0); }
+function unhover(id) { pointer = null; const el = document.querySelector(`[data-c="${id}"]`); if (!el) return; el.querySelector(".tip").style.display = "none"; el.querySelector(".xh").setAttribute("opacity", 0); }
 function spark(pts) {
   if (!pts || pts.length < 2) return "";
   const W = 120, H = 30, x0 = pts[0][0], x1 = pts.at(-1)[0];
@@ -598,14 +662,14 @@ function gauge(v, lo, hi, unit, label, sub, cls = "") {
 }
 
 // ---------- state + polling ----------
-let S = null, V = null, lastOk = 0, detail = {}, failing = false, serverErr = null, pollT = null;
+let S = null, V = null, DV = null, lastOk = 0, detail = {}, failing = false, serverErr = null, pollT = null;
 async function poll() {
   try {
-    const r = await api("/api/state" + (V ? "?v=" + V : ""));
+    const r = await api("/api/state" + (V ? `?v=${V}&dv=${DV}` : ""));
     lastOk = Date.now(); failing = false; serverErr = r.error || null;
     if (r.error) return liveBadge();
     if (r.same) { S.machine = r.machine; if (route().page === "") render(); }
-    else { const old = S; notifyFinished(old, r); V = r.v; S = r; render(); celebrate(old, r); celebrateBadges(); }
+    else { const old = S; if (!r.decisions) r.decisions = old.decisions; notifyFinished(old, r); V = r.v; DV = r.dv; S = r; render(); celebrate(old, r); celebrateBadges(); }
     vitals();
   } catch { failing = true; }
   liveBadge();
@@ -622,7 +686,8 @@ function liveBadge() {
 function vitals() {
   const m = S?.machine; if (!m) return;
   const [word, cls] = heat(m.cpu_temp), b = m.battery;
-  const power = !b ? "" : b.plugged ? `<span title="plugged in · battery ${b.pct}%">${ic("plug")}${b.pct}%</span>` : `<span class="${b.pct < 25 ? "bad" : "warn"}" title="on battery">${ic("bat")}${b.pct}%</span>`;
+  const power = !b ? "" : b.plugged ? `<span class="${b.weak_charger ? "warn" : ""}" title="plugged in · battery ${b.pct}%${b.weak_charger ? " · still draining: the charger is too weak" : ""}">${ic("plug")}${b.pct}%</span>` : `<span class="${b.pct < 25 ? "bad" : "warn"}" title="on battery">${ic("bat")}${b.pct}%</span>`;
+  $("#vit").setAttribute("aria-label", `Laptop: ${m.cpu_temp != null ? `CPU ${Math.round(m.cpu_temp)} °C, ` : ""}${m.cpu}% busy${b ? `, battery ${b.pct}% ${b.plugged ? "plugged in" : "on battery"}` : ""}. Open the Laptop page`);
   $("#vit").innerHTML = `<span class="ld${failing ? " off" : ""}"></span>${m.cpu_temp != null ? `<span class="${cls}" title="CPU temperature: ${word}">${ic("temp")}${Math.round(m.cpu_temp)}°</span>` : ""}<span class="cpu" title="CPU in use">${ic("cpu")}${m.cpu}%</span>${power}`;
   const nt = $("#ntemp"); nt.textContent = m.cpu_temp != null ? Math.round(m.cpu_temp) + "°" : ""; nt.className = "n " + (cls === "bad" || cls === "warn" ? cls : "");
 }
@@ -638,10 +703,12 @@ function notifyFinished(old, now) {
 }
 function askNotify(btn) { Notification.requestPermission().then(() => render()); if (btn) btn.disabled = true; }
 setInterval(liveBadge, 1000);
-setInterval(() => { const h = route(); if (h.page === "run" && detail.run?.status === "training") loadRun(h.arg, true); if (h.page === "doc") loadDoc(h.arg, true); if (h.page === "exp" && h.arg) loadExp(h.arg, true); if (h.page === "laptop") loadSys(); }, 3500);
+// detail pages refresh every 3.5 s while visible (a doc only every 4th time: docs change rarely); nothing while hidden
+let tick = 0;
+setInterval(() => { if (document.hidden) return; const h = route(); tick++; if (h.page === "run" && detail.run?.status === "training") loadRun(h.arg, true); if (h.page === "doc" && tick % 4 === 0) loadDoc(h.arg, true); if (h.page === "exp" && h.arg) loadExp(h.arg, true); if (h.page === "laptop") loadSys(); }, 3500);
 
 // ---------- personality: the arm talks, celebrates, collects milestones ----------
-function greeting() { const h = new Date().getHours(), n = S.me ? `, ${esc(S.me)}` : ""; return h < 5 ? `Up late${n}? The arm doesn't mind.` : h < 12 ? `Good morning${n}.` : h < 18 ? `Good afternoon${n}.` : `Good evening${n}.`; }
+function greeting() { const h = new Date().getHours(), n = S.me ? `, ${esc(S.me)}` : ""; return h < 5 ? `Up late${n}?${S.runs.some((r) => r.status === "training") ? " I'll keep practising." : ""}` : h < 12 ? `Good morning${n}.` : h < 18 ? `Good afternoon${n}.` : `Good evening${n}.`; }
 function voice(live, stopped) {
   const ph = S.phase, next = ph.list.find((p) => p.n === ph.current + 1);
   if (stopped.length) return `Uh-oh. ${stopped.length === 1 ? "One of my practice runs" : stopped.length + " of my practice runs"} stopped before finishing. Claude should take a look, or dismiss the warning if it was on purpose.`;
@@ -649,7 +716,10 @@ function voice(live, stopped) {
     const tasks = [...new Set(live.map((r) => TASKS[r.task] || r.task))];
     const lead = live.filter((r) => r.val_last != null).sort((a, b) => b.val_last - a.val_last)[0];
     const eta = Math.max(0, ...live.map((r) => r.eta_s || 0));
-    return `${live.length === 1 ? "I'm" : `<b>${live.length} copies of me</b> are`} practising ${list(tasks)}. ${lead ? `Best ${lead.val_kind === "clean" ? "clean score" : "test score"} so far: <b>${pct(lead.val_last)}</b> (${esc(runTitle(lead))}, seed ${lead.seed}).` : "No test scores yet: the first check comes a few minutes in."}${eta ? ` Done around <b>${clock(eta)}</b>.` : ""}`;
+    // "6 of me (3 setups × 2 seeds)": the copies are different setups, each trained with a few seeds
+    const setups = new Set(live.map((r) => r.config)).size, per = live.length / setups;
+    const who = live.length === 1 ? "I'm" : `<b>${live.length} of me</b> (${setups > 1 ? `${setups} setups${Number.isInteger(per) && per > 1 ? ` × ${per} seeds` : ""}` : `${live.length} seeds`}) are`;
+    return `${who} practising ${list(tasks)}. ${lead ? `Best ${lead.val_kind === "clean" ? "clean score" : "test score"} so far: <b>${pct(lead.val_last)}</b> (${esc(runTitle(lead))}, seed ${lead.seed}).` : "No test scores yet: the first check comes a few minutes in."}${eta ? ` Done around <b>${clock(eta)}</b>, plus a few minutes of final tests.` : ""}`;
   }
   return { gate: "Training's done. Claude is checking my results against the phase gate. Joints crossed.", report: "Phase gate cleared! Claude is writing up what I learned.", build: "Claude is building my next challenge. Practice starts soon.", idle: `All caught up. ${next ? `Next: Phase ${next.n}, ${esc(next.title.replace(/\s*\([^)]*\)/, "").toLowerCase())}, whenever you give the go-ahead.` : "That was the last phase. Take a bow."}` }[ph.stage] || "";
 }
@@ -685,8 +755,8 @@ function celebrate(old, now) {
   for (const r of now.runs) {
     if (!was.has(r.id) || r.status === "training") continue;
     if (r.status !== "done") { toast(`<span class="bad">✕ <b>${esc(runTitle(r))} · seed ${r.seed}</b> stopped before finishing.</span>`, 12000); continue; }
-    const great = r.success != null && r.success >= (TARGETS[r.best]?.[0] ?? 0.9);
-    toast(`${great ? "🎉" : "✓"} <a href="#/run/${r.id}"><b>${esc(runTitle(r))} · seed ${r.seed}</b></a> finished${r.stopped_early ? ` (${esc((EARLY[r.stopped_early] || ["ended early"])[0])})` : ""}${r.success != null ? `: <b>${pct(r.success)}</b> success` : ""}.`, 12000);
+    const gs = checksFor(r.best), great = gs.length ? gs.every((g) => meets(g, r[g[1]])) : r.success != null && r.success >= 0.9;
+    toast(`${great ? "🎉" : "✓"} <a href="#/run/${r.id}"><b>${esc(runTitle(r))} · seed ${r.seed}</b></a> finished${r.stopped_early ? ` (${esc((EARLY[r.stopped_early] || ["ended early"])[0])})` : ""}${r.success != null ? `: <b>${pct(r.success)}</b> success${r.collisions != null ? `, ${pct(r.collisions)} bumps` : ""}` : ""}.`, 12000);
     party ||= great;
   }
   for (const [k, j] of Object.entries(now.jobs || {})) if (old.jobs?.[k]?.state === "running" && j.state !== "running") { toast(`${j.state === "PASS" ? "✅" : "❌"} ${esc(j.title)}: <b>${esc(j.state)}</b>`, 12000); party ||= j.state === "PASS"; }
@@ -695,8 +765,12 @@ function celebrate(old, now) {
 function numbers() {
   const L = S.runs.filter((r) => r.learns), done = L.filter((r) => r.status === "done");
   const steps = L.reduce((a, r) => a + (r.steps || 0), 0), wall = L.reduce((a, r) => a + (r.wall_s || 0), 0);
+  // laptop time: runs overlap (several train at once), so merge their [start, end] spans instead of adding them up
+  const spans = L.filter((r) => r.wall_s && r.mtime).map((r) => [r.mtime - r.wall_s, r.mtime]).sort((a, b) => a[0] - b[0]);
+  let busy = 0, end = -Infinity;
+  for (const [a, b] of spans) { if (b > end) { busy += b - Math.max(a, end); end = b; } }
   const ok = done.filter((r) => r.success != null), miss = done.filter((r) => r.miss_mm != null);
-  return { runs: S.runs.length, steps, sim: steps / 25, wall, best: ok.length ? ok.reduce((a, r) => (r.success > a.success ? r : a)) : null, sharp: miss.length ? miss.reduce((a, r) => (r.miss_mm < a.miss_mm ? r : a)) : null };
+  return { runs: done.length, steps, sim: steps / 25, wall, busy, best: ok.length ? ok.reduce((a, r) => (r.success > a.success ? r : a)) : null, sharp: miss.length ? miss.reduce((a, r) => (r.miss_mm < a.miss_mm ? r : a)) : null };
 }
 function badges() {
   const done = S.runs.filter((r) => r.learns && r.status === "done");
@@ -708,12 +782,12 @@ function badges() {
     ["mm", "📏", "Sub-centimetre", "typical miss under 10 mm", done.some((r) => r.miss_mm != null && r.miss_mm < 10), ""],
     ["hold", "🧘", "Steady hand", "hold task at 90%+", top("hold") >= 0.9, `best: ${pct(top("hold"))}`],
     ["track", "🛰️", "Moving target", "track task at 90%+", top("track") >= 0.9, `best: ${pct(top("track"))}`],
-    ["obst", "🧱", "Obstacle course", "obstacle task at 85%+", top("obstacle") >= 0.85, `best: ${pct(top("obstacle"))}`],
+    ["obst", "🧱", "Obstacle course", "obstacle: 85%+ with ≤5% bumps (the Phase 5 bar)", done.some((r) => r.task === "obstacle" && r.success >= 0.85 && r.collisions != null && r.collisions <= 0.05), `best with ≤5% bumps: ${pct(Math.max(0, ...done.filter((r) => r.task === "obstacle" && r.collisions != null && r.collisions <= 0.05).map((r) => r.success ?? 0)))}`],
     ["push", "📦", "Cube pusher", "push task at 60%+", top("push") >= 0.6, `best: ${pct(top("push"))}`],
-    ["mara", "🏃", "Marathon", "a 1M-step run finished", done.some((r) => r.total >= 1e6), ""],
+    ["mara", "🏃", "Marathon", "a 1M-step run finished", done.some((r) => r.steps >= 1e6), ""],
     ["night", "🌙", "Night shift", "a run finished between midnight and 5 am", done.some((r) => new Date(r.mtime * 1000).getHours() < 5), ""],
     ["half", "🏁", "Halfway there", "4 phases done", phasesDone >= 4, `${phasesDone} of 8 done`],
-    ["cent", "💯", "Century", "100 runs trained", S.runs.length >= 100, `${S.runs.length} of 100`],
+    ["cent", "💯", "Century", "100 runs finished training", done.length >= 100, `${done.length} of 100`],
   ].map(([id, icon, name, desc, got, prog]) => ({ id, icon, name, desc, got, prog }));
 }
 // fanfare only for milestones this browser hasn't seen yet; the first visit just remembers the old ones
@@ -722,8 +796,8 @@ function celebrateBadges() {
   const seen = store.get("badges", null);
   if (seen === null) return store.set("badges", got.map((b) => b.id));
   const fresh = got.filter((b) => !seen.includes(b.id));
+  if (fresh.length || seen.length !== got.length) store.set("badges", got.map((b) => b.id)); // one that re-locked can be celebrated again
   if (!fresh.length) return;
-  store.set("badges", got.map((b) => b.id));
   fresh.forEach((b) => toast(`🏅 Milestone unlocked: <b>${b.icon} ${esc(b.name)}</b> (${esc(b.desc)})`, 12000));
   cheer();
 }
@@ -734,7 +808,7 @@ window.addEventListener("hashchange", () => { window.scrollTo(0, 0); $("#main").
 function render() {
   if (!S) return;
   const { page, arg } = route();
-  const navKey = { run: "runs", compare: "runs", phase: "phases", doc: "docs", search: "" }[page] ?? page;
+  const navKey = { run: "runs", compare: "runs", phase: "phases", doc: "docs" }[page] ?? page;
   document.querySelectorAll("nav.side a.nl, nav.tabs a").forEach((a) => a.classList.toggle("on", a.dataset.r === navKey));
   $("#morebtn").classList.toggle("on", ["exp", "docs", "decisions", "help"].includes(navKey));
   const tr = S.runs.filter((r) => r.status === "training").length;
@@ -744,7 +818,7 @@ function render() {
   const pages = { "": pageNow, exp: arg ? pageExp : pageExps, phases: pagePhases, phase: pagePhase, runs: pageRuns, run: pageRun, docs: pageDocs, doc: pageDoc, decisions: pageDecisions, help: pageHelp, search: pageSearch, compare: pageCompare, laptop: pageLaptop };
   (pages[page] || pageLost)(arg);
 }
-function pageLost() { mount([["h", `<div class="empty" style="margin-top:40px;padding:50px 20px"><span class="big">🦾</span><b class="t2">This page wandered off, like an untrained arm.</b><p class="small">There's nothing at <code>${esc(location.hash)}</code>. <a href="#/">Back to Now →</a></p></div>`]]); }
+function pageLost() { mount([["h", lost("This page wandered off, like an untrained arm.", `There's nothing at <code>${esc(location.hash)}</code>. <a href="#/">Back to Now →</a>`)]]); }
 
 // ---------- page: Now ----------
 const mediaName = (f) => { const s = f.replace(/^phase\d+_/, "").replace(/\.\w+$/, "").replace(/_/g, " "); return ({ reach: "Reach (task A)", hold: "Hold (task B)", reacher: "Reacher (2-joint warm-up)", arm: "The arm" })[s] || s[0].toUpperCase() + s.slice(1); };
@@ -761,14 +835,14 @@ function pageNow() {
     <div class="hello">${greeting()}</div>
     <div class="row">${ph.in_phase ? "" : `<span class="pill done">Phase ${ph.current} done</span><span class="muted small">Next up:</span>`}<span class="pill current">Phase ${cur.n}</span><span class="pill ${ph.stage === "train" ? "training" : ""}">${{ train: "training", build: "building", gate: "checking results", report: "writing report", idle: "idle" }[ph.stage]}</span></div>
     <h1>${esc((cur?.title || "").replace(/\s*\([A-Z](\s*→\s*[A-Z])+\)/, ""))}</h1>
-    <p class="t2" style="margin:6px 0 0;max-width:760px">${esc(cur?.builds || "")}.</p></div>
+    <p class="t2" style="margin:6px 0 0;max-width:760px">${esc(stop(cur?.builds || ""))}</p></div>
     <div class="say" id="say"></div>
     <p class="muted small" style="margin:10px 0 0"><b class="t2">Claude right now:</b> ${esc(ph.stage_text)}</p>
     </div><div class="mslot">${mascot(mode)}</div>
     <div class="steps" style="grid-column:1/-1;margin-top:8px">${ph.list.map((p) => `<div class="${p.state}" title="Phase ${p.n}: ${esc(p.title)}"><span></span><small>${p.n}</small></div>`).join("")}</div>
   </div>`;
   const cards = live.length ? `<div class="grid g3">${live.map(liveCard).join("")}</div>` : `<div class="empty"><span class="big">😴</span>Nothing is training right now.${lastDone ? ` The last run, <a href="#/run/${lastDone.id}">${esc(runTitle(lastDone))} · seed ${lastDone.seed}</a>, finished ${ago(lastDone.mtime)}. <a href="#/runs">All runs →</a>` : ""}</div>`;
-  const warn = stopped.length ? `<div class="banner"><span>⚠ ${stopped.length} run(s) from this phase stopped without finishing (crash, killed, or the laptop slept): ${stopped.map((r) => `<a href="#/run/${r.id}">${esc(runTitle(r))} s${r.seed}</a>`).join(", ")}. <span class="t2">Tell Claude in the terminal, or dismiss this if it was stopped on purpose.</span></span><span class="sp"></span><button class="btn sm" data-ids="${esc(stopped.map((r) => r.id).join(" "))}" onclick="act({ kind: 'dismiss', runs: this.dataset.ids.split(' ') }, this).then(poll)">Dismiss</button></div>` : "";
+  const warn = stopped.length ? `<div class="banner"><span>⚠ ${plural(stopped.length, "run")} from this phase stopped without finishing (crash, killed, or the laptop slept): ${stopped.map((r) => `<a href="#/run/${r.id}">${esc(runTitle(r))} s${r.seed}</a>`).join(", ")}. <span class="t2">Tell Claude in the terminal, or dismiss this if it was stopped on purpose.</span></span><span class="sp"></span><button class="btn sm" data-ids="${esc(stopped.map((r) => r.id).join(" "))}" onclick="act({ kind: 'dismiss', runs: this.dataset.ids.split(' ') }, this).then(poll)">Dismiss</button></div>` : "";
   const exps = S.phase.current === 4 ? `<div class="sec"><h2>Experiments</h2><span class="hint">what Phase 4 is measuring</span><a class="r" href="#/exp">all results →</a></div><div class="grid g4c">${S.experiments.map(expCard).join("")}</div>` : "";
   const machine = `<div class="card">
     <div class="row"><h3>${ic("laptop")}This laptop</h3><span class="sp"></span><a class="small" href="#/laptop">details →</a></div>
@@ -781,14 +855,15 @@ function pageNow() {
   </div>`;
   const recent = finished.filter((r) => r.learns).slice(0, 5);
   const decCard = `<div class="card"><div class="row"><h3>${ic("star")}Latest results</h3><span class="sp"></span><a class="small" href="#/runs">all runs →</a></div>
-    ${recent.length ? `<table style="margin-top:6px">${recent.map((r) => `<tr class="click" onclick="location.hash='#/run/${r.id}'"><td class="small"><b>${esc(runTitle(r))}</b><div class="tiny muted">seed ${r.seed} · ${ago(r.mtime)}</div></td><td class="num" style="text-align:right"><b class="${r.success >= 0.9 ? "good" : ""}">${pct(r.success)}</b></td></tr>`).join("")}</table>` : `<p class="muted small">No finished runs yet.</p>`}
-    <p class="tiny muted" style="margin:12px 0 0">${tip("success rate", "Success")} on the final test. Why Claude chose each setup: <a href="#/decisions">Claude's log</a>.${S.dirty.length ? ` ${S.dirty.length} file(s) changed since the last commit (Claude saves its work at the end of each phase).` : ""}</p></div>`;
+    ${recent.length ? `<table style="margin-top:6px">${recent.map((r) => `<tr class="click" onclick="location.hash='#/run/${r.id}'"><td class="small"><a class="rl" href="#/run/${r.id}"><b>${esc(runTitle(r))}</b></a><div class="tiny muted">seed ${r.seed} · ${ago(r.mtime)}</div></td><td class="num" style="text-align:right"><b class="${okCls(r, "success")}">${pct(r.success)}</b>${r.collisions != null ? `<div class="tiny ${okCls(r, "collisions") || "muted"}">${pct(r.collisions)} bumps</div>` : ""}</td></tr>`).join("")}</table>` : `<p class="muted small">No finished runs yet.</p>`}
+    <p class="tiny muted" style="margin:12px 0 0">${tip("success rate", "Success")} on the final test${recent.some((r) => r.collisions != null) ? `; ${tip("bumps")} = attempts that touched the box` : ""}. Green or red only where a phase gate sets a target. Why Claude chose each setup: <a href="#/decisions">Claude's log</a>.${S.dirty.length ? ` ${plural(S.dirty.length, "file")} changed since the last commit (Claude saves its work at the end of each phase).` : ""}</p></div>`;
   const doNow = `<div class="card"><h3>${ic("play")}Things you can do now</h3>
     <div class="row" style="margin-top:12px">
       <button class="btn laptop" onclick="act({kind:'view'},this)">Open the arm in 3D</button>
       <button class="btn laptop" onclick="act({kind:'watch_random',speed:speedVal()},this)">Watch a random (untrained) arm</button>
       <button class="btn" onclick="act({kind:'gate',phase:${ph.current}},this)">Run the Phase ${ph.current} gate</button>
     </div>
+    ${live.length ? `<p class="tiny muted" style="margin:8px 0 0">The gate is safe to run any time, but while runs train their results aren't in yet, so expect FAIL.</p>` : ""}
     <div style="margin-top:12px">${speedCtl()}</div>
     <p class="tiny muted" style="margin:12px 0 0"><span class="laptop">Windows open separately; close them to stop. To watch a trained network, open any run and press "Watch live". </span>To change anything, tell Claude in the terminal.</p>
     ${jobsHtml()}</div>`;
@@ -799,16 +874,32 @@ function pageNow() {
   const n = numbers(), bs = badges(), got = bs.filter((b) => b.got).length;
   const story = `<div class="grid g2">
     <div class="card"><h3>${ic("trophy")}By the numbers</h3>
-      <div class="nums"><div><div class="v">${n.runs}</div><div class="l">${tip("run", "runs")} trained</div></div><div><div class="v">${big(n.steps)}</div><div class="l">practice ${tip("step", "steps")}</div></div><div><div class="v">${(n.sim / 86400).toFixed(1)} d</div><div class="l">of simulated practice</div></div><div><div class="v">${Math.round(n.wall / 3600)} h</div><div class="l">of training (runs added up)</div></div></div>
-      <p class="small t2" style="margin:16px 0 0">All my practice adds up to <b>${dur(n.sim)}</b> of simulated arm-time, squeezed into ${dur(n.wall)} of training: each run practises about <b>${n.wall ? (n.sim / n.wall).toFixed(1) : "–"}×</b> faster than real life.${n.best ? ` Best ever: <a href="#/run/${n.best.id}">${pct(n.best.success)} success</a>` : ""}${n.sharp ? `, sharpest: <a href="#/run/${n.sharp.id}">${mm(n.sharp.miss_mm)} typical miss</a>.` : "."}</p></div>
+      <div class="nums"><div><div class="v">${n.runs}</div><div class="l">${tip("run", "runs")} finished training</div></div><div><div class="v">${big(n.steps)}</div><div class="l">practice ${tip("step", "steps")}</div></div><div><div class="v">${(n.sim / 86400).toFixed(1)} days</div><div class="l">of simulated arm-time</div></div><div><div class="v">${Math.round(n.busy / 3600)} h</div><div class="l">of laptop time (${Math.round(n.wall / 3600)} h if the runs went one by one)</div></div></div>
+      <p class="small t2" style="margin:16px 0 0">All my practice adds up to <b>${dur(n.sim)}</b> of simulated arm-time. The laptop did it in about <b>${dur(n.busy)}</b>${n.busy ? `, roughly <b>${(n.sim / n.busy).toFixed(0)}×</b> faster than real life, because several of me train at once (one run alone is about ${n.wall ? (n.sim / n.wall).toFixed(1) : "–"}× real time)` : ""}.${n.best ? ` Best ever: <a href="#/run/${n.best.id}">${pct(n.best.success)} success</a> (${esc(TASKS[n.best.task] || n.best.task)})` : ""}${n.sharp ? `; sharpest: <a href="#/run/${n.sharp.id}">${mm(n.sharp.miss_mm)} typical miss</a>.` : "."}</p></div>
     <div class="card"><div class="row"><h3>${ic("star")}Milestones</h3><span class="sp"></span><span class="pill">${got} of ${bs.length}</span></div>
       <div class="badges">${bs.map((b) => `<div class="badge${b.got ? " got" : ""}" title="${esc(b.desc)}${b.prog ? " · " + esc(b.prog) : ""}"><span class="e">${b.icon}</span><div style="min-width:0"><b>${esc(b.name)}</b><small>${b.got ? esc(b.desc) : esc(b.prog || b.desc)}</small></div></div>`).join("")}</div></div>
   </div>`;
-  mount([["hero", hero], ["warn", warn ? `<div style="margin-top:16px">${warn}</div>` : ""], ["livehead", `<div class="sec"><h2>Training right now</h2><span class="hint">progress, time left, test score so far</span>${etaLine}</div>`], ["live", cards + notifyBtn], ["exps", exps], ["side", `<div class="sec"><h2>Status</h2></div><div class="grid g3">${machine}${decCard}${doNow}</div>`], ["story", `<div class="sec"><h2>The story so far</h2><span class="hint">every run since Phase 0</span></div>${story}`]]);
+  mount([["hero", hero], ["warn", warn ? `<div style="margin-top:16px">${warn}</div>` : ""], ["livehead", `<div class="sec"><h2>Training right now</h2><span class="hint">progress, time left, ${live.some((r) => r.val_kind === "clean") ? `score so far (${tip("clean score")} = reaches minus bumps, so it can go below 0)` : "test score so far"}</span>${etaLine}</div>`], ["live", cards + notifyBtn], ["gate", standing(ph.in_phase ? ph.current : null)], ["exps", exps], ["side", `<div class="sec"><h2>Status</h2></div><div class="grid g3">${machine}${decCard}${doNow}</div>`], ["story", `<div class="sec"><h2>The story so far</h2><span class="hint">every run since Phase 0</span></div>${story}`]]);
   // the arm's line changes often (scores, ETA); it's filled in place so the hero (and the mascot's animation) isn't rebuilt
   const say = $("#say"), line = voice(live, stopped);
   if (say && say._v !== line) { say.innerHTML = line; say._v = line; }
   fillMachine(live);
+}
+// where a phase stands against its measurable targets, from its best runs (docs/best_runs.yaml)
+function standing(n, full) {
+  const gs = GATES[n]; if (!gs) return "";
+  const cards = [...new Set(gs.map((g) => g[0]))].map((task) => {
+    const runs = S.runs.filter((r) => r.best === `Phase ${n} · ${task}`), done = runs.filter((r) => r.status === "done");
+    const rows = gs.filter((g) => g[0] === task).map((g) => {
+      const vals = done.map((r) => r[g[1]]).filter((v) => v != null);
+      const v = vals.length ? vals.reduce((a, b) => a + b) / vals.length : null, ok = meets(g, v), [name, f] = FIELD[g[1]];
+      return [ok, `<span class="k">${name}</span><b class="${ok == null ? "" : ok ? "good" : "bad"}">${v == null ? "–" : f(v)}</b><span class="muted">needs ${g[2] > 0 ? "≥" : "≤"} ${f(g[3])}</span>`];
+    });
+    const pill = !done.length ? `<span class="pill">no results yet</span>` : rows.every((x) => x[0]) ? `<span class="pill good">✓ on target</span>` : `<span class="pill bad">✗ not yet</span>`;
+    const from = runs.length ? `mean of ${plural(done.length, "seed")}${done.length < runs.length ? ` (${runs.length - done.length} not finished)` : ""} · <a href="#/run/${runs[0].id}">${esc(prettyCfg(runs[0].config))}</a>` : "Claude names the best runs once training is done.";
+    return `<div class="card"><div class="row"><h3>${tip(task, task[0].toUpperCase() + task.slice(1))}</h3><span class="sp"></span>${pill}</div><div class="gate">${rows.map((x) => x[1]).join("")}</div><p class="tiny muted" style="margin:10px 0 0">${from}</p></div>`;
+  });
+  return `<div class="sec"><h2>Phase ${n} targets</h2><span class="hint">the best runs' saved results; the official gate also checks the GIFs</span>${full ? "" : `<a class="r" href="#/phase/${n}">phase page →</a>`}</div><div class="grid g3">${cards.join("")}</div>`;
 }
 // the laptop card is filled in place, so its numbers change every poll without re-rendering the page
 function fillMachine(live) {
@@ -817,15 +908,15 @@ function fillMachine(live) {
   set("m-temp", (el) => { el.textContent = m.cpu_temp != null ? `${Math.round(m.cpu_temp)} °C · ${word}` : "no sensor"; el.className = cls; });
   set("m-tempb", (el) => { el.style.width = m.cpu_temp != null ? Math.max(0, Math.min(100, ((m.cpu_temp - 30) / 70) * 100)) + "%" : "0"; el.className = cls === "accent" ? "" : cls; });
   set("m-cpu", (el) => (el.textContent = m.cpu + "%")); set("m-cpub", (el) => (el.style.width = m.cpu + "%"));
-  set("m-mem", (el) => (el.textContent = `${m.mem_used} / ${m.mem_total} GB`)); set("m-memb", (el) => (el.style.width = (100 * m.mem_used) / m.mem_total + "%"));
+  set("m-mem", (el) => (el.textContent = `${m.mem_used} / ${m.mem_total} GiB`)); set("m-memb", (el) => (el.style.width = (100 * m.mem_used) / m.mem_total + "%"));
   set("m-pow", (el) => (el.textContent = m.chip_w != null ? m.chip_w.toFixed(0) + " W" : "–"));
-  set("m-bat", (el) => { el.textContent = !b ? "mains" : b.plugged ? `plugged in · battery ${b.pct}%` : `on battery · ${b.pct}%${b.hours_left ? ` · ~${b.hours_left} h left` : ""}`; el.className = b && !b.plugged && live.length ? "bad" : ""; });
-  set("m-note", (el) => (el.innerHTML = live.length ? `<b class="warn">Don't close the lid.</b> <span class="t2">${live.length} run(s) are training${b && !b.plugged ? ", on battery: plug in" : ""}. Sleep kills them.</span>` : `<span class="good">Safe to close the laptop:</span> <span class="t2">nothing is training.</span>`));
+  set("m-bat", (el) => { el.textContent = !b ? "mains" : b.weak_charger ? `plugged in, still draining · ${b.pct}%` : b.plugged ? `plugged in · battery ${b.pct}%` : `on battery · ${b.pct}%${b.hours_left ? ` · ~${b.hours_left} h left` : ""}`; el.className = b && (!b.plugged || b.weak_charger) && live.length ? "bad" : ""; });
+  set("m-note", (el) => (el.innerHTML = live.length ? `<b class="warn">Don't close the lid.</b> <span class="t2">${plural(live.length, "run")} ${live.length === 1 ? "is" : "are"} training${b && !b.plugged ? ", on battery: plug in" : b?.weak_charger ? ", and the charger can't keep up" : ""}. Sleep kills them.</span>` : `<span class="good">Safe to close the laptop:</span> <span class="t2">nothing is training.</span>`));
 }
 function liveCard(r) {
   const p = r.total ? Math.min(1, r.steps / r.total) : 0;
   return `<a class="card live-card" href="#/run/${r.id}">
-    <div class="row"><b>${esc(runTitle(r))}</b><span class="sp"></span>${statusPill(r.status)}</div>
+    <div class="row" style="flex-wrap:nowrap;align-items:flex-start"><b style="min-width:0">${esc(runTitle(r))}</b><span class="sp"></span>${statusPill(r.status)}</div>
     <div class="muted small" style="margin:2px 0 14px">${esc(runSub(r))}</div>
     <div class="bar"><i style="width:${(p * 100).toFixed(1)}%"></i></div>
     <div class="row small t2" style="margin-top:8px"><span><b>${pct(p)}</b> · ${ksteps(r.steps)} of ${ksteps(r.total)} ${tip("step", "steps")}</span><span class="sp"></span><span>${r.eta_s ? "≈ " + dur(r.eta_s) + " left" : ""}</span></div>
@@ -854,16 +945,19 @@ function jobsHtml() {
 
 // ---------- page: Laptop ----------
 async function loadSys() { try { const d = await api("/api/system"); if (route().page !== "laptop" || d.error) return; detail.sys = d; pageLaptop(); } catch { /* the next tick tries again */ } }
+const blocks = (v, what) => (v.sleep_blockers || []).some((x) => x.what.split(":").includes(what));
 function laptopAdvice(v, live) {
   const out = [], t = v.cpu_temp, b = v.battery, n = live.length;
   if (t != null && t >= 97) out.push(["bad", `🔥 <b>CPU at ${t} °C:</b> hot enough that it slows itself down to cool off (${tip("throttling")}). Training keeps going, just slower. Check the vents aren't blocked; a hard surface or a stand helps.`]);
   else if (t != null && t >= 92) out.push(["warn", `🌡 <b>CPU at ${t} °C:</b> hot, but still below the ~100 °C where it starts slowing down.`]);
-  if (b && !b.plugged && n) out.push(["bad", `🔋 <b>On battery with ${n} run(s) training.</b> Plug in: ${b.hours_left ? `at the current draw this lasts about ${b.hours_left} h, ` : ""}and if the laptop sleeps the runs die.`]);
-  if (v.sleep_blockers && !v.sleep_blockers.length && n) out.push(["warn", `😴 <b>Nothing is blocking sleep.</b> If the laptop suspends (idle timer or lid), the ${n} run(s) die. Starting Claude with <code>systemd-inhibit --what=idle:sleep claude …</code> prevents this (<a href="#/doc/User Ref/GUIDE.md">guide</a> §2).`]);
-  if (v.mem_used / v.mem_total > 0.9) out.push(["warn", `🧠 <b>Memory is nearly full</b> (${v.mem_used} of ${v.mem_total} GB). Close browser tabs or other apps, or training may slow to a crawl.`]);
-  if (v.swap_total && v.swap_used / v.swap_total > 0.5) out.push(["warn", `💾 <b>Lots of ${tip("swap")} in use</b> (${v.swap_used} GB): memory has been tight.`]);
-  if (v.disk_free < 10) out.push(["bad", `💽 <b>Only ${v.disk_free} GB of disk left.</b> Runs save models and logs; ask Claude to clean old ones up.`]);
-  if (!out.some((a) => a[0] !== "info")) out.push(["good", `✓ <b>All good.</b> ${n ? `Busy with ${n} run(s)${t != null && t >= 80 ? `, running warm at ${t} °C, which is normal under full load` : ""}.` : "Nothing is training; the laptop is resting."}`]);
+  if (b && !b.plugged && n) out.push(["bad", `🔋 <b>On battery with ${plural(n, "run")} training.</b> Plug in: ${b.hours_left ? `at the current draw this lasts about ${b.hours_left} h, ` : ""}and if the laptop sleeps the runs die.`]);
+  if (b?.weak_charger && n) out.push(["warn", `🔌 <b>Plugged in, but the battery is still draining</b> (${b.watts} W): the charger is weaker than the load.${b.hours_left ? ` At this rate it lasts about ${b.hours_left} h.` : ""} Use the laptop's own charger.`]);
+  // only a 'sleep' block stops a suspend; 'handle-lid-switch' alone leaves the idle timer free to suspend
+  if (v.sleep_blockers && n && !blocks(v, "sleep")) out.push(["warn", `⚠ <b>Nothing stops the laptop from sleeping.</b> If the idle timer suspends it, the ${plural(n, "run")} die. Start Claude with <code>systemd-inhibit --what=idle:sleep:handle-lid-switch claude …</code> to keep it awake (<a href="#/doc/User Ref/GUIDE.md">guide</a> §2).`]);
+  if (v.mem_used / v.mem_total > 0.9) out.push(["warn", `🧠 <b>Memory is nearly full</b> (${v.mem_used} of ${v.mem_total} GiB). Close browser tabs or other apps, or training may slow to a crawl.`]);
+  if (v.swap_total && v.swap_used / v.swap_total > 0.5) out.push(["warn", `💾 <b>Lots of ${tip("swap")} in use</b> (${v.swap_used} GiB): memory has been tight.`]);
+  if (v.disk_free < 10) out.push(["bad", `💽 <b>Only ${v.disk_free} GiB of disk left.</b> Runs save models and logs; ask Claude to clean old ones up.`]);
+  if (!out.length) out.push(["good", `✓ <b>All good.</b> ${n ? `Busy with ${plural(n, "run")}${t != null && t >= 80 ? `, running warm at ${t} °C, which is normal under full load` : ""}.` : "Nothing is training; the laptop is resting."}`]);
   return out;
 }
 function pageLaptop() {
@@ -879,6 +973,8 @@ function pageLaptop() {
   const series = (i, name, color) => [{ name, pts: hist.filter((h) => h[i] != null).map((h) => [h[0] - now, h[i]]), color }];
   const span = hist.length ? now - hist[0][0] : 0; // label in seconds until there are 5 minutes of history, then minutes
   const hx = { xf: (x) => (x > -8 ? "now" : span < 300 ? `${Math.round(-x)} s` : `${Math.round(-x / 60)} min`), xt: (x) => (x > -8 ? "just now" : `${dur(-x)} ago`), xl: "", cols: 2, h: 190 };
+  // at least 15 °C of axis, so a 1 °C wobble doesn't look like a spike
+  const temps = hist.map((h) => h[2]).filter((x) => x != null), tmid = (Math.min(...temps) + Math.max(...temps)) / 2, thalf = Math.max(7.5, (Math.max(...temps) - Math.min(...temps)) / 2 + 1);
   const histNote = hist.length < 3 ? `<div class="empty small">History builds up while the dashboard runs: one point every 6 s, up to an hour.</div>` : "";
   const tile = (val, label, sub, c = "") => `<div class="card stat"><div class="v ${c}">${val}</div><div class="l">${label}</div>${sub ? `<div class="s">${sub}</div>` : ""}</div>`;
   mount([
@@ -886,26 +982,25 @@ function pageLaptop() {
     ["advice", `<div style="margin-top:18px">${laptopAdvice(v, live).map(([c, h]) => `<div class="banner ${c}"><span>${h}</span></div>`).join("")}</div>`],
     ["gauges", `<div class="grid g4" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
       <div class="card">${gauge(v.cpu_temp != null ? Math.round(v.cpu_temp) : null, 30, 100, "°C", tip("CPU temperature"), v.cpu_temp != null ? `${word} · slows down near 100 °C` : "no sensor found", cls)}</div>
-      <div class="card">${gauge(v.cpu, 0, 100, "%", "CPU in use", `${v.ghz != null ? v.ghz.toFixed(1) + " GHz average" : ""}${v.ghz_max ? ` of ${v.ghz_max.toFixed(1)}` : ""}`, v.cpu > 95 ? "warn" : "")}</div>
+      <div class="card">${gauge(v.cpu, 0, 100, "%", "CPU in use", `${v.ghz != null ? v.ghz.toFixed(1) + " GHz now" : ""}${v.ghz_max ? ` · max ${v.ghz_max.toFixed(1)} GHz` : ""}`, v.cpu > 95 ? "warn" : "")}</div>
       <div class="card">${gauge(v.chip_w != null ? Math.round(v.chip_w) : null, 0, 60, "W", tip("chip power", "Chip power"), "CPU and graphics together")}</div>
-      <div class="card">${gauge(v.mem_used, 0, v.mem_total, "GB", "Memory", `of ${v.mem_total} GB · ${tip("swap")} ${v.swap_used} GB`, v.mem_used / v.mem_total > 0.9 ? "warn" : "good")}</div>
+      <div class="card">${gauge(v.mem_used, 0, v.mem_total, "GiB", "Memory", `of ${v.mem_total} GiB · ${tip("swap")} ${v.swap_used} GiB`, v.mem_used / v.mem_total > 0.9 ? "warn" : "good")}</div>
     </div>`],
     ["cores", `<div class="card" style="margin-top:16px"><div class="row"><h3>${ic("cpu")}Every CPU thread</h3><span class="sp"></span><span class="muted small">${tip("load average")}: <b class="t2">${v.load.map((x) => x.toFixed(1)).join(" · ")}</b> (1 · 5 · 15 min)</span></div><div class="cores">${v.cores.map((c, i) => `<div class="core" style="--l:${Math.round(c * 0.85)}%" title="thread ${i}: ${c}% busy"><b>${c}</b><small>#${i}</small></div>`).join("")}</div><p class="tiny muted" style="margin:10px 0 0">Brighter = busier. Training runs use 1–2 threads each; the rest is everything else on the laptop.</p></div>`],
     ["hist", `<div class="sec"><h2>The last hour</h2><span class="hint">hover or touch a chart for exact values</span></div>${histNote || `<div class="grid gc2">
-      <div class="card"><h3>${ic("temp")}CPU temperature</h3>${chart(series(2, "CPU °C", "var(--s4)"), { ...hx, yf: (x) => x.toFixed(1) + "°" })}</div>
+      <div class="card"><h3>${ic("temp")}CPU temperature</h3>${chart(series(2, "CPU °C", "var(--s4)"), { ...hx, y0: tmid - thalf, y1: tmid + thalf, yf: (x) => x.toFixed(0) + "°", tf: (x) => x.toFixed(1) + " °C" })}</div>
       <div class="card"><h3>${ic("cpu")}CPU in use</h3>${chart(series(1, "CPU %", "var(--s1)"), { ...hx, y0: 0, y1: 100, yf: (x) => x.toFixed(0) + "%" })}</div>
       <div class="card"><h3>${ic("bolt")}Chip power</h3>${chart(series(3, "watts", "var(--s3)"), { ...hx, y0: 0, yf: (x) => x.toFixed(1) + " W" })}</div>
-      <div class="card"><h3>${ic("mem")}Memory used</h3>${chart(series(4, "GB", "var(--s2)"), { ...hx, y0: 0, y1: v.mem_total, yf: (x) => x.toFixed(1) + " GB" })}</div></div>`}`],
-    ["procs", `<div class="sec"><h2>Where the CPU goes</h2><span class="hint">share of the whole laptop over the last few seconds</span></div><div class="card tablewrap" style="padding:6px 8px"><table><tr><th>Who</th><th style="width:140px"></th><th style="width:34%">CPU</th><th style="width:90px">Memory</th></tr>${procs.map((p) => `<tr><td>${p.kind === "run" ? runName(p.name) : `<b class="t2">${esc(p.name)}</b>`}${p.n > 1 ? `<span class="tiny muted"> · ${p.n} processes</span>` : ""}</td><td>${kindPill[p.kind]}</td><td><div class="row" style="flex-wrap:nowrap;gap:10px"><div class="bar" style="flex:1;height:6px"><i class="${p.kind === "run" ? "" : p.kind === "self" ? "good" : "warn"}" style="width:${(100 * p.cpu) / maxCpu}%"></i></div><span class="num small" style="width:48px;text-align:right">${p.cpu.toFixed(1)}%</span></div></td><td class="num small t2">${p.mem_gb.toFixed(2)} GB</td></tr>`).join("")}</table><p class="tiny muted" style="margin:8px 10px">Training runs use <b class="t2">${sum("run").toFixed(0)}%</b> of the CPU, other apps <b class="t2">${sum("app").toFixed(0)}%</b> (only the busiest are listed), this dashboard <b class="good">${sum("self").toFixed(1)}%</b>.</p></div>`],
+      <div class="card"><h3>${ic("mem")}Memory used</h3>${chart(series(4, "GiB", "var(--s2)"), { ...hx, y0: 0, y1: v.mem_total, yf: (x) => x.toFixed(1) + " GiB" })}</div></div>`}`],
+    ["procs", `<div class="sec"><h2>Where the CPU goes</h2><span class="hint">share of the whole laptop since the last refresh (a few seconds)</span></div><div class="card tablewrap" style="padding:6px 8px"><table><tr><th>Who</th>${narrow() ? "" : `<th style="width:140px"></th>`}<th style="width:34%">CPU</th><th style="width:90px">Memory</th></tr>${procs.map((p) => `<tr><td>${p.kind === "run" ? runName(p.name) : `<b class="t2">${esc(p.name)}</b>`}${p.n > 1 ? `<span class="tiny muted"> · ${p.n} processes</span>` : ""}</td>${narrow() ? "" : `<td>${kindPill[p.kind]}</td>`}<td><div class="row" style="flex-wrap:nowrap;gap:10px"><div class="bar" style="flex:1;height:6px"><i class="${p.kind === "run" ? "" : p.kind === "self" ? "good" : "dim"}" style="width:${(100 * p.cpu) / maxCpu}%"></i></div><span class="num small" style="width:48px;text-align:right">${p.cpu.toFixed(1)}%</span></div></td><td class="num small t2">${p.mem_gb.toFixed(2)} GiB</td></tr>`).join("")}</table><p class="tiny muted" style="margin:8px 10px">Training runs use <b class="t2">${sum("run").toFixed(0)}%</b> of the CPU, other apps <b class="t2">${sum("app").toFixed(0)}%</b> (only the busiest are listed), this dashboard <b class="good">${sum("self").toFixed(1)}%</b>.</p></div>`],
     ["more", `<div class="sec"><h2>Other vitals</h2></div><div class="grid g4">
       ${tile(v.gpu_temp != null ? Math.round(v.gpu_temp) + " °C" : "–", "Graphics chip", `${v.gpu_busy != null ? v.gpu_busy + "% busy" : ""} · training doesn't use it`)}
       ${tile(v.ssd_temp != null ? Math.round(v.ssd_temp) + " °C" : "–", "SSD temperature", v.ssd_temp != null ? (v.ssd_temp > 70 ? "warm" : "fine") : "")}
-      ${tile(v.ghz != null ? v.ghz.toFixed(1) + " GHz" : "–", "Clock speed", v.ghz_max ? `average · max ${v.ghz_max.toFixed(1)} GHz` : "average")}
-      ${tile(Math.round(v.disk_free) + " GB", "Disk free", `of ${v.disk_total} GB`, v.disk_free < 10 ? "bad" : "")}
-      ${tile(b ? b.pct + "%" : "–", "Battery", b ? `${b.plugged ? "plugged in" : "on battery"}${b.health ? ` · health ${b.health}%` : ""}${b.cycles ? ` · ${b.cycles} cycles` : ""}` : "no battery", b && !b.plugged && live.length ? "bad" : "")}
-      ${tile(v.uptime_s >= 86400 ? `${Math.floor(v.uptime_s / 86400)} d ${Math.floor((v.uptime_s % 86400) / 3600)} h` : dur(v.uptime_s), "Awake for", "since the last boot")}
+      ${tile(v.ghz != null ? v.ghz.toFixed(1) + " GHz" : "–", "Clock speed", v.ghz_max ? `all threads now · max ${v.ghz_max.toFixed(1)} GHz` : "all threads now")}
+      ${tile(Math.round(v.disk_free) + " GiB", "Disk free", `of ${v.disk_total} GiB`, v.disk_free < 10 ? "bad" : "")}
+      ${tile(b ? b.pct + "%" : "–", "Battery", b ? `${b.weak_charger ? "plugged in, still draining" : b.plugged ? "plugged in" : "on battery"}${b.health ? ` · health ${b.health}%` : ""}${b.cycles ? ` · ${b.cycles} cycles` : ""}` : "no battery", b && (!b.plugged || b.weak_charger) && live.length ? "bad" : "")}
     </div>`],
-    ["sleep", `<div class="card" style="margin-top:16px"><h3>${ic("moon")}Sleep guard</h3><p class="small t2" style="margin:8px 0 0">${v.sleep_blockers == null ? "Couldn't ask the system which apps block sleep." : v.sleep_blockers.length ? `Sleep is blocked by: ${v.sleep_blockers.map((x) => `<b>${esc(x.who)}</b> <span class="muted">(${esc(x.what)}: ${esc(x.why)})</span>`).join(", ")}. Training is safe from the idle timer.` : `No app is blocking sleep right now${live.length ? ", so the idle timer or closing the lid would kill the runs" : ""}. ${tip("sleep blocker", "What's a sleep blocker?")}`}</p></div>`],
+    ["sleep", `<div class="card" style="margin-top:16px"><div class="row"><h3>${ic("moon")}Sleep guard</h3><span class="sp"></span><span class="small muted">${tip("sleep blocker", "What's a sleep blocker?")}</span></div>${v.sleep_blockers == null ? `<p class="small t2" style="margin:8px 0 0">Couldn't ask the system which apps block sleep.</p>` : `<div class="gate"><span class="k">Idle timer</span><b class="${blocks(v, "sleep") ? "good" : live.length ? "warn" : "t2"}">${blocks(v, "sleep") ? "can't suspend the laptop" : "can suspend the laptop"}</b><span></span><span class="k">Closing the lid</span><b class="${blocks(v, "handle-lid-switch") ? "good" : live.length ? "warn" : "t2"}">${blocks(v, "handle-lid-switch") ? "won't suspend it" : "suspends it"}</b><span></span></div><p class="small muted" style="margin:10px 0 0">${v.sleep_blockers.length ? `Held by ${v.sleep_blockers.map((x) => `<b class="t2">${esc(x.who)}</b> (${esc(x.what)}: ${esc(x.why)})`).join(", ")}.` : "No app is holding a sleep blocker right now."}</p>`}</div>`],
   ]);
 }
 
@@ -916,7 +1011,7 @@ function pageExps() {
 }
 async function loadExp(id) { const d = await api("/api/exp/" + encodeURIComponent(id)); if (route().arg !== id) return; detail.exp = d; detail.expId = id; pageExp(id); }
 function pageExp(id) {
-  if (detail.exp?.error && detail.expId === id) return mount([["h", `<a class="small" href="#/exp">← all experiments</a><div class="empty" style="margin-top:14px">No experiment called “${esc(id)}”.</div>`]]);
+  if (detail.exp?.error && detail.expId === id) return mount([["h", lost(`No experiment called “${esc(id)}”.`, `<a href="#/exp">All experiments →</a>`)]]);
   if (!detail.exp || detail.exp.id !== id) { if (!detail.loading) { detail.loading = 1; mount([["h", skel(90, 120, 300)]]); loadExp(id).finally(() => (detail.loading = 0)); } return; }
   const e = detail.exp;
   const curves = e.arms.filter((a) => a.learns).map((a, i) => {
@@ -937,7 +1032,7 @@ function pageExp(id) {
     ["h", `<a class="small" href="#/exp">← all experiments</a><h1 style="margin-top:12px"><span style="color:var(--accent)">${esc(e.id.slice(0, 2).toUpperCase())}</span> · ${esc(e.question)}</h1><p class="t2" style="max-width:780px">${esc(e.why)}</p>`],
     ["verdict", verdict],
     ["chart", `<div class="sec"><h2>Learning curves</h2><span class="hint">${tip("test score during training")}, mean of the seeds; the shaded band is the spread between seeds</span></div><p class="tiny muted" style="margin:-6px 0 10px">The curve is measured on 100 validation targets, the final test below on a different fixed set of 100, so the curve's last point and the table can differ (for PPO by a lot: it handles some regions of the workspace far worse than others).</p><div class="card">${curves.length ? chart(curves, { y0: 0, y1: 100, yf: (v) => v.toFixed(0) + "%", legend: true, empty: "Curves appear after the first test, 20k steps into training." }) : `<p class="muted">This experiment compares finished policies; there is no learning curve for the IK controller.</p>`}</div>`],
-    ["table", `<div class="sec"><h2>Final test</h2><span class="hint">100 attempts per seed, new random targets; mean ± spread over seeds</span></div><div class="card tablewrap"><table><tr><th>Setup</th><th>${tip("success rate", "Success")}</th><th>Per ${tip("seed", "seed")} (click to open)</th><th>${tip("typical miss", "Typical miss")}</th><th>${tip("time to reach", "Time to reach")}</th><th>${tip("smoothness", "Jerkiness")}</th><th>${tip("energy", "Energy")}</th></tr>${rows}</table></div>`],
+    ["table", `<div class="sec"><h2>Final test</h2><span class="hint">100 attempts per seed, new random targets; mean ± spread over seeds</span></div><div class="card tablewrap"><table><tr><th>Setup</th><th>${tip("success rate", "Success")}</th><th>Per ${tip("seed", "seed")} (click to open)</th><th>${tip("typical miss", "Typical miss")}</th><th>${tip("time to reach", "Time to reach")}</th><th>${tip("jerkiness", "Jerkiness")}</th><th>${tip("energy", "Energy")}</th></tr>${rows}</table></div>`],
     ["meta", `<details data-k="setup"><summary>Exact setup (seeds, budget, configs)</summary><div class="in"><dl class="kv"><dt>Seeds</dt><dd>${[...new Set(e.arms.map((a) => a.seeds.map((s) => s.seed).join(", ")))].join(" / ")}</dd><dt>Step budget</dt><dd>${budgets} per run</dd><dt>Technical question</dt><dd>${esc(e.tech_question)}</dd>${e.arms.map((a) => `<dt>${esc(a.plain)}</dt><dd><code>${esc(a.config)}</code></dd>`).join("")}</dl><p class="tiny muted">The same numbers are written to <a href="#/doc/docs/results.md">docs/results.md</a> by <code>scripts/make_results.py</code> when the phase ends.</p></div></details>`],
   ]);
 }
@@ -945,19 +1040,20 @@ function pageExp(id) {
 // ---------- page: Phases ----------
 function pagePhases() {
   mount([["h", `<h1>Phases</h1><p class="t2">The project in 8 steps. Each ${tip("phase")} builds something, must pass its ${tip("gate")}, and ends with a report and a commit.</p>`],
-    ["tl", `<div class="timeline" style="margin-top:22px">${S.phase.list.map((p) => `<div class="ph ${p.state}"><div class="num">${p.state === "done" ? "✓" : p.n}</div><a class="card" href="#/phase/${p.n}"><div class="row"><span class="muted small">Phase ${p.n}</span><span class="sp"></span><span class="pill ${p.state === "done" ? "done" : p.state}">${p.state === "current" ? "in progress" : p.state}</span></div><h2 style="margin-top:4px">${esc(p.title)}</h2><p class="t2 small" style="margin:8px 0 4px">${esc(p.builds)}.</p><p class="muted small" style="margin:0"><b>You:</b> ${esc(p.you)}. ${p.time !== "–" ? `<b>Training time:</b> ${esc(p.time)}.` : ""}</p>${p.media.length ? `<div class="thumbs">${p.media.map((f) => `<img loading="lazy" src="/file/docs/media/${f}" alt="${esc(f)}">`).join("")}</div>` : ""}</a></div>`).join("")}</div>`]]);
+    ["tl", `<div class="timeline" style="margin-top:22px">${S.phase.list.map((p) => `<div class="ph ${p.state}"><div class="num">${p.state === "done" ? "✓" : p.n}</div><a class="card" href="#/phase/${p.n}"><div class="row"><span class="muted small">Phase ${p.n}</span><span class="sp"></span><span class="pill ${p.state === "done" ? "done" : p.state}">${p.state === "current" ? "in progress" : p.state}</span></div><h2 style="margin-top:4px">${esc(p.title)}</h2><p class="t2 small" style="margin:8px 0 4px">${esc(stop(p.builds))}</p><p class="muted small" style="margin:0"><b>You:</b> ${esc(stop(p.you))} ${p.time !== "–" ? `<b>Training time:</b> ${esc(p.time)}.` : ""}</p>${p.media.length ? `<div class="thumbs">${p.media.map((f) => `<img loading="lazy" src="/file/docs/media/${f}" alt="${esc(f)}">`).join("")}</div>` : ""}</a></div>`).join("")}</div>`]]);
 }
 async function pagePhase(n) {
-  n = +n; const p = S.phase.list.find((x) => x.n === n); if (!p) return pageLost();
+  n = +n; const p = S.phase.list.find((x) => x.n === n); if (!p) return mount([["h", lost(`There's no Phase ${esc(String(n))}.`, `The project has phases 0–${S.phase.list.length - 1}. <a href="#/phases">All phases →</a>`)]]);
   let rep = detail.rep;
   if (p.report && (!rep || rep.want !== p.report)) { mount([["h", skel(90, 110, 400)]]); rep = detail.rep = { ...(await api("/api/doc?path=" + encodeURIComponent(p.report))), want: p.report }; if (route().arg !== String(n)) return; }
   const job = S.jobs?.["gate-" + n];
   mount([
-    ["h", `<a class="small" href="#/phases">← all phases</a><div class="row" style="margin-top:10px"><span class="pill ${p.state === "current" ? "current" : p.state}">Phase ${n} · ${p.state === "current" ? "in progress" : p.state}</span></div><h1 style="margin-top:10px">${esc(p.title)}</h1><p class="t2">${esc(p.builds)}.</p>`],
+    ["h", `<a class="small" href="#/phases">← all phases</a><div class="row" style="margin-top:10px"><span class="pill ${p.state === "current" ? "current" : p.state}">Phase ${n} · ${p.state === "current" ? "in progress" : p.state}</span></div><h1 style="margin-top:10px">${esc(p.title)}</h1><p class="t2">${esc(stop(p.builds))}</p>`],
+    ["targets", standing(n, true)],
     ["gate", `<div class="card"><div class="row"><div><h3>Phase gate</h3><p class="muted small" style="margin:4px 0 0">Re-checks this phase's pass/fail targets from saved results. Never trains; safe at any time.</p></div><span class="sp"></span><button class="btn" onclick="act({kind:'gate',phase:${n}},this)">${job ? "Run again" : "Run the gate"}</button></div>${job ? `<details data-k="gate${n}" open><summary>Result <span class="pill ${job.state === "running" ? "running" : esc(job.state)}" style="margin-left:8px">${job.state === "running" ? "running…" : esc(job.state)}</span></summary><div class="in"><pre>${esc(job.out || "waiting for output…")}</pre></div></details>` : ""}</div>`],
     ["media", p.media.length ? `<div class="sec"><h2>Media</h2></div><div class="grid g2">${p.media.map((f) => `<div class="card"><img class="gif" loading="lazy" src="/file/docs/media/${f}" alt="${esc(f)}"><div class="small t2" style="margin-top:8px">${esc(mediaName(f))}</div></div>`).join("")}</div>` : ""],
     ["rep", `<div class="sec"><h2>Report</h2>${p.report ? `<a class="r" href="#/doc/${p.report}">open as a doc →</a>` : ""}</div>${rep && p.report ? `<div class="card"><div class="md">${md(rep.text, rep.path)}</div></div>` : `<div class="empty">${p.state === "upcoming" ? "Not started yet." : "The report is written at the end of the phase."}</div>`}`],
-    ["commits", p.commits.length ? `<details data-k="commits"><summary>What changed: ${p.commits.length} commit(s)</summary><div class="in"><table>${p.commits.map((c) => `<tr><td class="mono muted">${esc(c.hash)}</td><td class="muted">${esc(c.date)}</td><td>${esc(c.msg)}</td></tr>`).join("")}</table></div></details>` : ""],
+    ["commits", p.commits.length ? `<details data-k="commits"><summary>What changed: ${plural(p.commits.length, "commit")}</summary><div class="in"><table>${p.commits.map((c) => `<tr><td class="mono muted">${esc(c.hash)}</td><td class="muted">${esc(c.date)}</td><td>${esc(c.msg)}</td></tr>`).join("")}</table></div></details>` : ""],
   ]);
 }
 
@@ -985,8 +1081,9 @@ function pageRuns() {
     <div class="row" style="margin-top:16px"><div class="filters">${[["count", "Important"], ["phase", "This phase"], ["training", "Training"], ["all", `All (${S.runs.length})`]].map(([k, l]) => `<button class="${runFilter === k ? "on" : ""}" onclick="runFilter='${k}';render()">${l}</button>`).join("")}</div><span class="sp"></span><input class="filter" id="runq" placeholder="Filter runs…" oninput="runText=this.value;pageRuns()"></div>
     <div class="row small muted" style="margin-top:12px">${speedCtl()}<span><span class="laptop">used by every ▶ button · </span>tick runs to compare them</span></div>`;
   // same fixed columns in every group, so the tables line up down the page
-  const cols = `<colgroup><col style="width:38px"><col><col style="width:118px"><col style="width:104px"><col style="width:118px"><col style="width:96px"><col style="width:58px"></colgroup>`;
-  const thead = `<tr><th></th><th>Run</th><th>State</th><th>${tip("step", "Steps")}</th><th>${tip("success rate", "Success")}</th><th>${tip("typical miss", "Miss")}</th><th></th></tr>`;
+  // phones: no Steps column and no ▶ (it only works at the laptop), and the miss goes under the success
+  const cols = narrow() ? `<colgroup><col style="width:34px"><col><col style="width:88px"><col style="width:76px"></colgroup>` : `<colgroup><col style="width:38px"><col><col style="width:118px"><col style="width:104px"><col style="width:118px"><col style="width:96px"><col style="width:58px"></colgroup>`;
+  const thead = narrow() ? `<tr><th></th><th>Run</th><th>State</th><th>${tip("success rate", "Success")}</th></tr>` : `<tr><th></th><th>Run</th><th>State</th><th>${tip("step", "Steps")}</th><th>${tip("success rate", "Success")}</th><th>${tip("typical miss", "Miss")}</th><th></th></tr>`;
   const rowsOf = (title, g, armOf) => {
     if (!armOf) return g.map((r) => runRow(r)).join("");
     const arms = {}; g.forEach((r) => (arms[armOf(r)] ||= []).push(r));
@@ -994,10 +1091,11 @@ function pageRuns() {
   };
   const body = groups.length ? groups.map(([title, hint, g, armOf]) => `<div class="sec"><h2>${esc(title)}</h2><span class="hint">${esc(hint)}</span></div><div class="card tablewrap" style="padding:6px 8px"><table class="runs">${cols}${thead}${rowsOf(title, g, armOf)}</table></div>`).join("") : `<div class="empty" style="margin-top:20px"><span class="big">🔍</span>No runs match.</div>`;
   const picked = PICK.filter((id) => S.runs.some((r) => r.id === id));
-  const bar = picked.length ? `<div class="cmpbar"><b>${picked.length} run(s) picked</b><span class="muted small">${picked.length < 2 ? "pick at least one more" : "overlay their learning curves and numbers"}</span><span class="sp"></span><button class="btn" onclick="PICK=[];store.set('pick',[]);render()">Clear</button><button class="btn primary" ${picked.length < 2 ? "disabled" : ""} onclick="location.hash='#/compare/${picked.join(",")}'">Compare →</button></div>` : "";
+  const bar = picked.length ? `<div class="cmpbar"><b>${plural(picked.length, "run")} picked</b><span class="muted small">${picked.length < 2 ? "pick at least one more" : "overlay their learning curves and numbers"}</span><span class="sp"></span><button class="btn" onclick="PICK=[];store.set('pick',[]);render()">Clear</button><button class="btn primary" ${picked.length < 2 ? "disabled" : ""} onclick="location.hash='#/compare/${picked.join(",")}'">Compare →</button></div>` : "";
   mount([["runsh", head], ["runsb", body], ["cmp", bar]]);
   keepInput("#runq", runText);
 }
+const narrow = () => innerWidth <= 520;
 let PICK = store.get("pick", []);
 function pick(id, on) { PICK = on ? [...new Set([...PICK, id])].slice(-6) : PICK.filter((x) => x !== id); store.set("pick", PICK); render(); }
 
@@ -1024,37 +1122,38 @@ function setupRow(key, name, rs) {
   const s = mean("success"), m = mean("miss_mm"), tr = rs.filter((r) => r.status === "training").length;
   const shared = rs[0].exp.length > 1 ? `<span class="chip">also in ${esc(rs[0].exp.filter((x) => !key.startsWith(x.split(" ")[0])).map((x) => x.split(" ")[0]).join(", "))}</span>` : "";
   const st = tr ? `<span class="pill training">${tr} training</span>` : done.length === rs.length ? `<span class="pill done">finished</span>` : `<span class="pill">${done.length}/${rs.length} done</span>`;
-  return `<tr class="click setup" data-key="${esc(key)}" onclick="toggleArm(this.dataset.key)"><td class="muted">${OPEN.has(key) ? "▾" : "▸"}</td><td><b>${esc(name)}</b> <span class="muted small">· ${rs.length} seed${rs.length > 1 ? "s" : ""}</span> ${shared}<div class="tiny muted">${esc(rs[0].algo)}${rs[0].mode ? " · " + esc(rs[0].mode) : ""}</div></td><td>${st}</td><td class="t2">${rs[0].learns ? ksteps(rs[0].total || rs[0].steps) : "–"}</td><td class="num">${s ? `<b>${pct(s[0])}</b> <span class="muted">± ${(s[1] * 100).toFixed(0)}</span>` : "–"}</td><td class="num">${m ? mm(m[0]) : "–"}</td><td></td></tr>`;
+  const sOut = s ? `<b>${pct(s[0])}</b> <span class="muted">± ${(s[1] * 100).toFixed(0)}</span>` : "–";
+  return `<tr class="click setup" data-key="${esc(key)}" onclick="toggleArm(this.dataset.key)"><td><button class="arw" aria-expanded="${OPEN.has(key)}" aria-label="${OPEN.has(key) ? "hide" : "show"} the seeds of ${esc(name)}">${OPEN.has(key) ? "▾" : "▸"}</button></td><td><b>${esc(name)}</b> <span class="muted small">· ${rs.length} seed${rs.length > 1 ? "s" : ""}</span> ${shared}<div class="tiny muted">${esc(rs[0].algo)}${rs[0].mode ? " · " + esc(rs[0].mode) : ""}</div></td><td>${st}</td>${narrow() ? `<td class="num">${sOut}${m ? `<div class="tiny muted">${mm(m[0])}</div>` : ""}</td>` : `<td class="t2">${rs[0].learns ? ksteps(rs[0].total || rs[0].steps) : "–"}</td><td class="num">${sOut}</td><td class="num">${m ? mm(m[0]) : "–"}</td><td></td>`}</tr>`;
 }
 function runRow(r, nested) {
-  const tgt = TARGETS[r.best];
-  const sOk = tgt && r.success != null ? (r.success >= tgt[0] ? " good" : " bad") : "";
-  const mOk = tgt && tgt[1] && r.miss_mm != null ? (r.miss_mm <= tgt[1] ? " good" : " bad") : "";
+  const title = `${esc(runTitle(r))} · seed ${r.seed}`;
+  const bumps = r.collisions != null ? `<div class="tiny ${okCls(r, "collisions") || "muted"}">${pct(r.collisions)} ${tip("bumps")}</div>` : "";
   const steps = !r.learns ? "–" : r.status === "training" ? `${ksteps(r.steps)} / ${ksteps(r.total)}<div class="bar thin"><i style="width:${r.total ? Math.min(100, (100 * r.steps) / r.total) : 0}%"></i></div>` : r.stopped_early && r.total ? `${ksteps(r.steps)} <span class="muted tiny">of ${ksteps(r.total)}</span>` : ksteps(r.steps);
-  return `<tr class="click" onclick="location.hash='#/run/${r.id}'"><td class="pick" onclick="event.stopPropagation()"><input type="checkbox" title="pick to compare" ${PICK.includes(r.id) ? "checked" : ""} onchange="pick('${r.id}',this.checked)"></td><td${nested ? ' style="padding-left:28px"' : ""}>${nested ? `<span class="t2">seed ${r.seed}</span>` : `<b>${esc(runTitle(r))}</b> <span class="muted small">· seed ${r.seed}</span>`}<div class="tiny muted">${nested ? esc(r.date) : esc(r.algo) + (r.mode ? " · " + esc(r.mode) : "") + " · " + esc(r.date)}</div></td><td>${statusPill(r.status)}${r.stopped_early ? `<div style="margin-top:4px">${earlyPill(r)}</div>` : ""}</td><td class="t2">${steps}</td><td class="num${sOk}">${pct(r.success)}</td><td class="num${mOk}">${mm(r.miss_mm)}</td><td onclick="event.stopPropagation()"><button class="btn laptop sm" title="watch this run in the 3D viewer" onclick="watch('${r.id}',this)">▶</button></td></tr>`;
+  const success = `<span class="${okCls(r, "success")}">${pct(r.success)}</span>${bumps}`;
+  return `<tr class="click" onclick="location.hash='#/run/${r.id}'"><td class="pick" onclick="event.stopPropagation()"><label title="pick to compare"><input type="checkbox" aria-label="pick ${title} to compare" ${PICK.includes(r.id) ? "checked" : ""} onchange="pick('${r.id}',this.checked)"></label></td><td${nested ? ' style="padding-left:28px"' : ""}><a class="rl" href="#/run/${r.id}">${nested ? `<span class="t2">seed ${r.seed}</span>` : `<b>${esc(runTitle(r))}</b> <span class="muted small">· seed ${r.seed}</span>`}</a><div class="tiny muted">${nested || narrow() ? esc(r.date) : esc(r.algo) + (r.mode ? " · " + esc(r.mode) : "") + " · " + esc(r.date)}</div></td><td>${statusPill(r.status)}${r.stopped_early ? `<div style="margin-top:4px">${earlyPill(r)}</div>` : ""}</td>${narrow() ? `<td class="num">${success}${r.miss_mm != null ? `<div class="tiny ${okCls(r, "miss_mm") || "muted"}">${mm(r.miss_mm)}</div>` : ""}</td>` : `<td class="t2">${steps}</td><td class="num">${success}</td><td class="num ${okCls(r, "miss_mm")}">${mm(r.miss_mm)}</td><td onclick="event.stopPropagation()"><button class="btn laptop sm" title="watch this run in the 3D viewer" aria-label="watch ${title} in the 3D viewer" onclick="watch('${r.id}',this)">▶</button></td>`}</tr>`;
 }
 
 // ---------- page: Run ----------
 async function loadRun(id) { const d = await api("/api/run/" + encodeURIComponent(id)); if (route().arg !== id) return; detail.run = d; detail.runId = id; pageRun(id); }
 function pageRun(id) {
-  if (detail.run?.error && detail.runId === id) return mount([["h", `<a class="small" href="#/runs">← all runs</a><div class="empty" style="margin-top:14px"><span class="big">🦾</span>No run called “${esc(id)}”. It may have been renamed or deleted.</div>`]]);
+  if (detail.run?.error && detail.runId === id) return mount([["h", lost(`No run called “${esc(id)}”.`, `It may have been renamed or deleted. <a href="#/runs">All runs →</a>`)]]);
   if (!detail.run || detail.run.id !== id) { if (!detail.loading) { detail.loading = 1; mount([["h", skel(110, 120, 320)]]); loadRun(id).finally(() => (detail.loading = 0)); } return; }
   const r = detail.run, ev = r.eval || {};
   const fromState = S.runs.find((x) => x.id === id);
   if (fromState) Object.assign(r, { status: fromState.status, steps: fromState.steps, eta_s: fromState.eta_s, sps: fromState.sps });
-  const tgt = TARGETS[r.best];
+  const gate = (k) => checksFor(r.best).find((g) => g[1] === k), need = (k, f) => (gate(k) ? `gate: ${gate(k)[2] > 0 ? "≥" : "≤"} ${f(gate(k)[3])}` : "");
   const sc = r.scalars || {};
   const s = (t) => sc[t];
   const prog = r.status === "training" ? `<div class="card"><div class="row small t2"><b>${pct(r.steps / r.total)}</b>&nbsp;· ${ksteps(r.steps)} of ${ksteps(r.total)} steps<span class="sp"></span>${r.eta_s ? "≈ " + dur(r.eta_s) + ` left (around ${clock(r.eta_s)})` : ""} · ${Math.round(r.sps || 0)} steps/s</div><div class="bar" style="margin-top:8px"><i style="width:${(100 * r.steps) / r.total}%"></i></div><p class="tiny muted" style="margin:8px 0 0">The final test (100 attempts) runs automatically when training ends. Until then the numbers below are the latest checkpoint's.</p></div>` : "";
   const tile = (v, l, sub, cls = "") => `<div class="card stat"><div class="v ${cls}">${v}</div><div class="l">${l}</div>${sub ? `<div class="s">${sub}</div>` : ""}</div>`;
   const tiles = `<div class="grid g4">${[
-    tile(pct(r.success), tip("success rate", "Success rate"), tgt ? `gate: ≥ ${pct(tgt[0])}` : r.status === "training" ? `test so far: ${pct(r.val_last)}` : "", tgt && r.success != null ? (r.success >= tgt[0] ? "good" : "bad") : ""),
-    tile(mm(r.miss_mm), tip("typical miss", "Typical miss"), ev.final_dist_mm_mean != null ? `average: ${mm(ev.final_dist_mm_mean)}` : "", tgt && tgt[1] && r.miss_mm != null ? (r.miss_mm <= tgt[1] ? "good" : "bad") : ""),
+    tile(pct(r.success), tip("success rate", "Success rate"), need("success", pct) || (r.status === "training" && r.val_last != null ? `${r.val_kind === "clean" ? "clean score" : "test score"} so far: ${pct(r.val_last)}` : ""), okCls(r, "success")),
+    tile(mm(r.miss_mm), tip("typical miss", "Typical miss"), need("miss_mm", mm) || (ev.final_dist_mm_mean != null ? `average: ${mm(ev.final_dist_mm_mean)}` : ""), okCls(r, "miss_mm")),
     tile(ev.steps_to_success_mean != null ? (ev.steps_to_success_mean / 25).toFixed(1) + " s" : "–", tip("time to reach", "Time to reach"), ev.steps_to_success_mean != null ? `${ev.steps_to_success_mean.toFixed(0)} steps` : ""),
-    tile(ev.smoothness_mean != null ? ev.smoothness_mean.toFixed(3) : "–", tip("smoothness", "Jerkiness"), "lower is smoother"),
+    tile(ev.smoothness_mean != null ? ev.smoothness_mean.toFixed(3) : "–", tip("jerkiness", "Jerkiness"), "lower is smoother"),
     ...(r.task === "track" && ev.track_err_mm_mean != null ? [tile(mm(ev.track_err_mm_mean), "Tracking error", "after step 50 · gate ≤ 25 mm", ev.track_err_mm_mean <= 25 ? "good" : "bad")] : []),
-    ...(ev.collision_rate != null ? [tile(pct(ev.collision_rate), "Collisions", "episodes touching the box · gate ≤ 5%", ev.collision_rate <= 0.05 ? "good" : "bad")] : []),
-    tile(r.learns ? ksteps(r.status === "training" ? r.steps : r.summary?.steps ?? r.steps) : "–", tip("step", "Training steps"), r.wall_s ? `took ${dur(r.wall_s)}` : r.learns ? "" : "no training (exact maths)"),
+    ...(ev.collision_rate != null ? [tile(pct(ev.collision_rate), tip("bumps", "Bumps"), "attempts that touched the box · gate ≤ 5%", ev.collision_rate <= 0.05 ? "good" : "bad")] : []),
+    tile(r.learns ? ksteps(r.status === "training" ? r.steps : r.summary?.steps ?? r.steps) : "–", tip("step", "Training steps"), r.status === "training" ? "so far" : r.wall_s ? `took ${dur(r.wall_s)}` : r.learns ? "" : "no training (exact maths)"),
   ].join("")}</div>`;
   const gif = r.gif ? `<img class="gif" src="/file/runs/${r.id}/video.gif" alt="recorded test attempts">` : `<div class="empty small">${r.status === "training" ? "🎬 The video is recorded when training ends.<span class='laptop'> Meanwhile, Watch live shows the latest checkpoint.</span>" : "No video for this run."}</div>`;
   const counts = [r.best, ...r.exp].filter(Boolean).join(", ") || (S.phase.runs.includes(r.id) ? `Phase ${S.phase.current} work (a pilot or an attempt)` : "nothing (archive)");
@@ -1063,8 +1162,9 @@ function pageRun(id) {
     <p class="tiny muted laptop" style="margin:12px 0 18px">Watch live opens a MuJoCo window at the speed set below, with the ${r.status === "training" ? "latest saved checkpoint, so you see it improve" : "kept model"}. Close the window to stop.</p><div class="laptop" style="margin:-6px 0 18px">${speedCtl()}</div>
     <dl class="kv" style="margin-top:14px"><dt>Run name</dt><dd class="mono">${esc(r.id)}</dd><dt>Counts for</dt><dd>${esc(counts)}</dd><dt>Algorithm</dt><dd>${esc(r.algo)}</dd><dt>${tip("action mode", "Action mode")}</dt><dd>${esc(r.mode || "–")}</dd><dt>${tip("checkpoint", "Kept model")}</dt><dd>${keptModel(r)}</dd><dt>Code version</dt><dd><span class="mono">${esc((r.git_hash || "–").replace(/-dirty$/, ""))}</span>${/-dirty$/.test(r.git_hash || "") ? ' <span class="muted small">(plus changes not yet committed)</span>' : ""}</dd></dl></div></div>`;
   const val = s("val/success"), roll = s("rollout/success_rate");
+  const clean = r.val_kind === "clean" ? r.val.map((p) => [p[0], p[1] * 100]) : []; // val.json holds the clean score for these runs
   const charts = r.learns ? `<div class="sec"><h2>How it learned</h2><span class="hint">hover or touch a chart for exact values · x-axis = training steps</span></div><div class="grid gc2">
-    <div class="card"><h3>${tip("test score during training", "Success")}</h3><p class="tiny muted" style="margin:2px 0 10px">Test = 100 separate validation targets, no randomness (a different set from the final test above, so the last point needn't match it). Training = recent practice attempts, with exploration noise.</p>${chart([{ name: "test", pts: (val || []).map((p) => [p[0], p[1] * 100]) }, { name: "training attempts", pts: smooth((roll || []).map((p) => [p[0], p[1] * 100])), dash: 1, color: "var(--accent2)" }], { y0: 0, y1: 100, yf: (v) => v.toFixed(0) + "%", cols: 2 })}</div>
+    <div class="card"><h3>${tip("test score during training", "Success")}</h3><p class="tiny muted" style="margin:2px 0 10px">Test = 100 separate validation targets, no randomness (a different set from the final test above, so the last point needn't match it). Training = recent practice attempts, with exploration noise.${clean.length ? ` ${tip("clean score", "Clean score")} = test success minus bumps: the number that picks the kept model; below 0 when the arm hits the box more often than it reaches.` : ""}</p>${chart([{ name: "test", pts: (val || []).map((p) => [p[0], p[1] * 100]) }, { name: "training attempts", pts: smooth((roll || []).map((p) => [p[0], p[1] * 100])), dash: 1, color: "var(--accent2)" }, ...(clean.length ? [{ name: "clean score", pts: clean, color: "var(--s4)" }] : [])], { y0: Math.min(0, ...clean.map((p) => p[1])), y1: 100, yf: (v) => v.toFixed(0) + "%", cols: 2 })}</div>
     <div class="card"><h3>${tip("typical miss", "Typical miss on test targets")}</h3><p class="tiny muted" style="margin:2px 0 10px">Median final distance, in mm. Lower is better; 20 mm = success line.</p>${chart([{ name: "miss", pts: (s("val/median_mm") || []).map((p) => [p[0], p[1]]) }], { y0: 0, yf: (v) => v.toFixed(0) + " mm", cols: 2 })}</div>
     <div class="card"><h3>${tip("reward", "Total reward per attempt")}</h3><p class="tiny muted" style="margin:2px 0 10px">The score the network maximises. It should rise, then flatten.</p>${chart([{ name: "reward", pts: smooth(s("rollout/ep_rew_mean")) }], { cols: 2 })}</div>
     <div class="card"><h3>Reward, term by term</h3><p class="tiny muted" style="margin:2px 0 10px">Why the total moves: bonuses rise, penalties shrink toward 0.</p>${chart(Object.keys(sc).filter((k) => k.startsWith("reward/")).map((k) => ({ name: k.slice(7), pts: smooth(sc[k]) })), { legend: true, cols: 2 })}<p class="tiny muted" style="margin:6px 0 0">Noisy curves are smoothed, like TensorBoard at 0.9.</p></div>
@@ -1133,7 +1233,7 @@ function pageDecisions() {
   const list = S.decisions.filter((d) => (decPhase === "all" || d.phase === decPhase) && (!t || (d.what + d.why).toLowerCase().includes(t))).slice().reverse();
   mount([
     ["h", `<h1>Decisions</h1><p class="t2">Claude's engineering log: every technical choice it made, with its reason, newest first. It's written for developers; the results themselves are on the Experiments and Runs pages. Source: <a href="#/doc/docs/decisions.md">docs/decisions.md</a>.</p><div class="row" style="margin-top:14px"><div class="filters">${["all", ...phasesList].map((p) => `<button class="${decPhase === p ? "on" : ""}" data-p="${esc(p)}" onclick="decPhase=this.dataset.p;$('#main').dataset.keys='';render()">${p === "all" ? "All" : p === "-" ? "General" : /^\d+$/.test(p) ? "Phase " + esc(p) : esc(p)}</button>`).join("")}</div><span class="sp"></span><input class="filter" id="decq" placeholder="Filter decisions…" oninput="decText=this.value;pageDecisions()"></div>`],
-    ["list", list.length ? `<div class="card tablewrap" style="margin-top:16px;padding:6px 8px"><table><tr><th style="width:110px">Date</th><th style="width:96px">Phase</th><th>Decision</th><th>Why</th></tr>${list.map((d) => `<tr><td class="muted small">${esc(d.date)}</td><td><span class="pill">${esc(d.phase)}</span></td><td class="small">${inline(d.what)}</td><td class="small muted">${inline(d.why)}</td></tr>`).join("")}</table></div>` : `<div class="empty" style="margin-top:16px">No decisions match.</div>`],
+    ["list", list.length ? `<div class="card tablewrap" style="margin-top:16px;padding:6px 8px"><table class="stack"><tr><th style="width:110px">Date</th><th style="width:96px">Phase</th><th>Decision</th><th>Why</th></tr>${list.map((d) => `<tr><td class="muted small">${esc(d.date)}</td><td><span class="pill">${esc(d.phase)}</span></td><td class="small">${inline(d.what)}</td><td class="small muted">${inline(d.why)}</td></tr>`).join("")}</table></div>` : `<div class="empty" style="margin-top:16px">No decisions match.</div>`],
   ]);
   keepInput("#decq", decText);
 }
@@ -1167,7 +1267,7 @@ async function doSearch(q) {
 async function pageSearch(q) {
   const hits = detail.search?.q === q ? detail.search.hits : null;
   if (!hits) { mount([["h", `<p class="muted">Searching…</p>`]]); const h = await api("/api/search?q=" + encodeURIComponent(q)); detail.search = { q, hits: h }; if (route().arg !== q) return; return pageSearch(q); }
-  mount([["h", `<h1>Search: “${esc(q)}”</h1><p class="muted">${hits.length} result(s)${hits.length >= 80 ? " (first 80)" : ""}</p>`],
+  mount([["h", `<h1>Search: “${esc(q)}”</h1><p class="muted">${plural(hits.length, "result")}${hits.length >= 80 ? " (first 80)" : ""}</p>`],
     ["l", hits.length ? `<div class="card" style="padding:6px 8px">${hits.map((h) => `<a href="${hitHref(h)}" data-q="${esc(q)}" onclick="detail.hlNext=this.dataset.q" style="display:block;padding:10px 12px;border-bottom:1px solid var(--line);color:var(--text)"><div class="tiny" style="color:var(--accent2);text-transform:uppercase;letter-spacing:.06em">${esc(h.kind)} · ${esc(h.title)}</div><div class="small t2">${esc(h.text)}</div></a>`).join("")}</div>` : `<div class="empty"><span class="big">🔍</span>Nothing found.</div>`]]);
 }
 // filter inputs live in blocks that never re-render while typing; restore their text after a page switch

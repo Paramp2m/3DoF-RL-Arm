@@ -4,3 +4,7 @@ phase0:
 phase3:
   reach: [runs/2026-10-18_reach_final_s0, runs/2026-10-18_reach_final_s1, runs/2026-10-18_reach_final_s2]
   hold: [runs/2026-10-18_hold_final_s0, runs/2026-10-18_hold_final_s1, runs/2026-10-18_hold_final_s2]
+phase5:
+  track: [runs/2026-10-19_track_smooth_s0, runs/2026-10-19_track_smooth_s1, runs/2026-10-19_track_smooth_s2]
+  push: [runs/2026-10-19_push_smooth_s0, runs/2026-10-19_push_smooth_s1, runs/2026-10-19_push_smooth_s2]
+  obstacle: [runs/2026-10-19_obstacle_a3_s0, runs/2026-10-19_obstacle_a3_s1, runs/2026-10-19_obstacle_a3_s2]

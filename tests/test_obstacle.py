@@ -107,7 +107,7 @@ def test_safe_action_filter_blocks_contact_and_keeps_state_consistent():
             qd = sol[np.abs(sol - plain.data.qpos[:3]).sum(1).argmin()]
             *_, info = plain.step(np.clip((qd - plain.target_q) / 0.05, -1, 1))
             plain_hits += info["collision"]
-    assert blocked > 0 and hits < plain_hits * 0.3, (hits, plain_hits, blocked)
+    assert blocked > 0 and hits <= 2 and hits < plain_hits * 0.05, (hits, plain_hits, blocked)
 
 
 def test_planner_waypoint_path_is_collision_free_and_obs_shape():

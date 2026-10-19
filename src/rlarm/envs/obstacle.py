@@ -28,6 +28,7 @@ class ObstacleEnv(ReachEnv):
         self.obs_clear = cfg["env"].get("obs_clearance", False)
         self.clear_margin = cfg["env"].get("clear_margin", 0.04)
         self.obs_wp = cfg["env"].get("obs_waypoint", False)
+        self.obs_blocked = cfg["env"].get("obs_blocked", False)
         self.safe = cfg["env"].get("safe_action", False)
         super().__init__(cfg, **kw)
         e = cfg["env"]
@@ -50,7 +51,12 @@ class ObstacleEnv(ReachEnv):
         self.model.geom_aabb[self.gid] = np.r_[np.zeros(3), half]
 
     def _extras_dim(self) -> int:
-        return (5 if self.obs_yaw else 3) + (6 if self.obs_clear else 0) + (4 if self.obs_wp else 0)
+        return (
+            (5 if self.obs_yaw else 3)
+            + (6 if self.obs_clear else 0)
+            + (4 if self.obs_wp else 0)
+            + (1 if self.obs_blocked else 0)
+        )
 
     def _link_gaps(self) -> list[tuple[float, np.ndarray]]:
         """(gap, vector link->box) for the upper arm and forearm; gap capped at 0.5 m, vector 0 if farther."""
@@ -78,6 +84,8 @@ class ObstacleEnv(ReachEnv):
             e = np.r_[
                 e, self.path[self.wp] - self.data.qpos[:3], float(self.wp == len(self.path) - 1)
             ]
+        if self.obs_blocked:  # did the safe filter cut the previous move?
+            e = np.r_[e, float(self._blocked)]
         return e
 
     def _touching(self) -> bool:
@@ -228,6 +236,9 @@ class ObstacleEnv(ReachEnv):
             if not self._hit or scale == SAFE_SCALES[-1]:
                 return out
             mujoco.mj_setState(self.model, self.data, state, mujoco.mjtState.mjSTATE_INTEGRATION)
+            self.data.qvel[:3] = (
+                0.0  # retries start from rest: momentum alone must not re-touch the box
+            )
             mujoco.mj_forward(self.model, self.data)
             self.target_q, self.steps, self._prev_a, self.action_delta = keep[:4]
             if self.obs_wp:

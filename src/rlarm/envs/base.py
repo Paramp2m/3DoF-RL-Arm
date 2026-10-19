@@ -107,6 +107,7 @@ class ArmGoalEnv(gym.Env):
             get("action_delta") if w.get("w_smooth") else None,
             get("clear_prox") if w.get("w_clear") else None,
             get("wp_dist") if w.get("w_wp") else None,
+            get("blocked") if w.get("w_block") else None,
         )
         return sum(t.values())
 
@@ -145,6 +146,7 @@ class ArmGoalEnv(gym.Env):
             self.action_delta,
             extra.get("clear_prox"),
             extra.get("wp_dist"),
+            extra.get("blocked"),
         )
         d = float(np.linalg.norm(obs["achieved_goal"] - obs["desired_goal"].astype(float)))
         return (

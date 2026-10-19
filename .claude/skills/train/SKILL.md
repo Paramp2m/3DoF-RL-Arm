@@ -26,6 +26,14 @@ argument-hint: "[launch <config> [seeds] | status]"
    `uv run python scripts/train.py --config <C> --seed <S> > runs/_logs/<name>-s<S>.log 2>&1`
 4. Tell the user one line: run ids, plus the ETA from the dry run.
 5. **End the turn.** Do not sleep, poll, tail or re-check. Claude Code delivers the job's completion as a new turn.
+   Exception, the **mid-run triage**: whenever a turn happens anyway (a user message, a goal check-in, a sibling job finishing) and a run over ~30 min is underway, spend one cheap call on it: read only the last few `val.json` history entries and `summary.json` steps of every running job (never the logs). Do not schedule extra wake-ups just for this.
+
+## Mid-run triage: kill useless runs
+- Only judge a run past ~30% of its budget and at least 5 validation points.
+- Kill it if it is clearly worse than a sibling (same config family, other seed/variant) or than its own pilot at the same step, **and** its score is flat or falling over the last 3 validation points. A seed that is merely lower than its siblings but still rising is not clearly useless.
+- A run that already plateaued above its gate (e.g. >90% for 3 validation points while the gate is lower) may be stopped early too, but only if a `model.zip` can still be produced: otherwise let it finish.
+- Kill by PID from `ps -eo pid,args` (never `pkill -f` from the same shell: it matches itself and kills the tool call). Then log one line in docs/decisions.md (run, step, scores, reason) and commit; stopped runs are never used for results.
+- Freed threads go to the next queued job. Update any watcher that waits for the killed runs.
 
 ## On completion
 - Read only `runs/<id>/summary.json`.

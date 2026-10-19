@@ -38,7 +38,7 @@ Read only the sections you need. Never read whole logs.
 
 ## Credit discipline
 - Scripts print a short summary. Full logs go to files; inspect them with `tail -n` / `grep`.
-- Jobs over ~5 min: launch in the background (see the `train` skill). Do not sleep, poll or tail while they run.
+- Jobs over ~5 min: launch in the background (see the `train` skill). Do not sleep, poll or tail while they run. The one exception is the skill's mid-run triage: when a turn happens anyway, peek at `val.json` and kill clearly useless runs.
 - Look at images only when a check needs eyes: one PNG at a time, ≤640 px.
 - Prefer the project `stable-baselines3` skill for SB3 questions. Use context7 only for a specific mujoco/gymnasium API question.
 - Don't re-read files you just wrote. No subagents except the single end-of-phase review.

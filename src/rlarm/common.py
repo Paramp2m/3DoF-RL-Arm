@@ -187,9 +187,9 @@ def early_stop_reason(scores: list[float], steps: int, total: int, es: dict) -> 
     """Automatic triage of a training run from its validation scores (one per val point).
 
     None = keep going. "plateau" = best score has not improved by `delta` for `patience` val points (the run
-    is finalised from its val-best checkpoint: a good plateau is saved, not wasted). "stuck_low" = same
-    stall (>= patience // 2 points) while the best score is still under `floor` (a useless run; mark it
-    unusable). Nothing triggers before `min_frac` of the budget and `min_points` val points.
+    is finalised from its val-best checkpoint: a good plateau is saved, not wasted). "stuck_low" = under
+    `floor` and either stalled (>= patience // 2 points) or creeping up too slowly to reach it with the budget
+    left (last-5-point slope extrapolated; a useless run, marked unusable). Nothing triggers before `min_frac` of the budget and `min_points` val points.
     """
     if steps < es.get("min_frac", 0.3) * total or len(scores) < es.get("min_points", 5):
         return None
@@ -198,6 +198,13 @@ def early_stop_reason(scores: list[float], steps: int, total: int, es: dict) -> 
         if sc > best + es.get("delta", 0.01):
             best, last = sc, i
     since, floor = len(scores) - 1 - last, es.get("floor")
-    if floor is not None and best < floor and since >= max(es.get("patience", 6) // 2, 1):
-        return "stuck_low"
+    if floor is not None and best < floor:
+        if since >= max(es.get("patience", 6) // 2, 1):
+            return "stuck_low"
+        w = scores[
+            -5:
+        ]  # still creeping up: stuck if the recent slope cannot reach the floor in the budget left
+        slope, left = (w[-1] - w[0]) / (len(w) - 1), (total - steps) / (steps / len(scores))
+        if best + max(slope, 0.0) * left < floor:
+            return "stuck_low"
     return "plateau" if since >= es.get("patience", 6) else None

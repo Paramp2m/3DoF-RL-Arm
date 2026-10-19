@@ -45,3 +45,20 @@ def test_early_stop_reason_rules():
     assert (
         early_stop_reason(wobble, 900, 1000, es) == "plateau"
     )  # noise under delta is not progress
+
+
+def test_early_stop_creeping_run_that_cannot_reach_floor():
+    from rlarm.common import early_stop_reason
+
+    es = {"min_frac": 0.3, "min_points": 5, "patience": 6, "delta": 0.01, "floor": 0.45}
+    creep = [
+        -0.22,
+        -0.14,
+        -0.10,
+        -0.17,
+        -0.09,
+        -0.06,
+    ]  # d2: rises ~0.03/pt, 14 pts left -> ~0.3 < floor
+    assert early_stop_reason(creep, 300, 1000, es) == "stuck_low"
+    fast = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5][:5]  # +0.1/pt reaches the floor easily
+    assert early_stop_reason(fast, 500, 1000, es) is None

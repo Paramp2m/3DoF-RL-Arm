@@ -37,6 +37,8 @@ argument-hint: "[launch <config> [seeds] | status]"
 - `manual`: `touch runs/<id>/STOP` ends a run at its next 5000-step boundary with the same finalisation (val-best saved, eval run, `stopped_early: manual`). Use it instead of `kill` whenever the run is worth keeping (good plateau you spotted before the rule fired).
 - Choose `floor` per task from the gate: ~half of it for success-type scores (obstacle uses success minus collision rate, floor 0.45; reach-type 0.5). `patience` 6 and `delta` 0.01 suit val points every 5% of the budget; with sparser val points use patience 4. Use `val.every` <= total_steps/20 so there are enough points.
 
+**1b. Babysitter (every launch batch).** Right after launching, start `uv run python scripts/babysit.py 300 "<run glob>"` with `run_in_background: true`. It re-applies each running job's `early_stop` rule to its `val.json` every 5 min (free: no tokens) and `touch STOP`s runs the rule condemns, logging to `runs/_logs/babysit.log`; it exits (notifying you) when nothing is training. It covers runs started with an older train.py. Read only `tail -n 20 runs/_logs/babysit.log` when a turn happens.
+
 **2. By hand (mid-run triage).** Whenever a turn happens anyway (user message, goal check-in, a sibling finishing) and a run over ~30 min is underway, spend one cheap call: read only the last 5 `val.json` history entries and the steps of each running job (never logs). Do not schedule extra wake-ups for it. Decide per run:
 - Running, rising, or within ~3 val points of its best: leave it.
 - Plateaued at a good score (>= gate or within 0.05 of the best sibling) but the auto rule has not fired yet: `touch STOP` (saves it). Do not `kill`: that leaves no `model.zip`.

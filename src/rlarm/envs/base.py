@@ -82,6 +82,9 @@ class ArmGoalEnv(gym.Env):
     def _substep(self) -> None:
         """Called after every physics substep (e.g. to catch contacts between control steps)."""
 
+    def _after_substeps(self) -> None:
+        """Called once after the physics substeps of a control step, before the observation."""
+
     def _update_goal(self) -> None:
         """Called every control step before the observation: move a moving target."""
 
@@ -198,6 +201,7 @@ class ArmGoalEnv(gym.Env):
                 np.abs(self.data.actuator_force[self.act] * self.data.qvel[:3]).sum()
                 * self.model.opt.timestep
             )
+        self._after_substeps()
         self.steps += 1
         self._update_goal()
         obs = self._obs()

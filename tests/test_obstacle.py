@@ -135,3 +135,17 @@ def test_waypoint_reward_term():
     e.reset(seed=1)
     *_, info = e.step(np.zeros(3))
     assert np.isclose(info["r_waypoint"], -0.3 * info["wp_dist"])
+
+
+def test_safe_filter_from_free_pose_never_ends_in_contact():
+    """Hold-still retries from rest + target=pose: a pre-contact-free step must not end with a hit."""
+    e = make_env(_cfg_v(safe_action=True))
+    rng = np.random.default_rng(0)
+    bad = 0
+    for seed in range(6):
+        e.reset(seed=seed)
+        for _ in range(200):
+            free_before = not e._touching()
+            *_, info = e.step(rng.uniform(-1, 1, 3) * (1 if rng.random() < 0.5 else 0.3))
+            bad += free_before and info["collision"]
+    assert bad == 0, bad

@@ -10,7 +10,7 @@ from rlarm.kinematics import fk, ik
 
 # retry sizes of a commanded delta; negatives back the arm out of the box when merely holding still still
 # touches it (momentum of the previous step)
-SAFE_SCALES = (1.0, 0.5, 0.25, 0.0, -0.25, -0.5, -1.0)
+SAFE_SCALES = (1.0, 0.5, 0.25, 0.0, -0.25, -0.5, -1.0, -2.0)
 
 
 class ObstacleEnv(ReachEnv):
@@ -98,6 +98,11 @@ class ObstacleEnv(ReachEnv):
         )
 
     def _substep(self) -> None:
+        self._hit = self._hit or self._touching()
+
+    def _after_substeps(self) -> None:
+        """mj_step detects contacts before it integrates, so the last substep can end in contact unseen: refresh."""
+        mujoco.mj_forward(self.model, self.data)
         self._hit = self._hit or self._touching()
 
     def _info_extra(self) -> dict:
@@ -218,7 +223,7 @@ class ObstacleEnv(ReachEnv):
         if not self.safe:
             self._hit, self._blocked = False, False
             return super().step(action)
-        # contact-safe filter: if the commanded move touches the box, retry it at half / quarter / zero size, then reversed
+        # contact-safe filter: if the commanded move touches the box, retry it at half / quarter / zero size, then reversed (up to 2x)
         # from the same state; contacts are still counted (only a move that cannot be made safe is accepted).
         state = np.zeros(mujoco.mj_stateSize(self.model, mujoco.mjtState.mjSTATE_INTEGRATION))
         mujoco.mj_getState(self.model, self.data, state, mujoco.mjtState.mjSTATE_INTEGRATION)
@@ -237,10 +242,13 @@ class ObstacleEnv(ReachEnv):
                 return out
             mujoco.mj_setState(self.model, self.data, state, mujoco.mjtState.mjSTATE_INTEGRATION)
             self.data.qvel[:3] = (
-                0.0  # retries start from rest: momentum alone must not re-touch the box
+                0.0  # retries start from rest, with the servo target = the actual pose:
             )
-            mujoco.mj_forward(self.model, self.data)
-            self.target_q, self.steps, self._prev_a, self.action_delta = keep[:4]
+            mujoco.mj_forward(
+                self.model, self.data
+            )  # momentum or a lagging target must not re-touch the box
+            self.target_q = self.data.qpos[:3].copy()
+            self.steps, self._prev_a, self.action_delta = keep[1:4]
             if self.obs_wp:
                 self.wp = keep[4]
 

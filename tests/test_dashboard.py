@@ -108,3 +108,15 @@ def test_dismiss_only_takes_real_run_ids(tmp_path, monkeypatch):
     assert "ok" in dashboard.action({"kind": "dismiss", "runs": [rid]})
     assert "ok" in dashboard.action({"kind": "dismiss", "runs": [rid]})
     assert json.loads((tmp_path / "dismissed.json").read_text()) == [rid]
+
+
+def test_phone_via_tailscale_sees_everything_but_cannot_open_laptop_windows(url, monkeypatch):
+    ts = "laptop.tail0000.ts.net"
+    monkeypatch.setattr(dashboard, "HOSTS", {"127.0.0.1", "localhost", ts})
+    assert get(url + "/api/state", {"Host": ts})[0] == 200
+    req = urllib.request.Request(
+        url + "/api/action",
+        data=b'{"kind": "watch", "run": "nope"}',
+        headers={"Content-Type": "application/json", "Host": ts, "Origin": f"https://{ts}"},
+    )
+    assert "laptop" in json.loads(urllib.request.urlopen(req).read())["error"]

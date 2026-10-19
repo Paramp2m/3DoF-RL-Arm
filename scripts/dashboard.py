@@ -2,7 +2,8 @@
 
     uv run python scripts/dashboard.py [--port 8765] [--no-open]
 
-Serves http://127.0.0.1:<port> until Ctrl+C or the terminal closes. Runs at the lowest CPU priority
+Serves http://127.0.0.1:<port> until Ctrl+C or the terminal closes; `tailscale serve --bg <port>` also
+puts it on the user's phone (only buttons that open laptop windows are refused there). Lowest CPU priority
 and only re-reads files whose size/mtime changed, so it doesn't slow training. It never trains,
 evaluates or writes project files; its buttons only open viewers and run the read-only phase gate.
 Imports no torch/mujoco (rlarm.common pulls both in), so the run-folder rules are restated here.
@@ -727,6 +728,23 @@ def state_cached() -> dict:
 
 # ---------- actions (viewers + read-only gate) ----------
 JOBS: dict[str, dict] = {}
+HOSTS = {"127.0.0.1", "localhost"}  # + this laptop's Tailscale name, added in main()
+LAPTOP_ONLY = {"watch", "watch_random", "view", "folder"}  # they open a window on the laptop screen
+
+
+def tailnet_name() -> str | None:
+    """This laptop's Tailscale name (`tailscale serve` proxies the phone's requests to us under it)."""
+    try:
+        out = subprocess.run(
+            ["tailscale", "status", "--json"],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=3,
+        ).stdout
+        return json.loads(out)["Self"]["DNSName"].rstrip(".") or None
+    except (OSError, ValueError, KeyError, TypeError, subprocess.TimeoutExpired):
+        return None
 
 
 def low_prio_env(gui: bool) -> dict:
@@ -859,16 +877,16 @@ class Handler(BaseHTTPRequestHandler):
     def json(self, obj, code: int = 200) -> None:
         self.send(code, json.dumps(obj, default=str).encode(), "application/json")
 
-    def local(self) -> bool:
+    def host(self) -> str:
+        return self.headers.get("Host", "").split(":")[0]
+
+    def allowed(self) -> bool:
         """Reject requests from other web pages (DNS rebinding / cross-site POST)."""
-        host = self.headers.get("Host", "").split(":")[0]
         origin = self.headers.get("Origin")
-        return host in ("127.0.0.1", "localhost") and (
-            origin is None or urlparse(origin).hostname in ("127.0.0.1", "localhost")
-        )
+        return self.host() in HOSTS and (origin is None or urlparse(origin).hostname in HOSTS)
 
     def do_GET(self):
-        if not self.local():
+        if not self.allowed():
             return self.send(403, b"forbidden", "text/plain")
         u = urlparse(self.path)
         q = {k: v[0] for k, v in parse_qs(u.query).items()}
@@ -918,7 +936,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         if (
-            not self.local()
+            not self.allowed()
             or self.headers.get("Content-Type", "").split(";")[0] != "application/json"
         ):
             return self.send(403, b"forbidden", "text/plain")
@@ -930,6 +948,10 @@ class Handler(BaseHTTPRequestHandler):
         except ValueError:
             return self.json({"error": "bad json"}, 400)
         if self.path == "/api/action" and isinstance(body, dict):
+            if self.host() not in ("127.0.0.1", "localhost") and body.get("kind") in LAPTOP_ONLY:
+                return self.json(
+                    {"error": "That opens a window on the laptop, so it only works there."}
+                )
             return self.json(action(body))
         self.send(404, b"not found", "text/plain")
 
@@ -954,6 +976,11 @@ def main() -> None:
         )
     url = f"http://127.0.0.1:{a.port}"
     print(f"rl-arm dashboard: {url}   (Ctrl+C to stop)")
+    if ts := tailnet_name():
+        HOSTS.add(ts)
+        print(
+            f"on your phone (Tailscale): https://{ts}   (needs `tailscale serve --bg {a.port}` once)"
+        )
     if not a.no_open:
         threading.Timer(0.5, webbrowser.open, (url,)).start()
     try:

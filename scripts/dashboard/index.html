@@ -91,6 +91,7 @@ tr.setup td { background: #161A0E; }
 .btn { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--line2); background: var(--panel2); color: var(--text); font: inherit; font-size: 14px; font-weight: 560; cursor: pointer; }
 .btn:hover { border-color: var(--accent2); }
 .btn.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.remote .laptop { display: none !important; } /* opened via Tailscale: hide what only works at the laptop */
 .btn.primary:hover { background: var(--cream); }
 .btn[disabled] { opacity: 0.5; cursor: wait; }
 .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
@@ -200,6 +201,7 @@ a.chip:hover { border-color: var(--accent2); text-decoration: none; }
 </div>
 <script src="/marked.min.js"></script>
 <script>
+if (!["127.0.0.1", "localhost"].includes(location.hostname)) document.documentElement.classList.add("remote");
 "use strict";
 // ---------- words explained (tooltips + the "Words explained" page) ----------
 const GLOSS = {
@@ -272,7 +274,7 @@ async function act(body, btn) {
 const SPEEDS = [0.25, 0.5, 1, 2, 4, 8, 16, 0];
 const speedName = (v) => (v === 0 ? "max" : v + "×");
 const speedVal = () => SPEEDS[store.get("speedIdx", 2)] ?? 1;
-const speedCtl = () => `<label class="speed" title="How fast the 3D viewer plays: 1× = real time, max = as fast as the laptop can">3D viewer speed <input type="range" class="speedin" min="0" max="${SPEEDS.length - 1}" step="1" oninput="setSpeed(this.value)"><b class="speedout"></b></label>`;
+const speedCtl = () => `<label class="speed laptop" title="How fast the 3D viewer plays: 1× = real time, max = as fast as the laptop can">3D viewer speed <input type="range" class="speedin" min="0" max="${SPEEDS.length - 1}" step="1" oninput="setSpeed(this.value)"><b class="speedout"></b></label>`;
 function setSpeed(i) { store.set("speedIdx", +i); syncSpeed(); }
 function syncSpeed() {
   const i = store.get("speedIdx", 2);
@@ -381,7 +383,7 @@ function notifyFinished(old, now) {
   for (const r of now.runs) {
     if (!was.has(r.id) || r.status === "training") continue;
     const ok = r.status === "done";
-    new Notification(ok ? "Run finished" : "Run stopped", { body: `${runTitle(r)} · seed ${r.seed}${ok && r.success != null ? ` · success ${pct(r.success)}` : ok ? "" : " · it ended without finishing"}`, tag: r.id });
+    try { new Notification(ok ? "Run finished" : "Run stopped", { body: `${runTitle(r)} · seed ${r.seed}${ok && r.success != null ? ` · success ${pct(r.success)}` : ok ? "" : " · it ended without finishing"}`, tag: r.id }); } catch { /* phone browsers only allow service-worker notifications */ }
   }
 }
 function askNotify(btn) { Notification.requestPermission().then(() => render()); if (btn) btn.disabled = true; }
@@ -438,8 +440,8 @@ function pageNow() {
     <p class="tiny muted" style="margin:12px 0 0">${tip("success rate", "Success")} on the final test. Why Claude chose each setup: <a href="#/decisions">Claude's log</a>.${S.dirty.length ? ` ${S.dirty.length} file(s) changed since the last commit (Claude saves its work at the end of each phase).` : ""}</p></div>`;
   const doNow = `<div class="card"><h3>Things you can do now</h3>
     <div class="row" style="margin-top:12px">
-      <button class="btn" onclick="act({kind:'view'},this)">Open the arm in 3D</button>
-      <button class="btn" onclick="act({kind:'watch_random',speed:speedVal()},this)">Watch a random (untrained) arm</button>
+      <button class="btn laptop" onclick="act({kind:'view'},this)">Open the arm in 3D</button>
+      <button class="btn laptop" onclick="act({kind:'watch_random',speed:speedVal()},this)">Watch a random (untrained) arm</button>
       <button class="btn" onclick="act({kind:'gate',phase:${ph.current}},this)">Run the Phase ${ph.current} gate</button>
     </div>
     <div style="margin-top:12px">${speedCtl()}</div>
@@ -448,7 +450,7 @@ function pageNow() {
   const lastEta = Math.max(0, ...live.map((r) => r.eta_s || 0));
   const etaLine = live.length && lastEta ? `<span class="r small t2">all done in ≈ <b>${dur(lastEta)}</b> (around ${new Date(Date.now() + lastEta * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}), plus a few minutes of final tests</span>` : "";
   const canNotify = "Notification" in window && Notification.permission === "default";
-  const notifyBtn = canNotify ? `<div class="row small" style="margin-top:12px"><button class="btn" onclick="askNotify(this)">🔔 Notify me when a run finishes</button><span class="muted tiny">a desktop notification, while this tab is open</span></div>` : "";
+  const notifyBtn = canNotify ? `<div class="row small laptop" style="margin-top:12px"><button class="btn" onclick="askNotify(this)">🔔 Notify me when a run finishes</button><span class="muted tiny">a desktop notification, while this tab is open</span></div>` : "";
   mount([["hero", hero], ["warn", warn], ["livehead", `<div class="sec"><h2>Training right now</h2><span class="hint">progress, time left, test score so far</span>${etaLine}</div>`], ["live", cards + notifyBtn], ["exps", exps], ["side", `<div class="sec"><h2>Status</h2></div><div class="grid g3">${machine}${decCard}${doNow}</div>`]]);
   const set = (id, f) => { const el = document.getElementById(id); if (el) f(el); };
   set("m-cpu", (el) => (el.textContent = m.cpu + "%")); set("m-cpub", (el) => (el.style.width = m.cpu + "%"));
@@ -559,7 +561,7 @@ function pageRuns() {
   take("Archive", "earlier attempts, tuning sweeps and pilots: kept for the record", () => true);
   const head = `<h1>Runs</h1><p class="t2">Each ${tip("run")} is one training attempt. By default you see only the ones that matter; the rest are in the archive.</p>
     <div class="row" style="margin-top:16px"><div class="filters">${[["count", "Important"], ["phase", "This phase"], ["training", "Training"], ["all", `All (${S.runs.length})`]].map(([k, l]) => `<button class="${runFilter === k ? "on" : ""}" onclick="runFilter='${k}';render()">${l}</button>`).join("")}</div><span class="sp"></span><input class="filter" id="runq" placeholder="Filter runs…" oninput="runText=this.value;pageRuns()"></div>
-    <div class="row small muted" style="margin-top:12px">${speedCtl()}<span>used by every ▶ button · tick runs to compare them</span></div>`;
+    <div class="row small muted" style="margin-top:12px">${speedCtl()}<span><span class="laptop">used by every ▶ button · </span>tick runs to compare them</span></div>`;
   // same fixed columns in every group, so the tables line up down the page
   const cols = `<colgroup><col style="width:38px"><col><col style="width:118px"><col style="width:96px"><col style="width:118px"><col style="width:96px"><col style="width:58px"></colgroup>`;
   const thead = `<tr><th></th><th>Run</th><th>State</th><th>${tip("step", "Steps")}</th><th>${tip("success rate", "Success")}</th><th>${tip("typical miss", "Miss")}</th><th></th></tr>`;
@@ -588,7 +590,7 @@ function pageCompare(arg) {
   mount([
     ["h", `<a class="small" href="#/runs">← all runs</a><h1 style="margin-top:10px">Compare ${runs.length} runs</h1><p class="t2">Same chart, same scale. Different step budgets are fine: the x-axis is training steps.</p>`],
     ["chart", `<div class="card" style="margin-top:16px"><h3>${tip("test score during training", "Test success during training")}</h3><div style="margin-top:10px">${chart(curves, { y0: 0, y1: 100, yf: (v) => v.toFixed(0) + "%", legend: true, empty: "None of these runs has a learning curve (val.json) yet." })}</div></div>`],
-    ["table", `<div class="card tablewrap" style="margin-top:16px"><table><tr><th>Run</th><th>Algorithm</th><th>${tip("step", "Steps")}</th><th>${tip("success rate", "Success")}</th><th>${tip("typical miss", "Typical miss")}</th><th>Training time</th><th></th></tr>${runs.map((r, i) => `<tr><td><i style="display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:8px;background:${COLORS[i % COLORS.length]}"></i><a href="#/run/${r.id}"><b>${esc(name(r))}</b></a><div class="tiny muted mono">${esc(r.id)}</div></td><td class="small">${esc(r.algo)}${r.mode ? " · " + esc(r.mode) : ""}</td><td>${r.learns ? ksteps(r.steps) : "–"}</td><td class="num">${r.success != null && r.success === bs && runs.length > 1 ? `<b class="good">${pct(r.success)} ★</b>` : pct(r.success)}</td><td class="num">${r.miss_mm != null && r.miss_mm === bm && runs.length > 1 ? `<b class="good">${mm(r.miss_mm)} ★</b>` : mm(r.miss_mm)}</td><td class="muted num">${dur(r.wall_s)}${r.sps ? `<div class="tiny">${Math.round(r.sps)} steps/s</div>` : ""}</td><td><button class="btn" onclick="watch('${r.id}',this)">▶</button></td></tr>`).join("")}</table><p class="tiny muted" style="margin:10px 0 0">★ = best in this comparison. Training time is wall-clock: runs in parallel share the CPU, so compare it only between runs trained side by side.</p></div>`],
+    ["table", `<div class="card tablewrap" style="margin-top:16px"><table><tr><th>Run</th><th>Algorithm</th><th>${tip("step", "Steps")}</th><th>${tip("success rate", "Success")}</th><th>${tip("typical miss", "Typical miss")}</th><th>Training time</th><th></th></tr>${runs.map((r, i) => `<tr><td><i style="display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:8px;background:${COLORS[i % COLORS.length]}"></i><a href="#/run/${r.id}"><b>${esc(name(r))}</b></a><div class="tiny muted mono">${esc(r.id)}</div></td><td class="small">${esc(r.algo)}${r.mode ? " · " + esc(r.mode) : ""}</td><td>${r.learns ? ksteps(r.steps) : "–"}</td><td class="num">${r.success != null && r.success === bs && runs.length > 1 ? `<b class="good">${pct(r.success)} ★</b>` : pct(r.success)}</td><td class="num">${r.miss_mm != null && r.miss_mm === bm && runs.length > 1 ? `<b class="good">${mm(r.miss_mm)} ★</b>` : mm(r.miss_mm)}</td><td class="muted num">${dur(r.wall_s)}${r.sps ? `<div class="tiny">${Math.round(r.sps)} steps/s</div>` : ""}</td><td><button class="btn laptop" onclick="watch('${r.id}',this)">▶</button></td></tr>`).join("")}</table><p class="tiny muted" style="margin:10px 0 0">★ = best in this comparison. Training time is wall-clock: runs in parallel share the CPU, so compare it only between runs trained side by side.</p></div>`],
     ["speed", `<div style="margin-top:12px">${speedCtl()}</div>`],
   ]);
 }
@@ -606,7 +608,7 @@ function runRow(r, nested) {
   const tgt = TARGETS[r.best];
   const sOk = tgt && r.success != null ? (r.success >= tgt[0] ? " good" : " bad") : "";
   const mOk = tgt && tgt[1] && r.miss_mm != null ? (r.miss_mm <= tgt[1] ? " good" : " bad") : "";
-  return `<tr class="click" onclick="location.hash='#/run/${r.id}'"><td class="pick" onclick="event.stopPropagation()"><input type="checkbox" title="pick to compare" ${PICK.includes(r.id) ? "checked" : ""} onchange="pick('${r.id}',this.checked)"></td><td${nested ? ' style="padding-left:28px"' : ""}>${nested ? `<span class="t2">seed ${r.seed}</span>` : `<b>${esc(runTitle(r))}</b> <span class="muted small">· seed ${r.seed}</span>`}<div class="tiny muted">${nested ? esc(r.date) : esc(r.algo) + (r.mode ? " · " + esc(r.mode) : "") + " · " + esc(r.date)}</div></td><td>${statusPill(r.status)}</td><td class="t2">${r.learns ? (r.status === "training" ? `${ksteps(r.steps)} / ${ksteps(r.total)}` : ksteps(r.steps)) : "–"}</td><td class="num${sOk}">${pct(r.success)}</td><td class="num${mOk}">${mm(r.miss_mm)}</td><td onclick="event.stopPropagation()"><button class="btn" style="padding:4px 10px" title="watch this run in the 3D viewer" onclick="watch('${r.id}',this)">▶</button></td></tr>`;
+  return `<tr class="click" onclick="location.hash='#/run/${r.id}'"><td class="pick" onclick="event.stopPropagation()"><input type="checkbox" title="pick to compare" ${PICK.includes(r.id) ? "checked" : ""} onchange="pick('${r.id}',this.checked)"></td><td${nested ? ' style="padding-left:28px"' : ""}>${nested ? `<span class="t2">seed ${r.seed}</span>` : `<b>${esc(runTitle(r))}</b> <span class="muted small">· seed ${r.seed}</span>`}<div class="tiny muted">${nested ? esc(r.date) : esc(r.algo) + (r.mode ? " · " + esc(r.mode) : "") + " · " + esc(r.date)}</div></td><td>${statusPill(r.status)}</td><td class="t2">${r.learns ? (r.status === "training" ? `${ksteps(r.steps)} / ${ksteps(r.total)}` : ksteps(r.steps)) : "–"}</td><td class="num${sOk}">${pct(r.success)}</td><td class="num${mOk}">${mm(r.miss_mm)}</td><td onclick="event.stopPropagation()"><button class="btn laptop" style="padding:4px 10px" title="watch this run in the 3D viewer" onclick="watch('${r.id}',this)">▶</button></td></tr>`;
 }
 
 // ---------- page: Run ----------
@@ -633,8 +635,8 @@ function pageRun(id) {
   ].join("")}</div>`;
   const gif = r.gif ? `<img class="gif" src="/file/runs/${r.id}/video.gif" alt="recorded test attempts">` : `<div class="empty small">${r.status === "training" ? "The video is recorded when training ends. Meanwhile, Watch live shows the latest checkpoint." : "No video for this run."}</div>`;
   const media = `<div class="grid g2" style="margin-top:16px"><div class="card"><h3>Video</h3><p class="muted small" style="margin:4px 0 12px">${r.gif ? "3 test attempts after training: the red ball is the target." : ""}</p>${gif}</div>
-    <div class="card"><h3>Watch &amp; inspect</h3><div class="row" style="margin-top:12px"><button class="btn primary" onclick="watch('${r.id}',this)">▶ Watch live in 3D</button><button class="btn" onclick="act({kind:'folder',run:'${r.id}'},this)">Open folder</button><button class="btn" onclick="copy('${r.id}')">Copy run name</button></div>
-    <p class="tiny muted" style="margin:12px 0 18px">Watch live opens a MuJoCo window at the speed set below, with the ${r.status === "training" ? "latest saved checkpoint, so you see it improve" : "kept model"}. Close the window to stop.</p><div style="margin:-6px 0 18px">${speedCtl()}</div>
+    <div class="card"><h3>Watch &amp; inspect</h3><div class="row" style="margin-top:12px"><button class="btn primary laptop" onclick="watch('${r.id}',this)">▶ Watch live in 3D</button><button class="btn laptop" onclick="act({kind:'folder',run:'${r.id}'},this)">Open folder</button><button class="btn" onclick="copy('${r.id}')">Copy run name</button></div>
+    <p class="tiny muted laptop" style="margin:12px 0 18px">Watch live opens a MuJoCo window at the speed set below, with the ${r.status === "training" ? "latest saved checkpoint, so you see it improve" : "kept model"}. Close the window to stop.</p><div style="margin:-6px 0 18px">${speedCtl()}</div>
     <dl class="kv"><dt>Run name</dt><dd class="mono">${esc(r.id)}</dd><dt>Counts for</dt><dd>${esc([r.best, ...r.exp].filter(Boolean).join(", ") || "nothing (archive)")}</dd><dt>Algorithm</dt><dd>${esc(r.algo)}</dd><dt>${tip("action mode", "Action mode")}</dt><dd>${esc(r.mode || "–")}</dd><dt>${tip("checkpoint", "Kept model")}</dt><dd>${keptModel(r)}</dd><dt>Code version</dt><dd><span class="mono">${esc((r.git_hash || "–").replace(/-dirty$/, ""))}</span>${/-dirty$/.test(r.git_hash || "") ? ' <span class="muted small">(plus changes not yet committed)</span>' : ""}</dd></dl></div></div>`;
   const val = s("val/success"), roll = s("rollout/success_rate");
   const charts = r.learns ? `<div class="sec"><h2>How it learned</h2><span class="hint">hover a chart for exact values · x-axis = training steps</span></div><div class="grid gc2">

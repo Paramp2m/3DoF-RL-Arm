@@ -98,3 +98,13 @@ def test_config_diff_names_changed_settings_only():
     rows = dashboard.diff(cfg, base)
     assert [r["key"] for r in rows] == ["env.action_mode"]
     assert rows[0]["name"] == "How the network drives the motors"
+
+
+def test_dismiss_only_takes_real_run_ids(tmp_path, monkeypatch):
+    monkeypatch.setattr(dashboard, "DISMISSED", tmp_path / "dismissed.json")
+    rid = next(r.name for r in dashboard.RUNS.iterdir() if dashboard.NAME.match(r.name))
+    for bad in (None, [], ["../../etc"], [rid, "2026-01-01_nope_s0"]):
+        assert "error" in dashboard.action({"kind": "dismiss", "runs": bad})
+    assert "ok" in dashboard.action({"kind": "dismiss", "runs": [rid]})
+    assert "ok" in dashboard.action({"kind": "dismiss", "runs": [rid]})
+    assert json.loads((tmp_path / "dismissed.json").read_text()) == [rid]

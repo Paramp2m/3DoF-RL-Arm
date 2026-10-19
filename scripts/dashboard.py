@@ -24,6 +24,9 @@ import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
 RUNS, STATIC = ROOT / "runs", Path(__file__).resolve().parent / "dashboard"
+DISMISSED = (
+    RUNS / "dismissed.json"
+)  # run ids whose "stopped" warning was dismissed (by the user or Claude)
 NAME = re.compile(r"^(\d{4}-\d\d-\d\d)_([^/]+)_s(\d+)$")
 MEDIA = {
     ".gif": "image/gif",
@@ -550,6 +553,7 @@ def state() -> dict:
         "phase": ph,
         "runs": runs,
         "machine": machine(),
+        "dismissed": jread(DISMISSED) or [],
         "dirty": g["dirty"],
         "decisions": decisions(),
         "docs": docs,
@@ -800,6 +804,18 @@ def action(body: dict) -> dict:
 
         threading.Thread(target=collect, daemon=True).start()
         return {"job": jid}
+    if kind == "dismiss":
+        rids = body.get("runs")
+        if (
+            not isinstance(rids, list)
+            or not rids
+            or not all(isinstance(r, str) and NAME.match(r) and (RUNS / r).is_dir() for r in rids)
+        ):
+            return {"error": "unknown run"}
+        tmp = DISMISSED.with_suffix(".tmp")
+        tmp.write_text(json.dumps(sorted({*(jread(DISMISSED) or []), *rids}), indent=1))
+        tmp.replace(DISMISSED)  # atomic, so a poll never reads half a file
+        return {"ok": "Dismissed. The run still shows as stopped on the Runs page."}
     if kind == "folder":
         rid = str(body.get("run", ""))
         target = RUNS / rid if NAME.match(rid) and (RUNS / rid).is_dir() else ROOT

@@ -420,8 +420,8 @@ function pageNow() {
     <div class="steps">${ph.list.map((p) => `<div class="${p.state}" title="Phase ${p.n}: ${esc(p.title)}"><span></span><small>${p.n}</small></div>`).join("")}</div>
   </div>`;
   const cards = live.length ? `<div class="grid g3">${live.map(liveCard).join("")}</div>` : `<div class="empty">Nothing is training right now.${lastDone ? ` The last run, <a href="#/run/${lastDone.id}">${esc(runTitle(lastDone))} · seed ${lastDone.seed}</a>, finished ${ago(lastDone.mtime)}. <a href="#/runs">All runs →</a>` : ""}</div>`;
-  const stopped = S.runs.filter((r) => r.status === "stopped" && S.phase.runs.includes(r.id));
-  const warn = stopped.length ? `<div class="banner">${stopped.length} run(s) from this phase stopped without finishing (crash, killed, or the laptop slept): ${stopped.map((r) => `<a href="#/run/${r.id}">${esc(runTitle(r))} s${r.seed}</a>`).join(", ")}. Tell Claude in the terminal.</div>` : "";
+  const stopped = S.runs.filter((r) => r.status === "stopped" && S.phase.runs.includes(r.id) && !S.dismissed.includes(r.id));
+  const warn = stopped.length ? `<div class="banner">${stopped.length} run(s) from this phase stopped without finishing (crash, killed, or the laptop slept): ${stopped.map((r) => `<a href="#/run/${r.id}">${esc(runTitle(r))} s${r.seed}</a>`).join(", ")}. Tell Claude in the terminal, or dismiss this if it was stopped on purpose. <button class="btn" style="padding:3px 10px;margin-left:8px;font-size:13px" data-ids="${esc(stopped.map((r) => r.id).join(" "))}" onclick="act({ kind: 'dismiss', runs: this.dataset.ids.split(' ') }, this).then(poll)">Dismiss</button></div>` : "";
   const exps = S.phase.current === 4 ? `<div class="sec"><h2>Experiments</h2><span class="hint">what Phase 4 is measuring</span><a class="r" href="#/exp">all results →</a></div><div class="grid g4c">${S.experiments.map(expCard).join("")}</div>` : "";
   const onBattery = m.battery && m.battery.status === "Discharging";
   const machine = `<div class="card">

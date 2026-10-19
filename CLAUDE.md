@@ -33,7 +33,7 @@ Read only the sections you need. Never read whole logs.
 - Eval: `uv run python scripts/eval.py --run runs/<run_id>`, which writes eval.json + video
 - Visual check: `uv run python scripts/render_snapshot.py ...`, which writes a PNG (≤640 px)
 - Phase gate: `uv run python scripts/check_phase.py <N>` (`--summary` gives a compact table)
-- Dashboard (the user's live view of everything; read-only, nice 19): `uv run python scripts/dashboard.py`. The user starts it; its guide is `User Ref/GUIDE.md`. When adding a run field, doc or phase text the user should see, update `scripts/dashboard.py` too
+- Dashboard (the user's live view of everything; read-only, nice 19): `uv run python scripts/dashboard.py`. The user starts it; its guide is `User Ref/GUIDE.md`. When adding a run field, doc or phase text the user should see, update `scripts/dashboard.py` too. When you stop a run on purpose, add its id to `runs/dismissed.json` so the dashboard doesn't warn about it
 - Live view: `uv run python scripts/watch.py [--run runs/<id>]` (latest checkpoint during training). Claude never runs a GUI directly: always `scripts/claude_gui.sh <cmd...>`, which opens it as a floating, pinned window in the bottom-right corner and gives focus back to the terminal
 
 ## Credit discipline

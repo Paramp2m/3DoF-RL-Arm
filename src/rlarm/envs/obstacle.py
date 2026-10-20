@@ -33,6 +33,10 @@ class ObstacleEnv(ReachEnv):
         self.safe = cfg["env"].get("safe_action", False)
         # residual mode: action = clip(waypoint follower + residual * policy action); needs obs_waypoint
         self.residual = cfg["env"].get("residual_waypoint", 0.0)
+        # require_plan: reject episodes the straight-segment planner (rlarm.expert) cannot solve, so every
+        # episode is solvable; the planner is only used here and as a training teacher, never to act
+        self.require_plan = cfg["env"].get("require_plan", False)
+        self._expert = None
         super().__init__(cfg, **kw)
         e = cfg["env"]
         if self.safe and self.mode != "delta_pos":
@@ -172,6 +176,7 @@ class ObstacleEnv(ReachEnv):
                     and self._box_dist(goal) >= 0.04
                     and self._goal_pose_free()
                     and (not self.obs_wp or self._plan(q))
+                    and (not self.require_plan or self._solvable(q))
                 ):
                     return
             # resample start pose and target (same distributions as reach)
@@ -213,6 +218,15 @@ class ObstacleEnv(ReachEnv):
             return False
         self.path, self.wp = np.array(path), 1
         return True
+
+    def _solvable(self, q: np.ndarray) -> bool:
+        if self._expert is None:
+            from rlarm.expert import (
+                PlannerExpert,  # local: the expert module imports nothing from envs
+            )
+
+            self._expert = PlannerExpert(self)
+        return self._expert.plan(q) is not None
 
     def _update_goal(self) -> None:
         """Advance to the next waypoint once within 0.15 rad of the current one."""

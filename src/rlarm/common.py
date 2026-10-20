@@ -45,7 +45,11 @@ def git_hash() -> str:
 
 
 def algo_class(cfg: dict):
-    """SB3 algorithm class named in the config."""
+    """Algorithm class named in the config: rlarm.sacbc.SACBC, else the SB3 class of that name."""
+    if cfg["algo"]["name"] == "SACBC":
+        from rlarm.sacbc import SACBC
+
+        return SACBC
     return getattr(sb3, cfg["algo"]["name"])
 
 

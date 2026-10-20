@@ -67,6 +67,7 @@ class ValCallback(BaseCallback):
         )
         self.best, self.hist, self.stop_reason = None, [], None
         self.es, self.total = cfg["val"].get("early_stop"), cfg["total_steps"]
+        self.at_start = cfg["val"].get("at_start", False)
 
     def _on_step(self) -> bool:
         if self.num_timesteps % 5000 == 0 and (self.run / "STOP").exists():
@@ -75,30 +76,65 @@ class ValCallback(BaseCallback):
             )
             return False
         if self.num_timesteps % self.every == 0:
-            ev = evaluate_goal(self.model, self.env, self.n, seed=self.seed)
-            score = ev["success_rate"]
-            if (
-                self.clean and ev["collision_rate"] is not None
-            ):  # val.clean: keep the best collision-free policy
-                score -= ev["collision_rate"]
-            key = (score, -ev["final_dist_mm_median"])
-            self.logger.record("val/success", ev["success_rate"])
-            self.logger.record("val/median_mm", ev["final_dist_mm_median"])
-            self.hist.append({"step": self.num_timesteps, "success": key[0], "median_mm": -key[1]})
-            if self.best is None or key > self.best[0]:
-                self.best = (key, self.num_timesteps)
-                self.model.save(self.run / "model_best_tmp.zip")
-                os.replace(self.run / "model_best_tmp.zip", self.run / "model_best.zip")
-            (self.run / "val.json").write_text(
-                json.dumps({"best_step": self.best[1], "history": self.hist}, indent=1)
-            )
-            if self.es:  # config val.early_stop: stop plateaued / stuck runs by themselves
-                self.stop_reason = early_stop_reason(
-                    [h["success"] for h in self.hist], self.num_timesteps, self.total, self.es
-                )
-                if self.stop_reason:
-                    return False
+            return self._validate()
         return True
+
+    def _on_training_start(self) -> None:
+        # val.at_start: score the starting policy (e.g. a behaviour-cloned init) as step 0
+        if self.at_start:
+            self._validate()
+
+    def _validate(self) -> bool:
+        """Evaluate on the val goals, keep the best policy, update val.json; False = early stop."""
+        ev = evaluate_goal(self.model, self.env, self.n, seed=self.seed)
+        score = ev["success_rate"]
+        if self.clean and ev["collision_rate"] is not None:  # val.clean: best collision-free policy
+            score -= ev["collision_rate"]
+        key = (score, -ev["final_dist_mm_median"])
+        self.logger.record("val/success", ev["success_rate"])
+        self.logger.record("val/median_mm", ev["final_dist_mm_median"])
+        self.hist.append({"step": self.num_timesteps, "success": key[0], "median_mm": -key[1]})
+        if self.best is None or key > self.best[0]:
+            self.best = (key, self.num_timesteps)
+            self.model.save(self.run / "model_best_tmp.zip")
+            os.replace(self.run / "model_best_tmp.zip", self.run / "model_best.zip")
+        (self.run / "val.json").write_text(
+            json.dumps({"best_step": self.best[1], "history": self.hist}, indent=1)
+        )
+        if self.es:  # config val.early_stop: stop plateaued / stuck runs by themselves
+            self.stop_reason = early_stop_reason(
+                [h["success"] for h in self.hist], self.num_timesteps, self.total, self.es
+            )
+            if self.stop_reason:
+                return False
+        return True
+
+
+def init_policy(model, cfg: dict) -> None:
+    """cfg init_from: <imitate run>/bc.zip. Copy its policy weights; give SACBC the demos (demos.npz) for the
+    BC term and prefill the replay buffer with the expert episodes (expert_eps.pkl) next to it."""
+    import pickle
+    from pathlib import Path
+
+    import numpy as np
+
+    src = Path(cfg["init_from"])
+    model.policy.load_state_dict(load_policy(cfg, src).policy.state_dict())
+    d = np.load(src.parent / "demos.npz")
+    if hasattr(model, "set_demos"):
+        model.set_demos({k[4:]: d[k] for k in d.files if k.startswith("obs_")}, d["actions"])
+    eps = src.parent / "expert_eps.pkl"
+    if eps.exists():
+        for ep in pickle.loads(eps.read_bytes()):
+            for obs, nxt, act, rew, done, info in ep:
+                model.replay_buffer.add(
+                    {k: v[None] for k, v in obs.items()},
+                    {k: v[None] for k, v in nxt.items()},
+                    act[None],
+                    np.array([rew]),
+                    np.array([done]),
+                    [info],
+                )
 
 
 def dry_kwargs(kw: dict, total: int, dry: bool) -> dict:
@@ -178,6 +214,8 @@ def main() -> None:
                 tensorboard_log=str(run / "tb"),
                 **dry_kwargs(algo_kwargs(cfg), total, a.dry_run),
             )
+            if cfg.get("init_from"):
+                init_policy(model, cfg)
             cbs = [SummaryCallback(write, total, run)]
             if v:
                 every, n_val = (total // 2, 2) if a.dry_run else (v["every"], v["episodes"])

@@ -26,11 +26,13 @@ class PlannerExpert:
         grid: tuple[int, int, int] = (16, 5, 6),
         gain: float = 0.5,
         replan: float = 0.2,
+        markov: bool = False,
     ):
         self.e = env.unwrapped
         self.m = self.e.model
         self.d = mujoco.MjData(self.m)  # private scratch data: planning never touches the env state
         self.margin, self.gain, self.replan = margin, gain, replan
+        self.markov = markov  # replan every step: the label then depends on the current state only (for DAgger)
         self.links = [self.m.geom(n).id for n in LINKS]
         lo, hi = self.e.lim[:, 0], self.e.lim[:, 1]
         axes = [np.linspace(lo[i] + 0.05, hi[i] - 0.05, grid[i]) for i in range(3)]
@@ -108,7 +110,7 @@ class PlannerExpert:
         q, tq = e.data.qpos[:3].copy(), e.target_q.copy()
         key = (e.goal.tobytes(), e.data.mocap_pos.tobytes())
         new = key != self.key
-        if self.path is None or new or (self.planned and self._off_path(q)):
+        if self.markov or self.path is None or new or (self.planned and self._off_path(q)):
             self.key, self.start = key, tq.copy()
             path = self.plan(tq)
             self.planned = (

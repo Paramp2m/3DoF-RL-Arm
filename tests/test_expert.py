@@ -35,3 +35,15 @@ def test_require_plan_resets_are_plannable():
     for seed in range(10):
         e.reset(seed=100 + seed)
         assert ex.plan(e.target_q.copy()) is not None
+
+
+def test_markov_label_ignores_history():
+    """A markov expert that has followed an episode labels each state like a fresh one."""
+    e = env()
+    ex, fresh = PlannerExpert(e, markov=True), PlannerExpert(e, markov=True)
+    obs, _ = e.reset(seed=3)
+    for _ in range(30):
+        a = ex.predict(obs)[0]
+        fresh.path = None
+        assert np.array_equal(a, fresh.predict(obs)[0])
+        obs = e.step(a)[0]

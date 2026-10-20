@@ -26,13 +26,14 @@ from rlarm.common import (
 from rlarm.expert import PlannerExpert
 
 
-def rollout(env, expert, student, beta: float, seed: int, rng, keep: bool):
+def rollout(env, expert, student, beta: float, seed: int, rng, keep: bool, settle: int = 0):
     """One episode; the expert acts with probability beta per step (student otherwise), every visited state is
-    labelled with the expert's action. Returns (obs list, label list, transitions or None, success)."""
+    labelled with the expert's action. Unless `keep`, the episode is cut after `settle` steps in a row at the goal
+    (0 = never), so the data is not dominated by holding still. Returns (obs, labels, transitions or None, success)."""
     obs, _ = env.reset(seed=seed)
     expert.path = None  # new episode: plan from scratch
-    xs, ys, tr, done = [], [], [], False
-    while not done:
+    xs, ys, tr, done, held = [], [], [], False, 0
+    while not done and not (settle and not keep and held >= settle):
         label = expert.predict(obs)[0]
         act = (
             label
@@ -55,6 +56,7 @@ def rollout(env, expert, student, beta: float, seed: int, rng, keep: bool):
                 )
             )
         obs = nxt
+        held = held + 1 if info["is_success"] else 0
     return xs, ys, tr if keep else None, bool(info["is_success"])
 
 
@@ -135,7 +137,9 @@ def main() -> None:
 
     xs, Y, eps, seed, ok = [], [], [], ic["seed_base"], 0
     for i in range(ic["expert_episodes"]):
-        x, y, tr, s = rollout(env, expert, None, 1.0, seed, rng, i < ic["prefill_episodes"])
+        x, y, tr, s = rollout(
+            env, expert, None, 1.0, seed, rng, i < ic["prefill_episodes"], ic.get("settle", 0)
+        )
         xs += x
         Y += y
         ok += s
@@ -148,7 +152,7 @@ def main() -> None:
     score("bc", loss)
     for it, beta in enumerate(ic["betas"][: ic["dagger_iters"]]):
         for _ in range(ic["dagger_episodes"]):
-            x, y, _, _ = rollout(env, expert, model, beta, seed, rng, False)
+            x, y, _, _ = rollout(env, expert, model, beta, seed, rng, False, ic.get("settle", 0))
             xs += x
             Y += y
             seed += 1

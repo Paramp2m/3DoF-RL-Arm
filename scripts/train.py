@@ -101,6 +101,14 @@ class ValCallback(BaseCallback):
         return True
 
 
+def dry_kwargs(kw: dict, total: int, dry: bool) -> dict:
+    """Dry run: start learning after 1/3 of the steps so the ETA includes gradient updates (with the config's
+    learning_starts >= dry_steps the ETA measured env stepping only and was ~10x optimistic for big nets)."""
+    if dry and "learning_starts" in kw:
+        kw = {**kw, "learning_starts": min(kw["learning_starts"], total // 3)}
+    return kw
+
+
 def make_train_env(cfg: dict):
     """Training env: the task env, wrapped in a Curriculum when cfg has `curriculum:` (eval/val never are)."""
     env = make_env(cfg)
@@ -168,7 +176,7 @@ def main() -> None:
                 seed=cfg["seed"],
                 device="cpu",
                 tensorboard_log=str(run / "tb"),
-                **algo_kwargs(cfg),
+                **dry_kwargs(algo_kwargs(cfg), total, a.dry_run),
             )
             cbs = [SummaryCallback(write, total, run)]
             if v:
@@ -204,7 +212,9 @@ def main() -> None:
     except BaseException:
         write("crashed", model.num_timesteps if "model" in locals() else 0)
         raise
-    sps = total / (time.time() - t0)
+    sps = total / (
+        time.time() - t0
+    )  # dry run: includes 2/3 training steps, so the ETA is slightly optimistic
     print(f"run={run_id} status=done steps={total} steps_per_s={sps:.0f}")
     if a.dry_run:
         print(

@@ -1,6 +1,6 @@
 # Phase 5: Harder tasks (track, obstacle, push)
 
-**Status:** DRAFT (gate pending: g2 seed-2 eval, regression gates, review) · **Date:** 2026-10-20 · **Commit:** <hash>
+**Status:** PASS · **Date:** 2026-10-20 · **Commit:** tag `phase-5-done`
 
 ## What was built
 Three env subclasses on a generalised base env (arm DOF sliced, task hooks): **track** (target circling r = 8 cm, T = 8 s), **obstacle** (box across the start→target line, contact-safe action filter, planner waypoint + learned residual), **push** (pusher pad + free 5 cm cube, push-only arm variant with elbow limit −2.2 rad).
@@ -11,14 +11,14 @@ Training tooling: `val.early_stop` (plateau → finalise and keep, stuck → unu
 | ID | Check | Target | Measured (3 seeds) | Result |
 |---|---|---|---|---|
 | 5.1 | Track error after step 50 | ≤ 25 mm | 3.7 mm [3.5, 3.9, 3.9] | PASS |
-| 5.2 | Obstacle success / collisions | ≥ 85% / ≤ 5% | s0 86% / 4%, s1 88% / 1%, s2 pending | pending |
+| 5.2 | Obstacle success / collisions | ≥ 85% / ≤ 5% | 88.7% [86, 88, 92] / 1.7% [4, 1, 0] | PASS |
 | 5.3 | Push success | ≥ 60% | 92.7% [90, 94, 94] | PASS |
-| 5.4 | 3 GIFs < 3 MB | 3 files | track 2.34, push 2.88, obstacle (g2) pending | pending |
+| 5.4 | 3 GIFs < 3 MB | 3 files | track 2.34, obstacle 2.29, push 2.88 MB | PASS |
 
 ## Key numbers
 - track: `track_smooth` s0–2, 300k steps, ~1.4 h each; IK baseline 5.6 mm, branch-aware scripted oracle 4–5 mm.
 - push: `push_smooth` s0–2, 1M steps, 3.4–4.6 h each; scripted IK push lands the cube within 1.6 cm in 8/10 seeds; the 2M runs (98%) plateaued by ~1M.
-- obstacle: `obstacle_g2` s0–2, 400–450k steps (plateau stop). **Planner follower alone (zero residual, same filter): 89% success, 3% collisions.** Pure RL best (f1, safe filter): 72% success, 2% collisions (detour episodes 61%, direct 85%).
+- obstacle: `obstacle_g2` s0–2, 400–450k steps (plateau stop), ~2.4 h each. **Planner follower alone (zero residual, same filter): 89% success, 3% collisions.** Pure RL best (f1, safe filter): 72% success, 2% collisions (detour episodes 61%, direct 85%).
 - jitter (mean action change once settled): track 0.26 → 0.02, push 0.49 → 0.13 with `w_smooth`.
 
 ## Look at this
@@ -35,8 +35,11 @@ Obstacle: pure RL learned to avoid touching the box only once a contact-safe fil
 30 lines tagged `| 5 |` in [docs/decisions.md](../decisions.md): D-1 push arm variant (elbow −2.2), schema, track design, each obstacle round (a1–a3, b, c, d, e, f, g) with its diagnosis, `w_smooth`, run-triage rules.
 
 ## Known issues / next
-- **5.2 depends on privileged information.** The planner and the safe filter read the box's true pose from the simulator; the planner alone already passes 5.2 (89% / 3%). The learned residual adds a little on top. Pure RL without the planner tops out at ~72% success.
-- Obstacle starts require ≥ 5 cm arm-box clearance and a plannable path (~1/60 episodes rejected); stricter than the ROADMAP wording.
+- **5.2 depends on privileged information.** The planner and the safe filter read the box's true pose from the simulator; the planner alone already passes 5.2 (89% / 3%). The learned residual adds ~0 on average (88.7% / 1.7%). Pure RL without the planner tops out at ~72% success.
+- **The collision rate counts executed moves only.** The safe filter rolls the simulator back when a commanded move would touch the box and retries a smaller or reversed move; rolled-back attempts are not counted. The policy's own moves would have touched the box in 28–35% of episodes (`scripts/intended_contacts.py`: s0 35%, s1 34%, s2 28%). A real robot would need a model to predict contacts this way.
+- Obstacle episodes are filtered at reset: ≥ 5 cm arm-box clearance and a planner-feasible path (~1/60 rejected), so success is measured on solvable episodes only; stricter than the ROADMAP wording.
+- Track starts the arm on its IK path for the circle (+ N(0, 0.2 rad)), so the step > 50 error does not include a long acquisition from a random pose (decision D-3).
+- The push pad is round (a 3 cm cylinder) rather than the ROADMAP's "flat pusher pad": a flat blade on a 3-DOF arm without a wrist deflected the cube on oblique pushes. Please confirm you accept it.
 - The collision metric was made stricter mid-phase (end-of-step contact refresh); earlier obstacle runs were not re-scored.
 - Push uses a model variant whose forearm can touch the floor (SPEC §2 invariant waived for push only).
 - Pure-RL obstacle with a bigger network was stopped (~27 h at 15 steps/s); a GPU or a longer budget is the next step for it.

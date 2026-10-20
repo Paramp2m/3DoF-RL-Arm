@@ -9,7 +9,8 @@ from rlarm.envs.reach import ReachEnv
 from rlarm.kinematics import fk, ik
 
 # retry sizes of a commanded delta; negatives back the arm out of the box when merely holding still still
-# touches it (momentum of the previous step)
+# touches it (momentum of the previous step). The scaled action is clipped to [-1, 1] by the base step, so
+# -2.0 only differs from -1.0 for |a| < 0.5.
 SAFE_SCALES = (1.0, 0.5, 0.25, 0.0, -0.25, -0.5, -1.0, -2.0)
 
 
@@ -230,8 +231,10 @@ class ObstacleEnv(ReachEnv):
         if not self.safe:
             self._hit, self._blocked = False, False
             return super().step(action)
-        # contact-safe filter: if the commanded move touches the box, retry it at half / quarter / zero size, then reversed (up to 2x)
-        # from the same state; contacts are still counted (only a move that cannot be made safe is accepted).
+        # contact-safe filter: if the commanded move touches the box, roll the sim back and retry it at half /
+        # quarter / zero size, then reversed. info["collision"] counts contacts of the *executed* move only (a
+        # rolled-back attempt never happens); info["intended_contact"] says whether the policy's own move would
+        # have touched the box. The rollback needs a simulator (privileged): a robot would need a model to predict.
         state = np.zeros(mujoco.mj_stateSize(self.model, mujoco.mjtState.mjSTATE_INTEGRATION))
         mujoco.mj_getState(self.model, self.data, state, mujoco.mjtState.mjSTATE_INTEGRATION)
         keep = (
@@ -242,10 +245,13 @@ class ObstacleEnv(ReachEnv):
             self.wp if self.obs_wp else 0,
         )
         a = np.clip(np.asarray(action, float), -1, 1)
+        intended = None
         for k, scale in enumerate(SAFE_SCALES):
             self._hit, self._blocked = False, k > 0
             out = super().step(a * scale)
+            intended = self._hit if intended is None else intended
             if not self._hit or scale == SAFE_SCALES[-1]:
+                out[4]["intended_contact"] = intended
                 return out
             mujoco.mj_setState(self.model, self.data, state, mujoco.mjtState.mjSTATE_INTEGRATION)
             self.data.qvel[:3] = (

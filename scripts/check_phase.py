@@ -402,8 +402,12 @@ def c28():
 
 # ---- Phase 3: learned reach and hold ----
 STEP_LIMIT, MEDIA_MAX = 1_000_000, 3_000_000
-# ROADMAP task definitions each run's config copy must match (delta_pos, 2 cm, 200-step reach, 50-of-250 hold)
+# ROADMAP task definitions each run's config copy must match (delta_pos, 2 cm, 200-step reach, 50-of-250 hold;
+# phase 5: circle r 8 cm / T 8 s (guide D-3, locked before training), push goal within 3 cm, obstacle reach 2 cm)
 TASK_DEF = {
+    "track": {"action_mode": "delta_pos", "radius": 0.08, "period": 8.0, "episode_steps": 200},
+    "obstacle": {"action_mode": "delta_pos", "success_dist": 0.02},
+    "push": {"action_mode": "delta_pos", "success_dist": 0.03},
     "reach": {"action_mode": "delta_pos", "success_dist": 0.02, "episode_steps": 200},
     "hold": {
         "action_mode": "delta_pos",

@@ -77,8 +77,8 @@ PHASES = {
     ),
     5: (
         "Track a moving target, avoid an obstacle, push a cube",
-        "Judge 3 GIFs; decide what to change if push stalls after 3 tries",
-        "10 h+",
+        "Judge 3 GIFs; note the obstacle task leans on a planner (see the report)",
+        "~2 days (obstacle took 7 rounds)",
     ),
     6: (
         "A live demo (drag the target, the policy follows) and the README",

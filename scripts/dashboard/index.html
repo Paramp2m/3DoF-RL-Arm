@@ -983,8 +983,8 @@ function jobCard(j) {
   return `<div class="card live-card">
     <div class="row" style="flex-wrap:nowrap;align-items:flex-start"><b style="min-width:0">${esc(j.what)}</b><span class="sp"></span><span class="pill ${j.queued ? "" : "training"}">${j.queued ? "queued" : "running"}</span></div>
     <div class="muted small" style="margin:2px 0 14px">${esc(j.config || j.script)} · ${j.queued ? "queued" : "started"} ${hhmm(j.started * 1000)}, ${dur(since)} ago</div>
-    ${j.stage ? `<div class="small t2" style="margin-bottom:10px">${esc(j.stage)}</div>` : ""}
-    ${p != null ? `<div class="bar"><i style="width:${(p * 100).toFixed(1)}%"></i></div><div class="tiny muted" style="margin-top:6px">stage ${j.step + 1} of ${j.steps + 1} · it can't tell how far along a stage is</div>` : ""}
+    ${j.stage ? `<div class="small t2" style="margin-bottom:10px">${esc(j.stage)}${j.queued && j.eta_s != null ? `, in about <b>${dur(j.eta_s)}</b>` : ""}</div>` : ""}
+    ${p != null ? `<div class="bar"><i style="width:${(p * 100).toFixed(1)}%"></i></div><div class="tiny muted" style="margin-top:6px">stage ${j.step + 1} of ${j.steps + 1} · ${j.eta_s != null ? `about <b class="t2">${dur(j.eta_s)}</b> left (from how long the last rounds took)` : "it can't tell how far along a stage is"}</div>` : ""}
     ${rounds ? `<table style="margin-top:10px">${rounds}</table><div class="tiny muted">scored on the validation targets after each stage</div>` : ""}
     <div class="tiny muted" style="margin-top:10px;overflow-wrap:anywhere"><code style="white-space:normal">${esc(j.cmd)}</code>${j.run ? ` · writes runs/${esc(j.run)}/` : ""}</div>
   </div>`;

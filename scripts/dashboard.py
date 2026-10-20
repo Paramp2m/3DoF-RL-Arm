@@ -14,6 +14,7 @@ import argparse
 import contextlib
 import functools
 import gzip
+import itertools
 import json
 import os
 import re
@@ -309,10 +310,13 @@ def work(sp: dict | None = None) -> list[dict]:
         }
         if script == "imitate" and name:
             job.update(
-                imitate_progress(RUNS / f"{date.fromtimestamp(started)}_{name}_imitate", cfg)
+                imitate_progress(
+                    RUNS / f"{date.fromtimestamp(started)}_{name}_imitate", cfg, started
+                )
             )
         out.append(job)
-    return out + queued()
+    etas = {j["run"]: j.get("eta_s") for j in out if j.get("run")}
+    return out + [q | {"eta_s": etas.get(q["after"])} for q in queued()]
 
 
 def queued() -> list[dict]:
@@ -343,6 +347,7 @@ def queued() -> list[dict]:
                 "queued": True,
                 "what": f"Waiting to start: {names} ({n} seed{'s' * (n > 1)})",
                 "stage": f"Starts by itself when {Path(wait[1]).parent.name} has finished",
+                "after": Path(wait[1]).parent.name,
                 "cmd": str(sh_path.relative_to(ROOT)),
                 "config": names,
                 "started": round(c.parent.stat().st_mtime),
@@ -356,11 +361,19 @@ def _ppid(pid: int) -> int:
     return int(st[st.rindex(")") + 2 :].split()[1])
 
 
-def imitate_progress(run: Path, cfg: dict) -> dict:
-    """Stage of scripts/imitate.py from the files it has written so far (it prints nothing until the end)."""
+def imitate_progress(run: Path, cfg: dict, started: float | None = None) -> dict:
+    """Stage of scripts/imitate.py from the files it has written so far (it prints nothing until the end).
+    eta_s: remaining correction rounds x the mean of the last two, minus the time already spent on this one."""
     ic = cfg.get("imitate") or {}
     rounds = jread(run / "imitate.json") or []
     total = 1 + min(len(ic.get("betas") or []), ic.get("dagger_iters") or 0)
+    walls = [r.get("wall_s", 0) for r in rounds]
+    took = [b - a for a, b in itertools.pairwise(walls)][-2:]  # correction rounds only
+    eta = None
+    if started and took and len(rounds) < total:
+        eta = max(
+            0, (total - len(rounds)) * sum(took) / len(took) - (time.time() - started - walls[-1])
+        )
     if not (run / "expert_eps.pkl").exists():
         stage = f"The planner is showing the network how it's done ({ic.get('expert_episodes', '?')} example attempts)"
     elif not rounds:
@@ -374,6 +387,7 @@ def imitate_progress(run: Path, cfg: dict) -> dict:
         "stage": stage,
         "step": 0 if not (run / "expert_eps.pkl").exists() else 1 + len(rounds),
         "steps": 1 + total,  # collect, study, each correction round; == step while saving
+        "eta_s": None if eta is None else round(eta),
         "rounds": [
             {k: r.get(k) for k in ("round", "success", "collision", "samples")} for r in rounds
         ],

@@ -263,3 +263,18 @@ def test_queued_launcher_is_listed_until_its_file_exists(tmp_path):
     finally:
         p.kill()
         sh.unlink()
+
+
+def test_imitate_eta_from_round_times(tmp_path):
+    import time
+
+    cfg = {"imitate": {"betas": [0.5, 0.2, 0.0], "dagger_iters": 3}}
+    (tmp_path / "expert_eps.pkl").write_bytes(b"")
+    walls = [
+        {"round": r, "wall_s": w} for r, w in (("bc", 600), ("dagger1", 700), ("dagger2", 900))
+    ]
+    (tmp_path / "imitate.json").write_text(json.dumps(walls))
+    # 1 correction round left at 150 s/round (mean of 100, 200), 50 s into it -> 100 s
+    eta = dashboard.imitate_progress(tmp_path, cfg, time.time() - 950)["eta_s"]
+    assert abs(eta - 100) <= 2
+    assert dashboard.imitate_progress(tmp_path, cfg)["eta_s"] is None  # no start time

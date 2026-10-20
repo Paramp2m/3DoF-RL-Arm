@@ -1,10 +1,11 @@
 // rl-arm dashboard service worker: keeps the last copy of the page and of every reply this browser saw,
 // so a phone that can't reach the laptop still shows the latest numbers, marked as old (header x-saved).
 // It always asks the laptop first; nothing here is ever sent anywhere.
-const CACHE = "rlarm-v1", WAIT = 5000, MEDIA_MAX = 60, EVERY = 15000;
+const CACHE = "rlarm-v1", WAIT = 5000, PAGE_WAIT = 3000, MEDIA_MAX = 60, EVERY = 15000;
 const last = {}; // cache key -> when it was last saved (saving the 120 kB state every 2 s is wasted work)
 
-self.addEventListener("install", () => self.skipWaiting());
+// the first visit isn't served by the worker yet: save the page itself right away
+self.addEventListener("install", (e) => { self.skipWaiting(); e.waitUntil(caches.open(CACHE).then((c) => c.addAll(["/", "/marked.min.js"])).catch(() => {})); });
 self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", (e) => {
   const u = new URL(e.request.url);
@@ -23,8 +24,9 @@ async function answer(e, u) {
   });
   const old = await c.match(key);
   if (!old) return net;
+  if (key === "/marked.min.js") return old; // a vendored file: the saved copy at once, refreshed in the background
   // laptop asleep, off, or off Tailscale: answer with the saved copy after a few seconds instead of hanging
-  const late = new Promise((r) => setTimeout(r, WAIT));
+  const late = new Promise((r) => setTimeout(r, key === "/" ? PAGE_WAIT : WAIT));
   return Promise.race([net, late]).then((res) => res || old).catch(() => old);
 }
 

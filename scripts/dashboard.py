@@ -2,7 +2,8 @@
 
     uv run python scripts/dashboard.py [--port 8765] [--no-open]
 
-Serves http://127.0.0.1:<port> until Ctrl+C or the terminal closes; `tailscale serve --bg <port>` also
+Serves http://127.0.0.1:<port> until Ctrl+C or the terminal closes, and restarts itself when this file
+changes (open pages reload to match); `tailscale serve --bg <port>` also
 puts it on the user's phone (only buttons that open laptop windows are refused there). Lowest CPU priority
 and only re-reads files whose size/mtime changed, so it doesn't slow training. It never trains,
 evaluates or writes project files; its buttons only open viewers and run the read-only phase gate.
@@ -1184,11 +1185,14 @@ class Handler(BaseHTTPRequestHandler):
         q = {k: v[0] for k, v in parse_qs(u.query).items()}
         try:
             if u.path in ("/", "/index.html"):
+                page = (STATIC / "index.html").read_bytes().replace(b"__BUILD__", build().encode())
+                return self.send(200, page, "text/html; charset=utf-8", "no-cache")
+            if (
+                u.path == "/sw.js"
+            ):  # the phone's offline copy (scripts/dashboard/sw.js); scope: the whole site
                 return self.send(
-                    200, (STATIC / "index.html").read_bytes(), "text/html; charset=utf-8"
+                    200, (STATIC / "sw.js").read_bytes(), "text/javascript", "no-cache"
                 )
-            if u.path == "/sw.js":  # the phone's offline copy (scripts/dashboard/sw.js); scope: the whole site
-                return self.send(200, (STATIC / "sw.js").read_bytes(), "text/javascript", "no-cache")
             if u.path == "/marked.min.js":
                 return self.send(
                     200, (STATIC / "marked.min.js").read_bytes(), "text/javascript", "max-age=3600"
@@ -1287,10 +1291,18 @@ def restart_on_change() -> None:
             if any(j.get("state") == "running" for j in JOBS.values()):
                 continue  # a gate run would lose its result: wait until it ends
             seen = ns
-            check = [sys.executable, "-c", "import runpy, sys; runpy.run_path(sys.argv[1])", str(me)]
+            check = [
+                sys.executable,
+                "-c",
+                "import runpy, sys; runpy.run_path(sys.argv[1])",
+                str(me),
+            ]
             r = subprocess.run(check, capture_output=True, text=True, timeout=120, check=False)
             if r.returncode:
-                print(f"dashboard.py changed but doesn't load, keeping the old code:\n{r.stderr[-800:]}", flush=True)
+                print(
+                    f"dashboard.py changed but doesn't load, keeping the old code:\n{r.stderr[-800:]}",
+                    flush=True,
+                )
                 continue
             print("dashboard.py changed: restarting on the new code", flush=True)
             args = sys.argv + ([] if "--no-open" in sys.argv else ["--no-open"])

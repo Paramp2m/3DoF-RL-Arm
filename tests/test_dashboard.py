@@ -163,3 +163,52 @@ def test_text_is_gzipped_for_browsers_that_accept_it(url):
     assert r.headers["Content-Encoding"] == "gzip"
     assert gzip.decompress(r.read()).startswith(b"<!doctype html>")
     assert get(url + "/")[1].startswith(b"<!doctype html>")  # and plain for clients that don't
+
+
+def test_page_carries_its_build_and_the_offline_worker_is_served(url):
+    page = get(url + "/")[1].decode()
+    build = json.loads(get(url + "/api/state")[1])["build"]
+    assert f'BUILD = "{build}"' in page  # the page reloads itself when the state's build differs
+    r = urllib.request.urlopen(url + "/sw.js")
+    assert (
+        r.headers["Content-Type"] == "text/javascript" and r.headers["Cache-Control"] == "no-cache"
+    )
+
+
+@pytest.mark.slow
+def test_server_restarts_itself_on_new_code_but_not_on_broken_code(tmp_path):
+    import shutil
+    import socket
+    import subprocess
+    import time
+
+    shutil.copytree(ROOT / "scripts" / "dashboard", tmp_path / "scripts" / "dashboard")
+    src = tmp_path / "scripts" / "dashboard.py"
+    shutil.copy(ROOT / "scripts" / "dashboard.py", src)
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        port = s.getsockname()[1]
+    log = tmp_path / "log.txt"
+    cmd = [sys.executable, str(src), "--port", str(port), "--no-open"]
+    p = subprocess.Popen(cmd, stdout=log.open("w"), stderr=subprocess.STDOUT)
+
+    def build() -> str:
+        for _ in range(100):
+            try:
+                page = get(f"http://127.0.0.1:{port}/")[1].decode()  # an empty project: no state
+                return page.split('BUILD = "')[1].split('"')[0]
+            except (OSError, IndexError):
+                time.sleep(0.2)
+        raise AssertionError(log.read_text())
+
+    try:
+        b0 = build()
+        src.write_text(src.read_text() + "\nthis is not python\n")
+        time.sleep(7)
+        assert build() == b0 and "doesn't load" in log.read_text()
+        src.write_text(src.read_text().replace("\nthis is not python\n", "\n# new code\n"))
+        time.sleep(7)
+        assert build() != b0 and "restarting on the new code" in log.read_text()
+        assert p.poll() is None  # same process (exec), still serving
+    finally:
+        p.kill()

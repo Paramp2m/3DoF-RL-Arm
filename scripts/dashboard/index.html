@@ -265,9 +265,9 @@ a.chip:hover { border-color: var(--accent2); text-decoration: none; }
 .nums .v { font-size: 24px; font-weight: 750; letter-spacing: -0.02em; color: var(--text); }
 .nums .l { font-size: 12px; color: var(--muted); }
 .feed { list-style: none; margin: 12px 0 0; padding: 0; }
-.feed li { display: grid; grid-template-columns: 46px 18px minmax(0, 1fr); gap: 8px; align-items: baseline; padding: 7px 0; border-top: 1px solid var(--line); font-size: 13.5px; }
+.feed li { display: grid; grid-template-columns: max-content 18px minmax(0, 1fr); gap: 8px; align-items: baseline; padding: 7px 0; border-top: 1px solid var(--line); font-size: 13.5px; }
 .feed li:first-child { border-top: 0; }
-.feed .tm { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.feed .tm { white-space: nowrap; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .feed li.new .tm { color: var(--accent-hi); font-weight: 700; }
 .feed li.new .tm::after { content: " •"; }
 
@@ -478,7 +478,7 @@ const TASKS = { reach: "reaching for targets", hold: "reaching and holding still
 // ---------- helpers ----------
 const $ = (s) => document.querySelector(s);
 const ic = (name, cls = "ic") => `<svg class="${cls}"><use href="#i-${name}"/></svg>`;
-// per-browser preferences (collapsed groups, viewer speed, compare picks, seen milestones); the page works without them
+// per-browser preferences (collapsed groups, viewer speed, compare picks, when you last looked); the page works without them
 const store = {
   get(k, d) { try { const v = localStorage.getItem("rlarm." + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem("rlarm." + k, JSON.stringify(v)); } catch { /* private window */ } },
@@ -491,7 +491,9 @@ const ksteps = (n) => (n == null ? "–" : n >= 1e6 ? (n / 1e6).toFixed(n % 1e6 
 const big = (n) => (n >= 1e9 ? (n / 1e9).toFixed(1) + "B" : n >= 1e6 ? (n / 1e6).toFixed(1) + "M" : n >= 1e3 ? Math.round(n / 1e3) + "k" : String(Math.round(n)));
 const dur = (s) => { if (s == null) return "–"; s = Math.round(s); if (s < 60) return s + " s"; const m = Math.round(s / 60); if (m < 60) return m + " min"; const h = Math.floor(m / 60); if (h < 48) return `${h} h ${m % 60} min`; return `${Math.floor(h / 24)} days${h % 24 ? ` ${h % 24} h` : ""}`; };
 const ago = (t) => (t ? dur(Date.now() / 1000 - t) + " ago" : "");
-const clock = (secFromNow) => new Date(Date.now() + secFromNow * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+const hhmm = (ms) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+// from when the data was sent, so it's right even on an old copy; "tomorrow" when it is
+const clock = (secFromNow) => { const t = (S?.at || Date.now()) + secFromNow * 1000, days = Math.round((new Date(t).setHours(0, 0, 0, 0) - new Date().setHours(0, 0, 0, 0)) / 864e5); return (days === 1 ? "tomorrow " : days > 1 ? new Date(t).toLocaleDateString([], { weekday: "short" }) + " " : "") + hhmm(t); };
 const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
 const stop = (s) => (/[.?!]$/.test(s) ? s : s + "."); // end a sentence once, even if it ends with "?"
 const list = (a) => (a.length < 2 ? a.join("") : a.slice(0, -1).join(", ") + " and " + a.at(-1));
@@ -527,10 +529,17 @@ function keptModel(r) {
   const m = /val best @ (\d+)/.exec(r.summary?.best_checkpoint || "");
   return m ? `the best test score during training, at ${ksteps(+m[1])} steps <span class="muted small">(model.zip; the last one is final.zip)</span>` : esc(r.summary?.best_checkpoint || "–");
 }
-window.addEventListener("resize", () => { clearTimeout(window._rs); window._rs = setTimeout(() => { $("#main").dataset.keys = ""; render(); }, 250); });
+// phones fire resize whenever the address bar slides in or out during a scroll: only a new width redraws (charts)
+let lastW = innerWidth;
+window.addEventListener("resize", () => { clearTimeout(window._rs); window._rs = setTimeout(() => { if (innerWidth === lastW) return; lastW = innerWidth; render(); }, 250); });
 function runTitle(r) { return r.exp[0] || r.best || prettyCfg(r.config); }
 function runSub(r) { return `seed ${r.seed} · ${r.algo}${r.mode ? " · " + r.mode : ""}`; }
-async function api(path, opts) { const res = await fetch(path, opts); return res.json(); }
+// .saved (ms): the service worker (sw.js) answered with this browser's last copy, because the laptop didn't
+async function api(path, opts) {
+  const res = await fetch(path, { signal: AbortSignal.timeout?.(15000), ...opts }), d = await res.json(), saved = +res.headers.get("x-saved");
+  if (saved && d && typeof d === "object") Object.defineProperty(d, "saved", { value: saved });
+  return d;
+}
 function toast(msg, ms = 6000) { const t = document.createElement("div"); t.className = "toast"; t.innerHTML = msg; $("#toasts").append(t); setTimeout(() => t.remove(), ms); }
 async function act(body, btn) {
   if (btn) btn.disabled = true;
@@ -566,16 +575,16 @@ const skel = (...hs) => hs.map((h) => `<div class="skel" style="height:${h}px;ma
 function mount(blocks) {
   const main = $("#main");
   blocks = [...blocks, ["foot", footer()]];
-  const keys = blocks.map((b) => b[0]).join("|");
-  if (main.dataset.keys !== keys) {
-    main.dataset.keys = keys;
-    main.innerHTML = blocks.map(([k]) => `<div data-b="${k}"></div>`).join("");
-    main.classList.remove("enter"); void main.offsetWidth; main.classList.add("enter");
-  }
-  for (const [k, html] of blocks) {
-    const el = main.querySelector(`[data-b="${k}"]`);
+  // each block keeps its element (matched by key): rebuilding the page would collapse it for a frame and jump to the top
+  const old = new Map([...main.children].filter((el) => el.dataset.b).map((el) => [el.dataset.b, el]));
+  blocks.forEach(([k, html], i) => {
+    let el = old.get(k);
+    if (!el) { el = document.createElement("div"); el.dataset.b = k; }
+    if (main.children[i] !== el) main.insertBefore(el, main.children[i] || null);
     if (el._html !== html) { const open = [...el.querySelectorAll("details[open]")].map((d) => d.dataset.k); el.innerHTML = html; el._html = html; open.forEach((o) => { const d = el.querySelector(`details[data-k="${o}"]`); if (d) d.open = true; }); }
-  }
+  });
+  while (main.children.length > blocks.length) main.lastElementChild.remove();
+  restoreScroll();
   syncSpeed();
   for (const id in CHARTS) if (!main.querySelector(`[data-c="${id}"]`)) delete CHARTS[id];
   // a refresh redrew the chart under the pointer: show its tooltip again instead of letting it vanish
@@ -666,26 +675,71 @@ function gauge(v, lo, hi, unit, label, sub, cls = "") {
 }
 
 // ---------- state + polling ----------
+// S.at: when the laptop sent this data (ms). S.saved: it's this browser's last copy, the laptop didn't answer
 let S = null, V = null, DV = null, lastOk = 0, detail = {}, failing = false, serverErr = null, pollT = null;
+const T0 = Date.now(), BUILD = "__BUILD__"; // the server writes its build into the page it serves
+function adopt(r, at, saved) {
+  const old = S;
+  if (!r.decisions) r.decisions = old?.decisions || [];
+  r.at = at; r.saved = saved; S = r;
+  if (!saved) { V = r.v; DV = r.dv; }
+  render();
+  return old?.saved ? null : old; // news (toasts) only against data that was live, never against an old copy
+}
 async function poll() {
   try {
     const r = await api("/api/state" + (V ? `?v=${V}&dv=${DV}` : ""));
-    lastOk = Date.now(); failing = false; serverErr = r.error || null;
-    if (r.error) return liveBadge();
-    if (r.same) { S.machine = r.machine; if (route().page === "") render(); }
-    else { const old = S; if (!r.decisions) r.decisions = old.decisions; notifyFinished(old, r); V = r.v; DV = r.dv; S = r; render(); celebrate(old, r); celebrateBadges(); }
-    vitals();
+    if (r.saved) { failing = true; if (!S) adopt(r, r.saved, true); }
+    else {
+      const back = failing; lastOk = Date.now(); failing = false; serverErr = r.error || null;
+      if (r.build && !BUILD.startsWith("__") && r.build !== BUILD) return reloadKeep();
+      if (!r.error) {
+        if (r.same) { S.machine = r.machine; if (back || route().page === "") render(); }
+        else { const old = adopt(r, Date.now(), false); notifyFinished(old, r); celebrate(old, r); }
+        vitals();
+      }
+    }
   } catch { failing = true; }
   liveBadge();
 }
 // every 2 s while the tab is visible, every 15 s in the background (saves the phone's battery and data)
 function schedule() { clearTimeout(pollT); pollT = setTimeout(async () => { await poll(); schedule(); }, document.hidden ? 15000 : 2000); }
 document.addEventListener("visibilitychange", () => { if (!document.hidden) poll(); schedule(); });
+// offline: no answer for 4+ s (a server restart takes about one poll, so it doesn't count)
+function offline() { const quiet = Date.now() - (lastOk || T0); return quiet > 4000 && (failing || quiet > (document.hidden ? 40000 : 20000)); }
 function liveBadge() {
-  const ok = !failing && Date.now() - lastOk < (document.hidden ? 40000 : 6000);
-  $("#live").innerHTML = serverErr ? `<span class="dot off"></span>The server hit an error reading the project: <code>${esc(serverErr)}</code>. Showing the last good data; tell Claude.` : ok ? `<span class="dot pulse"></span>Live · updates every 2 s` : `<span class="dot off"></span>Disconnected. Is <code>scripts/dashboard.py</code> still running?`;
-  const ld = $("#vit .ld"); if (ld) { ld.classList.toggle("off", !ok); ld.title = ok ? "live" : "disconnected"; }
+  const off = offline(), local = ["127.0.0.1", "localhost"].includes(location.hostname);
+  const from = S ? new Date(S.at).toDateString() === new Date().toDateString() ? hhmm(S.at) : `${new Date(S.at).toLocaleDateString([], { weekday: "short" })} ${hhmm(S.at)}` : "";
+  $("#live").innerHTML = serverErr ? `<span class="dot off"></span>The server hit an error reading the project: <code>${esc(serverErr)}</code>. Showing the last good data; tell Claude.` : off ? `<span class="dot off"></span>Disconnected${S ? `: showing data from ${from}` : ""}. Is <code>scripts/dashboard.py</code> still running?` : lastOk ? `<span class="dot pulse"></span>Live · updates every 2 s` : `<span class="dot off"></span>connecting…`;
+  const why = local ? "The dashboard server isn't answering (is <code>scripts/dashboard.py</code> still running?)" : navigator.onLine === false ? "This device has no internet" : "Can't reach the laptop (asleep, off, or off Tailscale?)";
+  // a page opened while the laptop is slow to answer shows this device's saved copy first: say so after a moment
+  const msg = off ? `<b>Offline.</b> ${why}. ${S ? `Showing its last data, from <b>${from}</b>; nothing below is live.` : "Nothing is saved on this device yet."} Retrying every few seconds.` : S?.saved && !lastOk && Date.now() - T0 > 1500 ? `<b>Connecting…</b> Meanwhile, this is the copy saved on this device, from <b>${from}</b>.` : "";
+  const st = $("#offline"); if (st._v !== msg) { st.innerHTML = msg; st._v = msg; st.hidden = !msg; }
+  $("#vit").classList.toggle("stale", off);
+  const ld = $("#vit .ld"); if (ld) { ld.classList.toggle("off", off || !lastOk); ld.title = off ? "offline: old data" : "live"; }
 }
+// a new dashboard version: reload into it on the same page and scroll position (not while typing; at most every 30 s)
+function reloadKeep() {
+  if (document.activeElement?.matches("input, textarea, select")) return;
+  try { if (Date.now() - +(sessionStorage.getItem("rlarm.reloaded") || 0) < 30000) return; sessionStorage.setItem("rlarm.reloaded", Date.now()); } catch { /* storage off */ }
+  keepScroll(); location.reload();
+}
+function keepScroll() { try { sessionStorage.setItem("rlarm.scroll", JSON.stringify([location.hash, scrollY])); } catch { /* storage off */ } }
+// back where it was after a reload (ours, or the phone dropping a background tab), once the page is tall enough
+history.scrollRestoration = "manual";
+let restoreY = null;
+try { const [h, y] = JSON.parse(sessionStorage.getItem("rlarm.scroll") || "[]"); if (h === location.hash && y > 0) restoreY = y; } catch { /* storage off */ }
+["wheel", "touchstart", "keydown"].forEach((t) => addEventListener(t, () => (restoreY = null), { once: true, passive: true }));
+function restoreScroll() {
+  if (restoreY == null || (document.documentElement.scrollHeight - innerHeight < restoreY - 40 && Date.now() - T0 < 8000)) return;
+  scrollTo(0, restoreY); restoreY = null;
+}
+// "since you last looked": when this browser last left the dashboard for 15+ min (quick tab switches and reloads don't count)
+const away = store.get("away", null);
+let since = !away ? null : Date.now() / 1000 - away.left > 900 ? away.left : away.since, sinceDec = !away ? null : Date.now() / 1000 - away.left > 900 ? away.dec : away.sinceDec, hiddenAt = 0, hiddenDec = 0;
+function leaving() { hiddenAt = Date.now() / 1000; hiddenDec = S?.decisions.length ?? sinceDec; store.set("away", { left: hiddenAt, dec: hiddenDec, since, sinceDec }); keepScroll(); }
+document.addEventListener("visibilitychange", () => { if (document.hidden) leaving(); else if (hiddenAt && Date.now() / 1000 - hiddenAt > 900) { since = hiddenAt; sinceDec = hiddenDec; render(); } });
+addEventListener("pagehide", leaving);
 // the vitals pill in the top bar and the temperature next to "Laptop" in the menu, on every page
 function vitals() {
   const m = S?.machine; if (!m) return;
@@ -709,9 +763,19 @@ function askNotify(btn) { Notification.requestPermission().then(() => render());
 setInterval(liveBadge, 1000);
 // detail pages refresh every 3.5 s while visible (a doc only every 4th time: docs change rarely); nothing while hidden
 let tick = 0;
-setInterval(() => { if (document.hidden) return; const h = route(); tick++; if (h.page === "run" && detail.run?.status === "training") loadRun(h.arg, true); if (h.page === "doc" && tick % 4 === 0) loadDoc(h.arg, true); if (h.page === "exp" && h.arg) loadExp(h.arg, true); if (h.page === "laptop") loadSys(); }, 3500);
+const quietly = (p) => p.catch(() => { /* offline: the strip says so; the next tick tries again */ });
+setInterval(() => { if (document.hidden) return; const h = route(); tick++; if (h.page === "run" && detail.run?.status === "training") quietly(loadRun(h.arg)); if (h.page === "doc" && tick % 4 === 0) quietly(loadDoc(h.arg, true)); if (h.page === "exp" && h.arg) quietly(loadExp(h.arg)); if (h.page === "laptop") quietly(loadSys()); }, 3500);
+// a detail page's first load: a skeleton while it comes, or a plain note when the laptop can't be reached and
+// this browser has no saved copy of the page; it loads by itself once the laptop answers again
+function fetching(load, sk) {
+  if (detail.fail && failing) return mount([["h", lost("Can't load this page right now.", "The laptop isn't answering and this device hasn't saved this page yet. It loads by itself when the connection is back; pages you've opened before keep working offline.")]]);
+  if (detail.loading) return;
+  detail.loading = 1; detail.fail = 0;
+  mount([["h", sk]]);
+  load().catch(() => { detail.fail = 1; failing = true; }).finally(() => { detail.loading = 0; if (detail.fail) render(); });
+}
 
-// ---------- personality: the arm talks, celebrates, collects milestones ----------
+// ---------- personality: the arm talks and celebrates ----------
 function greeting() { const h = new Date().getHours(), n = S.me ? `, ${esc(S.me)}` : ""; return h < 5 ? `Up late${n}?${S.runs.some((r) => r.status === "training") ? " I'll keep practising." : ""}` : h < 12 ? `Good morning${n}.` : h < 18 ? `Good afternoon${n}.` : `Good evening${n}.`; }
 function voice(live, stopped) {
   const ph = S.phase, next = ph.list.find((p) => p.n === ph.current + 1);
@@ -776,39 +840,34 @@ function numbers() {
   const ok = done.filter((r) => r.success != null), miss = done.filter((r) => r.miss_mm != null);
   return { runs: done.length, steps, sim: steps / 25, wall, busy, best: ok.length ? ok.reduce((a, r) => (r.success > a.success ? r : a)) : null, sharp: miss.length ? miss.reduce((a, r) => (r.miss_mm < a.miss_mm ? r : a)) : null };
 }
-function badges() {
-  const done = S.runs.filter((r) => r.learns && r.status === "done");
-  const top = (task) => Math.max(0, ...done.filter((r) => !task || r.task === task).map((r) => r.success ?? 0));
-  const phasesDone = S.phase.list.filter((p) => p.state === "done").length;
-  return [
-    ["first", "🐣", "First steps", "a training run finished", done.length > 0, `${done.length} finished so far`],
-    ["bull", "🎯", "Bullseye", "95%+ on a final test", top() >= 0.95, `best: ${pct(top())}`],
-    ["mm", "📏", "Sub-centimetre", "typical miss under 10 mm", done.some((r) => r.miss_mm != null && r.miss_mm < 10), ""],
-    ["hold", "🧘", "Steady hand", "hold task at 90%+", top("hold") >= 0.9, `best: ${pct(top("hold"))}`],
-    ["track", "🛰️", "Moving target", "track task at 90%+", top("track") >= 0.9, `best: ${pct(top("track"))}`],
-    ["obst", "🧱", "Obstacle course", "obstacle: 85%+ with ≤5% bumps (the Phase 5 bar)", done.some((r) => r.task === "obstacle" && r.success >= 0.85 && r.collisions != null && r.collisions <= 0.05), `best with ≤5% bumps: ${pct(Math.max(0, ...done.filter((r) => r.task === "obstacle" && r.collisions != null && r.collisions <= 0.05).map((r) => r.success ?? 0)))}`],
-    ["push", "📦", "Cube pusher", "push task at 60%+", top("push") >= 0.6, `best: ${pct(top("push"))}`],
-    ["mara", "🏃", "Marathon", "a 1M-step run finished", done.some((r) => r.steps >= 1e6), ""],
-    ["night", "🌙", "Night shift", "a run finished between midnight and 5 am", done.some((r) => new Date(r.mtime * 1000).getHours() < 5), ""],
-    ["half", "🏁", "Halfway there", "4 phases done", phasesDone >= 4, `${phasesDone} of 8 done`],
-    ["cent", "💯", "Century", "100 runs finished training", done.length >= 100, `${done.length} of 100`],
-  ].map(([id, icon, name, desc, got, prog]) => ({ id, icon, name, desc, got, prog }));
+// what happened recently, newest first: runs starting, finishing (with their score) or stopping
+function events() {
+  const ev = [];
+  for (const r of S.runs) {
+    if (!r.learns) continue;
+    const name = `<a href="#/run/${r.id}">${esc(runTitle(r))} · seed ${r.seed}</a>`;
+    if (r.wall_s && r.mtime) ev.push({ t: r.mtime - r.wall_s, k: "start", i: "▶", h: `${name} started${r.status === "training" ? " (training now)" : ""}` });
+    if (r.status === "done") ev.push({ t: r.mtime, k: "done", i: "✓", h: `${name} ${r.stopped_early ? esc((EARLY[r.stopped_early] || ["ended early"])[0]) : "finished"}${r.success != null ? `: <b class="${okCls(r, "success")}">${pct(r.success)}</b> success${r.collisions != null ? `, <span class="${okCls(r, "collisions")}">${pct(r.collisions)} bumps</span>` : ""}` : ""}` });
+    if (r.status === "stopped") ev.push({ t: r.mtime, k: "stop", i: "✕", h: `<span class="bad">${name} stopped without finishing</span>${S.dismissed.includes(r.id) ? ' <span class="muted">(on purpose)</span>' : ""}` });
+  }
+  return ev.sort((a, b) => b.t - a.t);
 }
-// fanfare only for milestones this browser hasn't seen yet; the first visit just remembers the old ones
-function celebrateBadges() {
-  const got = badges().filter((b) => b.got);
-  const seen = store.get("badges", null);
-  if (seen === null) return store.set("badges", got.map((b) => b.id));
-  const fresh = got.filter((b) => !seen.includes(b.id));
-  if (fresh.length || seen.length !== got.length) store.set("badges", got.map((b) => b.id)); // one that re-locked can be celebrated again
-  if (!fresh.length) return;
-  fresh.forEach((b) => toast(`🏅 Milestone unlocked: <b>${b.icon} ${esc(b.name)}</b> (${esc(b.desc)})`, 12000));
-  cheer();
+function activity() {
+  const ev = events(), fresh = since ? ev.filter((e) => e.t > since) : [], nd = sinceDec != null ? Math.max(0, S.decisions.length - sinceDec) : 0;
+  const n = (k) => fresh.filter((e) => e.k === k).length;
+  const parts = [n("done") && `${plural(n("done"), "run")} finished`, n("stop") && `<span class="bad">${n("stop")} stopped without finishing</span>`, n("start") && `${n("start")} started`, nd && `Claude logged ${plural(nd, "decision")} (<a href="#/decisions">see them</a>)`].filter(Boolean);
+  const day = (t) => { const d = new Date(t * 1000); return d.toDateString() === new Date().toDateString() ? hhmm(t * 1000) : d.toLocaleDateString([], { day: "numeric", month: "short" }); };
+  const head = !since ? "The latest from the runs." : parts.length ? `Since you last looked, at <b>${day(since)}</b>: ${list(parts)}.` : `Nothing new since you last looked, at <b>${day(since)}</b>.`;
+  const shown = fresh.length >= 5 ? fresh.slice(0, 8) : ev.slice(0, 5);
+  return `<div class="card"><div class="row"><h3>${ic("runs")}${since ? "While you were away" : "Recent activity"}</h3><span class="sp"></span><a class="small" href="#/runs">all runs →</a></div>
+    <p class="small t2" style="margin:10px 0 0">${head}</p>
+    <ul class="feed">${shown.map((e) => `<li class="${since && e.t > since ? "new" : ""}"><span class="tm" title="${esc(new Date(e.t * 1000).toLocaleString())}">${day(e.t)}</span><span>${e.i}</span><span>${e.h}</span></li>`).join("")}</ul>
+    ${fresh.length > shown.length ? `<p class="tiny muted" style="margin:6px 0 0">and ${fresh.length - shown.length} more on <a href="#/runs">Runs</a>.</p>` : ""}</div>`;
 }
 
 // ---------- router ----------
 function route() { let h = location.hash.slice(2); try { h = decodeURIComponent(h); } catch { /* a stray % in the URL: use it as typed */ } const [page, ...rest] = h.split("/"); return { page: page || "", arg: rest.join("/") }; }
-window.addEventListener("hashchange", () => { window.scrollTo(0, 0); $("#main").dataset.keys = ""; $("#more").hidden = true; const hl = detail.hlNext; detail = hl ? { hl } : {}; render(); });
+window.addEventListener("hashchange", () => { window.scrollTo(0, 0); restoreY = null; const main = $("#main"); main.replaceChildren(); main.classList.remove("enter"); void main.offsetWidth; main.classList.add("enter"); $("#more").hidden = true; const hl = detail.hlNext; detail = hl ? { hl } : {}; render(); });
 function render() {
   if (!S) return;
   const { page, arg } = route();
@@ -875,13 +934,12 @@ function pageNow() {
   const etaLine = live.length && lastEta ? `<span class="r small t2">all done in ≈ <b>${dur(lastEta)}</b> (around ${clock(lastEta)}), plus a few minutes of final tests</span>` : "";
   const canNotify = "Notification" in window && Notification.permission === "default";
   const notifyBtn = canNotify ? `<div class="row small laptop" style="margin-top:12px"><button class="btn" onclick="askNotify(this)">🔔 Notify me when a run finishes</button><span class="muted tiny">a desktop notification, while this tab is open</span></div>` : "";
-  const n = numbers(), bs = badges(), got = bs.filter((b) => b.got).length;
+  const n = numbers();
   const story = `<div class="grid g2">
     <div class="card"><h3>${ic("trophy")}By the numbers</h3>
       <div class="nums"><div><div class="v">${n.runs}</div><div class="l">${tip("run", "runs")} finished training</div></div><div><div class="v">${big(n.steps)}</div><div class="l">practice ${tip("step", "steps")}</div></div><div><div class="v">${(n.sim / 86400).toFixed(1)} days</div><div class="l">of simulated arm-time</div></div><div><div class="v">${Math.round(n.busy / 3600)} h</div><div class="l">of laptop time (${Math.round(n.wall / 3600)} h if the runs went one by one)</div></div></div>
       <p class="small t2" style="margin:16px 0 0">All my practice adds up to <b>${dur(n.sim)}</b> of simulated arm-time. The laptop did it in about <b>${dur(n.busy)}</b>${n.busy ? `, roughly <b>${(n.sim / n.busy).toFixed(0)}×</b> faster than real life, because several of me train at once (one run alone is about ${n.wall ? (n.sim / n.wall).toFixed(1) : "–"}× real time)` : ""}.${n.best ? ` Best ever: <a href="#/run/${n.best.id}">${pct(n.best.success)} success</a> (${esc(TASKS[n.best.task] || n.best.task)})` : ""}${n.sharp ? `; sharpest: <a href="#/run/${n.sharp.id}">${mm(n.sharp.miss_mm)} typical miss</a>.` : "."}</p></div>
-    <div class="card"><div class="row"><h3>${ic("star")}Milestones</h3><span class="sp"></span><span class="pill">${got} of ${bs.length}</span></div>
-      <div class="badges">${bs.map((b) => `<div class="badge${b.got ? " got" : ""}" title="${esc(b.desc)}${b.prog ? " · " + esc(b.prog) : ""}"><span class="e">${b.icon}</span><div style="min-width:0"><b>${esc(b.name)}</b><small>${b.got ? esc(b.desc) : esc(b.prog || b.desc)}</small></div></div>`).join("")}</div></div>
+    ${activity()}
   </div>`;
   mount([["hero", hero], ["warn", warn ? `<div style="margin-top:16px">${warn}</div>` : ""], ["livehead", `<div class="sec"><h2>Training right now</h2><span class="hint">progress, time left, ${live.some((r) => r.val_kind === "clean") ? `score so far (${tip("clean score")} = reaches minus bumps, so it can go below 0)` : "test score so far"}</span>${etaLine}</div>`], ["live", cards + notifyBtn], ["gate", standing(ph.in_phase ? ph.current : null)], ["exps", exps], ["side", `<div class="sec"><h2>Status</h2></div><div class="grid g3">${machine}${decCard}${doNow}</div>`], ["story", `<div class="sec"><h2>The story so far</h2><span class="hint">every run since Phase 0</span></div>${story}`]]);
   // the arm's line changes often (scores, ETA); it's filled in place so the hero (and the mascot's animation) isn't rebuilt
@@ -948,7 +1006,7 @@ function jobsHtml() {
 }
 
 // ---------- page: Laptop ----------
-async function loadSys() { try { const d = await api("/api/system"); if (route().page !== "laptop" || d.error) return; detail.sys = d; pageLaptop(); } catch { /* the next tick tries again */ } }
+async function loadSys() { const d = await api("/api/system"); if (route().page !== "laptop" || d.error) return; detail.sys = d; pageLaptop(); }
 const blocks = (v, what) => (v.sleep_blockers || []).some((x) => x.what.split(":").includes(what));
 function laptopAdvice(v, live) {
   const out = [], t = v.cpu_temp, b = v.battery, n = live.length;
@@ -966,7 +1024,7 @@ function laptopAdvice(v, live) {
 }
 function pageLaptop() {
   const v = detail.sys;
-  if (!v) { if (!detail.loading) { detail.loading = 1; mount([["h", `<h1>Laptop</h1>${skel(70, 210, 160, 260)}`]]); loadSys().finally(() => (detail.loading = 0)); } return; }
+  if (!v) return fetching(loadSys, `<h1>Laptop</h1>${skel(70, 210, 160, 260)}`);
   const live = S.runs.filter((r) => r.status === "training");
   const [word, cls] = heat(v.cpu_temp), b = v.battery;
   const procs = v.procs || [], sum = (k) => procs.filter((p) => p.kind === k).reduce((a, p) => a + p.cpu, 0);
@@ -1016,7 +1074,7 @@ function pageExps() {
 async function loadExp(id) { const d = await api("/api/exp/" + encodeURIComponent(id)); if (route().arg !== id) return; detail.exp = d; detail.expId = id; pageExp(id); }
 function pageExp(id) {
   if (detail.exp?.error && detail.expId === id) return mount([["h", lost(`No experiment called “${esc(id)}”.`, `<a href="#/exp">All experiments →</a>`)]]);
-  if (!detail.exp || detail.exp.id !== id) { if (!detail.loading) { detail.loading = 1; mount([["h", skel(90, 120, 300)]]); loadExp(id).finally(() => (detail.loading = 0)); } return; }
+  if (!detail.exp || detail.exp.id !== id) return fetching(() => loadExp(id), skel(90, 120, 300));
   const e = detail.exp;
   const curves = e.arms.filter((a) => a.learns).map((a, i) => {
     const hs = a.seeds.map((s) => s.val || []).filter((h) => h.length);
@@ -1141,7 +1199,7 @@ function runRow(r, nested) {
 async function loadRun(id) { const d = await api("/api/run/" + encodeURIComponent(id)); if (route().arg !== id) return; detail.run = d; detail.runId = id; pageRun(id); }
 function pageRun(id) {
   if (detail.run?.error && detail.runId === id) return mount([["h", lost(`No run called “${esc(id)}”.`, `It may have been renamed or deleted. <a href="#/runs">All runs →</a>`)]]);
-  if (!detail.run || detail.run.id !== id) { if (!detail.loading) { detail.loading = 1; mount([["h", skel(110, 120, 320)]]); loadRun(id).finally(() => (detail.loading = 0)); } return; }
+  if (!detail.run || detail.run.id !== id) return fetching(() => loadRun(id), skel(110, 120, 320));
   const r = detail.run, ev = r.eval || {};
   const fromState = S.runs.find((x) => x.id === id);
   if (fromState) Object.assign(r, { status: fromState.status, steps: fromState.steps, eta_s: fromState.eta_s, sps: fromState.sps });
@@ -1218,7 +1276,7 @@ async function loadDoc(path, quiet) {
   detail.doc = d; pageDoc(path);
 }
 function pageDoc(path) {
-  if (!detail.doc || (detail.doc.path !== path && !detail.doc.error)) { mount([["doc", `<div class="doclayout"><div class="doclist">${docNav(path)}</div><div>${skel(40, 500)}</div></div>`]]); return loadDoc(path); }
+  if (!detail.doc || (detail.doc.path !== path && !detail.doc.error)) return fetching(() => loadDoc(path), `<div class="doclayout"><div class="doclist">${docNav(path)}</div><div>${skel(40, 500)}</div></div>`);
   const d = detail.doc;
   let html = d.error ? `<div class="empty"><span class="big">📄</span>${esc(d.error)}</div>` : md(d.text, d.path);
   const hl = detail.hl;
@@ -1296,6 +1354,10 @@ function showKeys() {
 }
 function toggleMore(e) { e.stopPropagation(); $("#more").hidden = !$("#more").hidden; }
 
+// the phone's offline copy (sw.js; needs https or localhost), and a first paint from it while the laptop answers
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => { /* not allowed here: no offline copy */ });
+if (window.caches) caches.match("/api/state").then((r) => r && r.json().then((d) => { if (!S) adopt(d, +r.headers.get("x-saved"), true); })).catch(() => { /* none yet */ });
+try { localStorage.removeItem("rlarm.badges"); } catch { /* storage off */ } // milestones are gone
 schedule();
 poll();
 </script>

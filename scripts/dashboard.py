@@ -24,6 +24,7 @@ import threading
 import time
 import webbrowser
 from collections import deque
+from datetime import date
 from email.utils import formatdate
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -230,23 +231,31 @@ def git() -> dict:
 
 
 # ---------- training processes ----------
-def train_procs() -> dict[int, tuple[str, int | None]]:
-    """pid -> (config name, seed) of every live, non-dry train.py of this project, from /proc (no subprocess)."""
+def script_procs() -> dict[int, tuple[str, list[str], Path]]:
+    """pid -> (script name, argv, cwd) of every python process running one of this project's scripts/*.py."""
     out = {}
     for c in Path("/proc").glob("[0-9]*/cmdline"):
         try:
             a = [x.decode(errors="replace") for x in c.read_bytes().split(b"\0")]
-            if not (
-                Path(a[0]).name.startswith("python")  # not the `uv run` wrapper around it
-                and "--config" in a
-                and "--dry-run" not in a
-            ):
+            if not Path(a[0]).name.startswith("python"):  # not the `uv run` wrapper around it
                 continue
             cwd = Path(os.readlink(c.parent / "cwd"))
         except (OSError, IndexError):
             continue
         # same script name in another project (or a checkout of this one) is not ours
-        if not any(x.endswith("train.py") and cwd / x == ROOT / "scripts/train.py" for x in a):
+        s = next(
+            (x for x in a[1:] if x.endswith(".py") and (cwd / x).parent == ROOT / "scripts"), None
+        )
+        if s:
+            out[int(c.parent.name)] = (Path(s).stem, a, cwd)
+    return out
+
+
+def train_procs(sp: dict | None = None) -> dict[int, tuple[str, int | None]]:
+    """pid -> (config name, seed) of every live, non-dry train.py of this project, from /proc (no subprocess)."""
+    out = {}
+    for pid, (script, a, cwd) in (script_procs() if sp is None else sp).items():
+        if script != "train" or "--config" not in a or "--dry-run" in a:
             continue
         i = a.index("--config") + 1
         # runs are named after the config's `name:`, which can differ from the file name (configs/pilot/)
@@ -254,8 +263,85 @@ def train_procs() -> dict[int, tuple[str, int | None]]:
         cfg = cfg if isinstance(cfg, dict) else {}
         name = cfg.get("name") or (Path(a[i]).stem if i < len(a) else "?")
         seed = a[a.index("--seed") + 1] if "--seed" in a else cfg.get("seed")
-        out[int(c.parent.name)] = (name, int(seed) if str(seed).isdigit() else None)
+        out[pid] = (name, int(seed) if str(seed).isdigit() else None)
     return out
+
+
+# what the other project scripts are doing, in plain words (train.py has its own run cards)
+SCRIPT_WORDS = {
+    "imitate": "Learning by copying the planner",
+    "eval": "Testing a trained network",
+    "check_phase": "Checking a phase gate",
+    "render_snapshot": "Drawing a picture of the arm",
+    "watch": "Showing the arm in a window",
+}
+
+
+def work(sp: dict | None = None) -> list[dict]:
+    """Project scripts running right now other than train.py and this dashboard (imitation, evals, gate checks):
+    what, since when, which run folder, and how far along when the script leaves a trace of that."""
+    sp = script_procs() if sp is None else sp
+    kids = {
+        pid for pid in sp if _ppid(pid) in sp
+    }  # a script started by another script is part of its parent
+    boot = time.time() - float((_read(Path("/proc/uptime")) or "0").split()[0])
+    out = []
+    for pid, (script, a, cwd) in sorted(sp.items()):
+        if script in ("train", "dashboard") or pid in kids or "--quick" in a or "--dry-run" in a:
+            continue
+        try:  # field 22 of /proc/<pid>/stat: start time in clock ticks after boot
+            st = Path(f"/proc/{pid}/stat").read_text()
+            started = boot + int(st[st.rindex(")") + 2 :].split()[19]) / os.sysconf("SC_CLK_TCK")
+        except (OSError, ValueError, IndexError):
+            continue
+        cfg_arg = a[a.index("--config") + 1] if "--config" in a[:-1] else None
+        cfg = yread(cwd / cfg_arg) if cfg_arg else None
+        cfg = cfg if isinstance(cfg, dict) else {}
+        name = cfg.get("name")
+        i = next(i for i, x in enumerate(a) if x.endswith(".py"))
+        job = {
+            "pid": pid,
+            "script": script,
+            "what": SCRIPT_WORDS.get(script, f"Running {script}.py"),
+            "cmd": " ".join([f"scripts/{script}.py", *filter(None, a[i + 1 :])]),
+            "config": name or (Path(cfg_arg).stem if cfg_arg else None),
+            "started": round(started),
+        }
+        if script == "imitate" and name:
+            job.update(
+                imitate_progress(RUNS / f"{date.fromtimestamp(started)}_{name}_imitate", cfg)
+            )
+        out.append(job)
+    return out
+
+
+def _ppid(pid: int) -> int:
+    st = _read(Path(f"/proc/{pid}/stat")) or ")  0 0"
+    return int(st[st.rindex(")") + 2 :].split()[1])
+
+
+def imitate_progress(run: Path, cfg: dict) -> dict:
+    """Stage of scripts/imitate.py from the files it has written so far (it prints nothing until the end)."""
+    ic = cfg.get("imitate") or {}
+    rounds = jread(run / "imitate.json") or []
+    total = 1 + min(len(ic.get("betas") or []), ic.get("dagger_iters") or 0)
+    if not (run / "expert_eps.pkl").exists():
+        stage = f"The planner is showing the network how it's done ({ic.get('expert_episodes', '?')} example attempts)"
+    elif not rounds:
+        stage = "The network is studying the planner's examples"
+    elif len(rounds) < total:
+        stage = f"The network tries on its own, the planner corrects it (round {len(rounds)} of {total - 1})"
+    else:
+        stage = "Saving the result"
+    return {
+        "run": run.name if run.exists() else None,
+        "stage": stage,
+        "step": 0 if not (run / "expert_eps.pkl").exists() else 1 + len(rounds),
+        "steps": 1 + total,  # collect, study, each correction round; == step while saving
+        "rounds": [
+            {k: r.get(k) for k in ("round", "success", "collision", "samples")} for r in rounds
+        ],
+    }
 
 
 def training() -> set[tuple[str, int | None]]:
@@ -447,7 +533,9 @@ def procs() -> list[dict]:
             prev, up0 = now, up
             up, now = proc_times()
         tick, page, ncpu = os.sysconf("SC_CLK_TCK"), os.sysconf("SC_PAGE_SIZE"), os.cpu_count() or 1
-        secs, runs = max((up - up0) / tick, 1e-3), train_procs()
+        sp = script_procs()
+        secs, runs = max((up - up0) / tick, 1e-3), train_procs(sp)
+        jobs = {j["pid"]: j["what"] for j in work(sp)}
         parent = {k[0]: v[3] for k, v in now.items()}
 
         def run_of(pid: int) -> tuple[str, int | None] | None:
@@ -457,12 +545,21 @@ def procs() -> list[dict]:
                 pid = parent.get(pid, 0)
             return None
 
+        def job_of(pid: int) -> str | None:
+            for _ in range(4):
+                if pid in jobs:
+                    return jobs[pid]
+                pid = parent.get(pid, 0)
+            return None
+
         groups: dict[tuple, dict] = {}
         for (pid, start), (name, ticks, rss, _) in now.items():
             r = run_of(pid)
             if r:
                 rd = newest(r[0], r[1]) if r[1] is not None else None
                 key = ("run", rd.name if rd else r[0])
+            elif j := job_of(pid):
+                key = ("job", j)
             else:
                 key = ("self", "this dashboard") if pid == os.getpid() else ("app", name)
             g = groups.setdefault(
@@ -809,7 +906,8 @@ def decisions() -> list[dict]:
 
 # ---------- API payloads ----------
 def state() -> dict:
-    live = training()
+    sp = script_procs()
+    live = set(train_procs(sp).values())
     role = roles()
     runs = [run_meta(r, live, role.get(r.name, {})) for r in all_runs()]
     g = git()
@@ -823,6 +921,7 @@ def state() -> dict:
     return {
         "phase": ph,
         "runs": runs,
+        "work": work(sp),  # other model jobs running now (imitation, evals...): cards on Now
         "machine": machine(),
         "me": me(),
         "dismissed": jread(DISMISSED) or [],

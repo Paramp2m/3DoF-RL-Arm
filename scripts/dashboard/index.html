@@ -874,10 +874,10 @@ function render() {
   const navKey = { run: "runs", compare: "runs", phase: "phases", doc: "docs" }[page] ?? page;
   document.querySelectorAll("nav.side a.nl, nav.tabs a").forEach((a) => a.classList.toggle("on", a.dataset.r === navKey));
   $("#morebtn").classList.toggle("on", ["exp", "docs", "decisions", "help"].includes(navKey));
-  const tr = S.runs.filter((r) => r.status === "training").length;
+  const tr = S.runs.filter((r) => r.status === "training").length, nw = (S.work || []).length;
   $("#nruns").textContent = tr ? "● " + tr : ""; $("#nruns").classList.toggle("hot", !!tr);
   $("#ndec").textContent = S.decisions.length;
-  document.title = tr ? `(${tr} training) rl-arm` : "rl-arm dashboard";
+  document.title = tr || nw ? `(${[tr && `${tr} training`, nw && `${nw} running`].filter(Boolean).join(", ")}) rl-arm` : "rl-arm dashboard";
   const pages = { "": pageNow, exp: arg ? pageExp : pageExps, phases: pagePhases, phase: pagePhase, runs: pageRuns, run: pageRun, docs: pageDocs, doc: pageDoc, decisions: pageDecisions, help: pageHelp, search: pageSearch, compare: pageCompare, laptop: pageLaptop };
   (pages[page] || pageLost)(arg);
 }
@@ -889,11 +889,11 @@ function pageNow() {
   const ph = S.phase;
   // between phases, the hero shows the phase that starts next
   const cur = ph.in_phase ? ph.list.find((p) => p.n === ph.current) : ph.list.find((p) => p.n === ph.current + 1) || ph.list.at(-1);
-  const live = S.runs.filter((r) => r.status === "training");
+  const live = S.runs.filter((r) => r.status === "training"), work = S.work || [];
   const finished = S.runs.filter((r) => r.status === "done").sort((a, b) => b.mtime - a.mtime);
   const lastDone = finished[0];
   const stopped = S.runs.filter((r) => r.status === "stopped" && S.phase.runs.includes(r.id) && !S.dismissed.includes(r.id));
-  const mode = stopped.length ? "worried" : live.length ? "train" : ["gate", "report", "build"].includes(ph.stage) ? "think" : "idle";
+  const mode = stopped.length ? "worried" : live.length || work.length ? "train" : ["gate", "report", "build"].includes(ph.stage) ? "think" : "idle";
   const hero = `<div class="card hero"><div><div class="htop">
     <div class="hello">${greeting()}</div>
     <div class="row">${ph.in_phase ? "" : `<span class="pill done">Phase ${ph.current} done</span><span class="muted small">Next up:</span>`}<span class="pill current">Phase ${cur.n}</span><span class="pill ${ph.stage === "train" ? "training" : ""}">${{ train: "training", build: "building", gate: "checking results", report: "writing report", idle: "idle" }[ph.stage]}</span></div>
@@ -904,7 +904,7 @@ function pageNow() {
     </div><div class="mslot">${mascot(mode)}</div>
     <div class="steps" style="grid-column:1/-1;margin-top:8px">${ph.list.map((p) => `<div class="${p.state}" title="Phase ${p.n}: ${esc(p.title)}"><span></span><small>${p.n}</small></div>`).join("")}</div>
   </div>`;
-  const cards = live.length ? `<div class="grid g3">${live.map(liveCard).join("")}</div>` : `<div class="empty"><span class="big">😴</span>Nothing is training right now.${lastDone ? ` The last run, <a href="#/run/${lastDone.id}">${esc(runTitle(lastDone))} · seed ${lastDone.seed}</a>, finished ${ago(lastDone.mtime)}. <a href="#/runs">All runs →</a>` : ""}</div>`;
+  const cards = live.length || work.length ? `<div class="grid g3">${live.map(liveCard).join("")}${work.map(jobCard).join("")}</div>` : `<div class="empty"><span class="big">😴</span>Nothing is training right now.${lastDone ? ` The last run, <a href="#/run/${lastDone.id}">${esc(runTitle(lastDone))} · seed ${lastDone.seed}</a>, finished ${ago(lastDone.mtime)}. <a href="#/runs">All runs →</a>` : ""}</div>`;
   const warn = stopped.length ? `<div class="banner"><span>⚠ ${plural(stopped.length, "run")} from this phase stopped without finishing (crash, killed, or the laptop slept): ${stopped.map((r) => `<a href="#/run/${r.id}">${esc(runTitle(r))} s${r.seed}</a>`).join(", ")}. <span class="t2">Tell Claude in the terminal, or dismiss this if it was stopped on purpose.</span></span><span class="sp"></span><button class="btn sm" data-ids="${esc(stopped.map((r) => r.id).join(" "))}" onclick="act({ kind: 'dismiss', runs: this.dataset.ids.split(' ') }, this).then(poll)">Dismiss</button></div>` : "";
   const exps = S.phase.current === 4 ? `<div class="sec"><h2>Experiments</h2><span class="hint">what Phase 4 is measuring</span><a class="r" href="#/exp">all results →</a></div><div class="grid g4c">${S.experiments.map(expCard).join("")}</div>` : "";
   const machine = `<div class="card">
@@ -941,7 +941,7 @@ function pageNow() {
       <p class="small t2" style="margin:16px 0 0">All my practice adds up to <b>${dur(n.sim)}</b> of simulated arm-time. The laptop did it in about <b>${dur(n.busy)}</b>${n.busy ? `, roughly <b>${(n.sim / n.busy).toFixed(0)}×</b> faster than real life, because several of me train at once (one run alone is about ${n.wall ? (n.sim / n.wall).toFixed(1) : "–"}× real time)` : ""}.${n.best ? ` Best ever: <a href="#/run/${n.best.id}">${pct(n.best.success)} success</a> (${esc(TASKS[n.best.task] || n.best.task)})` : ""}${n.sharp ? `; sharpest: <a href="#/run/${n.sharp.id}">${mm(n.sharp.miss_mm)} typical miss</a>.` : "."}</p></div>
     ${activity()}
   </div>`;
-  mount([["hero", hero], ["warn", warn ? `<div style="margin-top:16px">${warn}</div>` : ""], ["livehead", `<div class="sec"><h2>Training right now</h2><span class="hint">progress, time left, ${live.some((r) => r.val_kind === "clean") ? `score so far (${tip("clean score")} = reaches minus bumps, so it can go below 0)` : "test score so far"}</span>${etaLine}</div>`], ["live", cards + notifyBtn], ["gate", standing(ph.in_phase ? ph.current : null)], ["exps", exps], ["side", `<div class="sec"><h2>Status</h2></div><div class="grid g3">${machine}${decCard}${doNow}</div>`], ["story", `<div class="sec"><h2>The story so far</h2><span class="hint">every run since Phase 0</span></div>${story}`]]);
+  mount([["hero", hero], ["warn", warn ? `<div style="margin-top:16px">${warn}</div>` : ""], ["livehead", `<div class="sec"><h2>${!live.length && work.length ? "Working right now" : "Training right now"}</h2><span class="hint">progress, time left, ${live.some((r) => r.val_kind === "clean") ? `score so far (${tip("clean score")} = reaches minus bumps, so it can go below 0)` : "test score so far"}</span>${etaLine}</div>`], ["live", cards + notifyBtn], ["gate", standing(ph.in_phase ? ph.current : null)], ["exps", exps], ["side", `<div class="sec"><h2>Status</h2></div><div class="grid g3">${machine}${decCard}${doNow}</div>`], ["story", `<div class="sec"><h2>The story so far</h2><span class="hint">every run since Phase 0</span></div>${story}`]]);
   // the arm's line changes often (scores, ETA); it's filled in place so the hero (and the mascot's animation) isn't rebuilt
   const say = $("#say"), line = voice(live, stopped);
   if (say && say._v !== line) { say.innerHTML = line; say._v = line; }
@@ -973,7 +973,21 @@ function fillMachine(live) {
   set("m-mem", (el) => (el.textContent = `${m.mem_used} / ${m.mem_total} GiB`)); set("m-memb", (el) => (el.style.width = (100 * m.mem_used) / m.mem_total + "%"));
   set("m-pow", (el) => (el.textContent = m.chip_w != null ? m.chip_w.toFixed(0) + " W" : "–"));
   set("m-bat", (el) => { el.textContent = !b ? "mains" : b.weak_charger ? `plugged in, still draining · ${b.pct}%` : b.plugged ? `plugged in · battery ${b.pct}%` : `on battery · ${b.pct}%${b.hours_left ? ` · ~${b.hours_left} h left` : ""}`; el.className = b && (!b.plugged || b.weak_charger) && live.length ? "bad" : ""; });
-  set("m-note", (el) => (el.innerHTML = live.length ? `<b class="warn">Don't close the lid.</b> <span class="t2">${plural(live.length, "run")} ${live.length === 1 ? "is" : "are"} training${b && !b.plugged ? ", on battery: plug in" : b?.weak_charger ? ", and the charger can't keep up" : ""}. Sleep kills them.</span>` : `<span class="good">Safe to close the laptop:</span> <span class="t2">nothing is training.</span>`));
+  const busy = [live.length && `${plural(live.length, "run")} ${live.length === 1 ? "is" : "are"} training`, work.length && `${plural(work.length, "other model job")} ${work.length === 1 ? "is" : "are"} running`].filter(Boolean).join(" and ");
+  set("m-note", (el) => (el.innerHTML = busy ? `<b class="warn">Don't close the lid.</b> <span class="t2">${busy}${b && !b.plugged ? ", on battery: plug in" : b?.weak_charger ? ", and the charger can't keep up" : ""}. Sleep kills them.</span>` : `<span class="good">Safe to close the laptop:</span> <span class="t2">nothing is training.</span>`));
+}
+// a model job that isn't a training run (imitation, evals, gate checks): no step counter, so stages instead
+function jobCard(j) {
+  const p = j.steps ? j.step / j.steps : null, since = Math.max(0, (S.at || Date.now()) / 1000 - j.started);
+  const rounds = (j.rounds || []).map((r) => `<tr><td class="tiny t2">${esc(r.round === "bc" ? "after studying" : r.round.replace("dagger", "correction round "))}</td><td class="num small" style="text-align:right"><b>${pct(r.success)}</b> reached${r.collision != null ? ` · <span class="muted">${pct(r.collision)} bumps</span>` : ""}</td></tr>`).join("");
+  return `<div class="card live-card">
+    <div class="row" style="flex-wrap:nowrap;align-items:flex-start"><b style="min-width:0">${esc(j.what)}</b><span class="sp"></span><span class="pill training">running</span></div>
+    <div class="muted small" style="margin:2px 0 14px">${esc(j.config || j.script)} · started ${hhmm(j.started * 1000)}, ${dur(since)} ago</div>
+    ${j.stage ? `<div class="small t2" style="margin-bottom:10px">${esc(j.stage)}</div>` : ""}
+    ${p != null ? `<div class="bar"><i style="width:${(p * 100).toFixed(1)}%"></i></div><div class="tiny muted" style="margin-top:6px">stage ${j.step + 1} of ${j.steps + 1} · it can't tell how far along a stage is</div>` : ""}
+    ${rounds ? `<table style="margin-top:10px">${rounds}</table><div class="tiny muted">scored on the validation targets after each stage</div>` : ""}
+    <div class="tiny muted" style="margin-top:10px;overflow-wrap:anywhere"><code style="white-space:normal">${esc(j.cmd)}</code>${j.run ? ` · writes runs/${esc(j.run)}/` : ""}</div>
+  </div>`;
 }
 function liveCard(r) {
   const p = r.total ? Math.min(1, r.steps / r.total) : 0;
@@ -1009,7 +1023,7 @@ function jobsHtml() {
 async function loadSys() { const d = await api("/api/system"); if (route().page !== "laptop" || d.error) return; detail.sys = d; pageLaptop(); }
 const blocks = (v, what) => (v.sleep_blockers || []).some((x) => x.what.split(":").includes(what));
 function laptopAdvice(v, live) {
-  const out = [], t = v.cpu_temp, b = v.battery, n = live.length;
+  const out = [], t = v.cpu_temp, b = v.battery, n = live.length + (S.work || []).length; // a "run" here = anything sleep would kill
   if (t != null && t >= 97) out.push(["bad", `🔥 <b>CPU at ${t} °C:</b> hot enough that it slows itself down to cool off (${tip("throttling")}). Training keeps going, just slower. Check the vents aren't blocked; a hard surface or a stand helps.`]);
   else if (t != null && t >= 92) out.push(["warn", `🌡 <b>CPU at ${t} °C:</b> hot, but still below the ~100 °C where it starts slowing down.`]);
   if (b && !b.plugged && n) out.push(["bad", `🔋 <b>On battery with ${plural(n, "run")} training.</b> Plug in: ${b.hours_left ? `at the current draw this lasts about ${b.hours_left} h, ` : ""}and if the laptop sleeps the runs die.`]);
@@ -1029,7 +1043,7 @@ function pageLaptop() {
   const [word, cls] = heat(v.cpu_temp), b = v.battery;
   const procs = v.procs || [], sum = (k) => procs.filter((p) => p.kind === k).reduce((a, p) => a + p.cpu, 0);
   const runName = (id) => { const r = S.runs.find((x) => x.id === id); return r ? `<a href="#/run/${r.id}">${esc(runTitle(r))} · seed ${r.seed}</a>` : esc(id); };
-  const kindPill = { run: `<span class="pill training">training</span>`, self: `<span class="pill good">this dashboard</span>`, app: `<span class="pill">app</span>` };
+  const kindPill = { run: `<span class="pill training">training</span>`, self: `<span class="pill good">this dashboard</span>`, app: `<span class="pill">app</span>`, job: `<span class="pill training">model job</span>` };
   const maxCpu = Math.max(1, ...procs.map((p) => p.cpu));
   const hist = v.hist || [], now = v.t;
   const series = (i, name, color) => [{ name, pts: hist.filter((h) => h[i] != null).map((h) => [h[0] - now, h[i]]), color }];
@@ -1054,7 +1068,7 @@ function pageLaptop() {
       <div class="card"><h3>${ic("cpu")}CPU in use</h3>${chart(series(1, "CPU %", "var(--s1)"), { ...hx, y0: 0, y1: 100, yf: (x) => x.toFixed(0) + "%" })}</div>
       <div class="card"><h3>${ic("bolt")}Chip power</h3>${chart(series(3, "watts", "var(--s3)"), { ...hx, y0: 0, yf: (x) => x.toFixed(1) + " W" })}</div>
       <div class="card"><h3>${ic("mem")}Memory used</h3>${chart(series(4, "GiB", "var(--s2)"), { ...hx, y0: 0, y1: v.mem_total, yf: (x) => x.toFixed(1) + " GiB" })}</div></div>`}`],
-    ["procs", `<div class="sec"><h2>Where the CPU goes</h2><span class="hint">share of the whole laptop since the last refresh (a few seconds)</span></div><div class="card tablewrap" style="padding:6px 8px"><table><tr><th>Who</th>${narrow() ? "" : `<th style="width:140px"></th>`}<th style="width:34%">CPU</th><th style="width:90px">Memory</th></tr>${procs.map((p) => `<tr><td>${p.kind === "run" ? runName(p.name) : `<b class="t2">${esc(p.name)}</b>`}${p.n > 1 ? `<span class="tiny muted"> · ${p.n} processes</span>` : ""}</td>${narrow() ? "" : `<td>${kindPill[p.kind]}</td>`}<td><div class="row" style="flex-wrap:nowrap;gap:10px"><div class="bar" style="flex:1;height:6px"><i class="${p.kind === "run" ? "" : p.kind === "self" ? "good" : "dim"}" style="width:${(100 * p.cpu) / maxCpu}%"></i></div><span class="num small" style="width:48px;text-align:right">${p.cpu.toFixed(1)}%</span></div></td><td class="num small t2">${p.mem_gb.toFixed(2)} GiB</td></tr>`).join("")}</table><p class="tiny muted" style="margin:8px 10px">Training runs use <b class="t2">${sum("run").toFixed(0)}%</b> of the CPU, other apps <b class="t2">${sum("app").toFixed(0)}%</b> (only the busiest are listed), this dashboard <b class="good">${sum("self").toFixed(1)}%</b>.</p></div>`],
+    ["procs", `<div class="sec"><h2>Where the CPU goes</h2><span class="hint">share of the whole laptop since the last refresh (a few seconds)</span></div><div class="card tablewrap" style="padding:6px 8px"><table><tr><th>Who</th>${narrow() ? "" : `<th style="width:140px"></th>`}<th style="width:34%">CPU</th><th style="width:90px">Memory</th></tr>${procs.map((p) => `<tr><td>${p.kind === "run" ? runName(p.name) : `<b class="t2">${esc(p.name)}</b>`}${p.n > 1 ? `<span class="tiny muted"> · ${p.n} processes</span>` : ""}</td>${narrow() ? "" : `<td>${kindPill[p.kind]}</td>`}<td><div class="row" style="flex-wrap:nowrap;gap:10px"><div class="bar" style="flex:1;height:6px"><i class="${p.kind === "run" || p.kind === "job" ? "" : p.kind === "self" ? "good" : "dim"}" style="width:${(100 * p.cpu) / maxCpu}%"></i></div><span class="num small" style="width:48px;text-align:right">${p.cpu.toFixed(1)}%</span></div></td><td class="num small t2">${p.mem_gb.toFixed(2)} GiB</td></tr>`).join("")}</table><p class="tiny muted" style="margin:8px 10px">Training runs use <b class="t2">${sum("run").toFixed(0)}%</b> of the CPU,${sum("job") ? ` other model jobs <b class="t2">${sum("job").toFixed(0)}%</b>,` : ""} other apps <b class="t2">${sum("app").toFixed(0)}%</b> (only the busiest are listed), this dashboard <b class="good">${sum("self").toFixed(1)}%</b>.</p></div>`],
     ["more", `<div class="sec"><h2>Other vitals</h2></div><div class="grid g4">
       ${tile(v.gpu_temp != null ? Math.round(v.gpu_temp) + " °C" : "–", "Graphics chip", `${v.gpu_busy != null ? v.gpu_busy + "% busy" : ""} · training doesn't use it`)}
       ${tile(v.ssd_temp != null ? Math.round(v.ssd_temp) + " °C" : "–", "SSD temperature", v.ssd_temp != null ? (v.ssd_temp > 70 ? "warm" : "fine") : "")}

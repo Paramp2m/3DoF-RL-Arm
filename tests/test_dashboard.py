@@ -212,3 +212,31 @@ def test_server_restarts_itself_on_new_code_but_not_on_broken_code(tmp_path):
         assert p.poll() is None  # same process (exec), still serving
     finally:
         p.kill()
+
+
+def test_other_model_jobs_show_with_their_stage(tmp_path):
+    # a python process whose argv names a project script counts, whatever it really runs
+    p = __import__("subprocess").Popen(
+        [sys.executable, "-c", "import time; time.sleep(30)", "scripts/fake_job.py", "--x", "1"],
+        cwd=ROOT,
+    )
+    try:
+        for _ in range(50):
+            jobs = [j for j in dashboard.work() if j["pid"] == p.pid]
+            if jobs:
+                break
+            __import__("time").sleep(0.1)
+        assert jobs and jobs[0]["what"] == "Running fake_job.py"
+        assert jobs[0]["cmd"] == "scripts/fake_job.py --x 1"
+    finally:
+        p.kill()
+    cfg = {"imitate": {"expert_episodes": 10, "betas": [0.5, 0.2, 0.0], "dagger_iters": 2}}
+    run = tmp_path / "2026-10-20_x_imitate"
+    run.mkdir()
+    assert dashboard.imitate_progress(run, cfg)["step"] == 0  # collecting expert examples
+    (run / "expert_eps.pkl").write_bytes(b"")
+    assert "studying" in dashboard.imitate_progress(run, cfg)["stage"]
+    (run / "imitate.json").write_text(json.dumps([{"round": "bc", "success": 0.2}]))
+    pr = dashboard.imitate_progress(run, cfg)
+    assert "round 1 of 2" in pr["stage"] and (pr["step"], pr["steps"]) == (2, 4)
+    assert pr["rounds"][0]["success"] == 0.2

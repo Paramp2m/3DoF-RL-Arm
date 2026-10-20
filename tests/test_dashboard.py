@@ -240,3 +240,26 @@ def test_other_model_jobs_show_with_their_stage(tmp_path):
     pr = dashboard.imitate_progress(run, cfg)
     assert "round 1 of 2" in pr["stage"] and (pr["step"], pr["steps"]) == (2, 4)
     assert pr["rounds"][0]["success"] == 0.2
+
+
+def test_queued_launcher_is_listed_until_its_file_exists(tmp_path):
+    import subprocess
+    import time
+
+    sh = ROOT / "runs/_logs" / f"launch_test{os.getpid()}.sh"
+    flag = tmp_path / "done"
+    sh.parent.mkdir(parents=True, exist_ok=True)
+    sh.write_text(
+        f"until [ -f {flag} ]; do sleep 0.2; done\n"
+        "for s in 0 1; do echo --config configs/obstacle_h5.yaml > /dev/null; done\n"  # never trains
+    )
+    p = subprocess.Popen(["bash", str(sh.relative_to(ROOT))], cwd=ROOT)
+    try:
+        time.sleep(0.3)
+        mine = [j for j in dashboard.queued() if j["pid"] == p.pid]
+        assert mine and "obstacle_h5 (2 seeds)" in mine[0]["what"] and mine[0]["queued"]
+        flag.write_text("")
+        assert not [j for j in dashboard.queued() if j["pid"] == p.pid]
+    finally:
+        p.kill()
+        sh.unlink()

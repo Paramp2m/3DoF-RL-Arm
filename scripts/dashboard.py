@@ -312,6 +312,42 @@ def work(sp: dict | None = None) -> list[dict]:
                 imitate_progress(RUNS / f"{date.fromtimestamp(started)}_{name}_imitate", cfg)
             )
         out.append(job)
+    return out + queued()
+
+
+def queued() -> list[dict]:
+    """runs/_logs/launch_*.sh scripts still waiting (`until [ -f <file> ]`) to start their train.py runs."""
+    out = []
+    for c in Path("/proc").glob("[0-9]*/cmdline"):
+        try:
+            a = [x.decode(errors="replace") for x in c.read_bytes().split(b"\0")]
+            sh_path = Path(os.readlink(c.parent / "cwd")) / a[1]
+            if Path(a[0]).name != "bash" or not sh_path.match("runs/_logs/launch_*.sh"):
+                continue
+            text = sh_path.read_text()
+        except (OSError, IndexError):
+            continue
+        wait = re.search(r"until \[ -f (\S+) \]", text)
+        if (
+            not wait or (ROOT / wait[1]).exists()
+        ):  # no wait, or done waiting: its runs have their own cards
+            continue
+        cfgs = [yread(ROOT / f) or {} for f in dict.fromkeys(re.findall(r"--config (\S+)", text))]
+        seeds = re.search(r"for s in ([\d ]+);", text)
+        n = len(seeds[1].split()) if seeds else 1
+        names = ", ".join(c.get("name", "?") for c in cfgs)
+        out.append(
+            {
+                "pid": int(c.parent.name),
+                "script": "queued",
+                "queued": True,
+                "what": f"Waiting to start: {names} ({n} seed{'s' * (n > 1)})",
+                "stage": f"Starts by itself when {Path(wait[1]).parent.name} has finished",
+                "cmd": str(sh_path.relative_to(ROOT)),
+                "config": names,
+                "started": round(c.parent.stat().st_mtime),
+            }
+        )
     return out
 
 

@@ -981,8 +981,8 @@ function jobCard(j) {
   const p = j.steps ? j.step / j.steps : null, since = Math.max(0, (S.at || Date.now()) / 1000 - j.started);
   const rounds = (j.rounds || []).map((r) => `<tr><td class="tiny t2">${esc(r.round === "bc" ? "after studying" : r.round.replace("dagger", "correction round "))}</td><td class="num small" style="text-align:right"><b>${pct(r.success)}</b> reached${r.collision != null ? ` · <span class="muted">${pct(r.collision)} bumps</span>` : ""}</td></tr>`).join("");
   return `<div class="card live-card">
-    <div class="row" style="flex-wrap:nowrap;align-items:flex-start"><b style="min-width:0">${esc(j.what)}</b><span class="sp"></span><span class="pill training">running</span></div>
-    <div class="muted small" style="margin:2px 0 14px">${esc(j.config || j.script)} · started ${hhmm(j.started * 1000)}, ${dur(since)} ago</div>
+    <div class="row" style="flex-wrap:nowrap;align-items:flex-start"><b style="min-width:0">${esc(j.what)}</b><span class="sp"></span><span class="pill ${j.queued ? "" : "training"}">${j.queued ? "queued" : "running"}</span></div>
+    <div class="muted small" style="margin:2px 0 14px">${esc(j.config || j.script)} · ${j.queued ? "queued" : "started"} ${hhmm(j.started * 1000)}, ${dur(since)} ago</div>
     ${j.stage ? `<div class="small t2" style="margin-bottom:10px">${esc(j.stage)}</div>` : ""}
     ${p != null ? `<div class="bar"><i style="width:${(p * 100).toFixed(1)}%"></i></div><div class="tiny muted" style="margin-top:6px">stage ${j.step + 1} of ${j.steps + 1} · it can't tell how far along a stage is</div>` : ""}
     ${rounds ? `<table style="margin-top:10px">${rounds}</table><div class="tiny muted">scored on the validation targets after each stage</div>` : ""}

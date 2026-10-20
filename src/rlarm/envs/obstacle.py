@@ -30,6 +30,8 @@ class ObstacleEnv(ReachEnv):
         self.obs_wp = cfg["env"].get("obs_waypoint", False)
         self.obs_blocked = cfg["env"].get("obs_blocked", False)
         self.safe = cfg["env"].get("safe_action", False)
+        # residual mode: action = clip(waypoint follower + residual * policy action); needs obs_waypoint
+        self.residual = cfg["env"].get("residual_waypoint", 0.0)
         super().__init__(cfg, **kw)
         e = cfg["env"]
         if self.safe and self.mode != "delta_pos":
@@ -220,6 +222,11 @@ class ObstacleEnv(ReachEnv):
             self.wp += 1
 
     def step(self, action):
+        if self.residual:  # planner waypoint follower (joint P-step toward the current waypoint) + learned residual
+            base = np.clip((self.path[self.wp] - self.target_q) / self.ecfg["max_delta"], -1, 1)
+            action = np.clip(
+                base + self.residual * np.clip(np.asarray(action, float), -1, 1), -1, 1
+            )
         if not self.safe:
             self._hit, self._blocked = False, False
             return super().step(action)

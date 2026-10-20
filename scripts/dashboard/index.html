@@ -21,7 +21,7 @@
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
-html { background: var(--bg); }
+html { background: var(--bg); overscroll-behavior-y: none; } /* no pull-to-refresh: the page updates itself */
 body { margin: 0; color: var(--text); font: 15px/1.55 var(--sans); -webkit-font-smoothing: antialiased; font-variant-numeric: tabular-nums;
   background: radial-gradient(1100px 600px at 0% -10%, rgba(79, 91, 42, 0.32), transparent 62%), radial-gradient(900px 520px at 105% 0%, rgba(201, 152, 47, 0.09), transparent 60%), var(--bg); background-attachment: fixed; min-height: 100vh; }
 a { color: var(--accent-hi); text-decoration: none; }
@@ -78,6 +78,10 @@ nav.side a .n.hot { color: var(--accent-hi); }
 .vit .ic { width: 15px; height: 15px; color: var(--muted); }
 .vit .ld { width: 7px; height: 7px; border-radius: 50%; background: var(--good); }
 .vit .ld.off { background: var(--bad); }
+.vit.stale > span:not(.ld) { opacity: 0.45; }
+/* can't reach the laptop: a strip under the top bar, so it's seen wherever the page is scrolled */
+.offline { position: absolute; left: 0; right: 0; top: 100%; padding: 7px 32px; background: #3A1F14; border-bottom: 1px solid #6B3420; color: var(--cream); font-size: 13px; line-height: 1.4; }
+.offline b { color: #F2A48E; }
 main { padding: 28px 32px 90px; max-width: 1240px; width: 100%; margin: 0 auto; }
 main:focus { outline: none; }
 main.enter { animation: enter 0.28s ease-out; }
@@ -255,19 +259,17 @@ a.chip:hover { border-color: var(--accent2); text-decoration: none; }
 @keyframes wave { from { transform: rotate(-38deg); } to { transform: rotate(38deg); } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 
-/* ---------- live cards, numbers, milestones ---------- */
+/* ---------- live cards, numbers, activity ---------- */
 .live-card .pct { font-size: 22px; font-weight: 750; letter-spacing: -0.02em; }
 .nums { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 14px; }
 .nums .v { font-size: 24px; font-weight: 750; letter-spacing: -0.02em; color: var(--text); }
 .nums .l { font-size: 12px; color: var(--muted); }
-.badges { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-top: 14px; }
-.badge { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line2); background: var(--panel2); min-width: 0; }
-.badge .e { font-size: 22px; line-height: 1; }
-.badge b { display: block; font-size: 13px; color: var(--text); }
-.badge small { display: block; font-size: 11.5px; color: var(--muted); line-height: 1.35; }
-.badge.got { border-color: #6E5A26; background: linear-gradient(135deg, #2B2412, var(--panel2)); }
-.badge:not(.got) .e { filter: grayscale(1); opacity: 0.4; }
-.badge:not(.got) b { color: var(--muted); }
+.feed { list-style: none; margin: 12px 0 0; padding: 0; }
+.feed li { display: grid; grid-template-columns: 46px 18px minmax(0, 1fr); gap: 8px; align-items: baseline; padding: 7px 0; border-top: 1px solid var(--line); font-size: 13.5px; }
+.feed li:first-child { border-top: 0; }
+.feed .tm { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.feed li.new .tm { color: var(--accent-hi); font-weight: 700; }
+.feed li.new .tm::after { content: " •"; }
 
 /* ---------- laptop page ---------- */
 .gauge { text-align: center; }
@@ -304,6 +306,7 @@ nav.tabs, .more { display: none; }
   .top .brand > div { display: none; }
   .vit { padding: 6px 10px; gap: 8px; font-size: 12.5px; }
   .vit .cpu { display: none; }
+  .offline { padding: 7px 14px; }
   main { padding: 18px 16px calc(96px + env(safe-area-inset-bottom)); }
   h1 { font-size: 24px; }
   .hero { display: block; padding: 18px 18px 16px; }
@@ -395,6 +398,7 @@ nav.tabs, .more { display: none; }
         <div class="results" id="qres" hidden></div>
       </div>
       <a class="vit" id="vit" href="#/laptop" title="The laptop's vitals: open the Laptop page"><span class="ld off"></span></a>
+      <div class="offline" id="offline" role="status" hidden></div>
     </div>
     <main id="main" tabindex="-1"><div class="skel" style="height:220px"></div></main>
   </div>

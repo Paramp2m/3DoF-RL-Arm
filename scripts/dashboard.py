@@ -18,6 +18,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import threading
 import time
 import webbrowser
@@ -1186,6 +1187,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(
                     200, (STATIC / "index.html").read_bytes(), "text/html; charset=utf-8"
                 )
+            if u.path == "/sw.js":  # the phone's offline copy (scripts/dashboard/sw.js); scope: the whole site
+                return self.send(200, (STATIC / "sw.js").read_bytes(), "text/javascript", "no-cache")
             if u.path == "/marked.min.js":
                 return self.send(
                     200, (STATIC / "marked.min.js").read_bytes(), "text/javascript", "max-age=3600"
@@ -1193,8 +1196,10 @@ class Handler(BaseHTTPRequestHandler):
             if u.path == "/api/state":
                 body, v, dv = state_cached()
                 if q.get("v") == v:
-                    return self.json({"v": v, "same": True, "machine": body["machine"]})
-                out = {"v": v, "dv": dv, **body}
+                    return self.json(
+                        {"v": v, "build": build(), "same": True, "machine": body["machine"]}
+                    )
+                out = {"v": v, "dv": dv, "build": build(), **body}
                 if (
                     q.get("dv") == dv
                 ):  # the decision log is half the reply: resend it only when it changed
@@ -1262,6 +1267,36 @@ class Handler(BaseHTTPRequestHandler):
         self.send(404, b"not found", "text/plain")
 
 
+# the page reloads itself when this changes: a new page file, or this server restarted on new code
+STARTED_NS = Path(__file__).stat().st_mtime_ns
+
+
+def build() -> str:
+    return f"{(STATIC / 'index.html').stat().st_mtime_ns}-{STARTED_NS}"
+
+
+def restart_on_change() -> None:
+    """Re-exec this server when dashboard.py changes, once the new file imports cleanly (keeps the port and PID)."""
+    me, seen = Path(__file__), STARTED_NS
+    while True:
+        time.sleep(2)
+        with contextlib.suppress(OSError):
+            ns = me.stat().st_mtime_ns
+            if ns == seen or time.time_ns() - ns < 2e9:  # unchanged, or still being written
+                continue
+            if any(j.get("state") == "running" for j in JOBS.values()):
+                continue  # a gate run would lose its result: wait until it ends
+            seen = ns
+            check = [sys.executable, "-c", "import runpy, sys; runpy.run_path(sys.argv[1])", str(me)]
+            r = subprocess.run(check, capture_output=True, text=True, timeout=120, check=False)
+            if r.returncode:
+                print(f"dashboard.py changed but doesn't load, keeping the old code:\n{r.stderr[-800:]}", flush=True)
+                continue
+            print("dashboard.py changed: restarting on the new code", flush=True)
+            args = sys.argv + ([] if "--no-open" in sys.argv else ["--no-open"])
+            os.execv(sys.executable, [sys.executable, *args])
+
+
 def serve(port: int) -> ThreadingHTTPServer:
     srv = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     srv.daemon_threads = True
@@ -1291,6 +1326,7 @@ def main() -> None:
         )
     if not a.no_open:
         threading.Timer(0.5, webbrowser.open, (url,)).start()
+    threading.Thread(target=restart_on_change, name="reloader", daemon=True).start()
     try:
         srv.serve_forever()
     except KeyboardInterrupt:

@@ -149,3 +149,11 @@ def test_safe_filter_from_free_pose_never_ends_in_contact():
             *_, info = e.step(rng.uniform(-1, 1, 3) * (1 if rng.random() < 0.5 else 0.3))
             bad += free_before and info["collision"]
     assert bad == 0, bad
+
+
+def test_residual_mode_zero_action_follows_planner():
+    e = make_env(load_config(ROOT / "configs/obstacle_g2.yaml"))
+    e.reset(seed=0)
+    for _ in range(300):
+        e.step(np.zeros(3))
+    assert e.wp == len(e.path) - 1

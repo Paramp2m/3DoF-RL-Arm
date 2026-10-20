@@ -5,6 +5,7 @@ bc.zip (full SAC model, cloned actor), demos.npz (all labelled (obs, action) pai
 
 import argparse
 import json
+import multiprocessing as mp
 import pickle
 import time
 from datetime import date
@@ -88,10 +89,32 @@ def stack(obs_list: list[dict]) -> dict:
     return {k: np.stack([o[k] for o in obs_list]).astype(np.float32) for k in obs_list[0]}
 
 
+_W: dict = {}  # per worker process: its own env, expert and student policy copy
+
+
+def _init(cfg: dict, policy) -> None:
+    th.set_num_threads(1)
+    env = make_env(cfg)
+    _W.update(env=env, expert=PlannerExpert(env, **cfg.get("expert", {})), student=policy)
+
+
+def _episode(seed: int, beta: float, keep: bool, settle: int):
+    # rng per episode seed: the data does not depend on how episodes are spread over workers
+    rng = np.random.default_rng(seed)
+    return rollout(_W["env"], _W["expert"], _W["student"], beta, seed, rng, keep, settle)
+
+
+def collect(cfg: dict, policy, jobs: list[tuple], workers: int) -> list:
+    """Run rollout jobs (seed, beta, keep, settle) on `workers` processes; results in job order."""
+    with mp.get_context("spawn").Pool(workers, _init, (cfg, policy)) as pool:
+        return pool.starmap(_episode, jobs, chunksize=1)
+
+
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--config", required=True)
     p.add_argument("--quick", action="store_true", help="tiny smoke run (tests)")
+    p.add_argument("--workers", type=int, default=8, help="rollout processes (compute only)")
     a = p.parse_args()
     cfg = load_config(a.config)
     ic = dict(cfg["imitate"])
@@ -106,13 +129,13 @@ def main() -> None:
             prefill_episodes=2,
         )
     apply_threads(cfg)
+    th.set_num_threads(a.workers)  # the BC fit runs while the rollout workers are idle
     run = ROOT / "runs" / ("_dry" if a.quick else "") / f"{date.today()}_{cfg['name']}_imitate"
     run.mkdir(parents=True, exist_ok=a.quick)
     (run / "config.yaml").write_text(yaml.safe_dump(cfg))
     (run / "git_hash.txt").write_text(git_hash() + "\n")
-    t0, rng = time.time(), np.random.default_rng(ic["seed_base"])
+    t0 = time.time()
     env = make_env(cfg)
-    expert = PlannerExpert(env, **cfg.get("expert", {}))
     kw = {
         k: v
         for k, v in algo_kwargs(cfg).items()
@@ -135,31 +158,32 @@ def main() -> None:
         )
         (run / "imitate.json").write_text(json.dumps(hist, indent=1))
 
-    xs, Y, eps, seed, ok = [], [], [], ic["seed_base"], 0
-    for i in range(ic["expert_episodes"]):
-        x, y, tr, s = rollout(
-            env, expert, None, 1.0, seed, rng, i < ic["prefill_episodes"], ic.get("settle", 0)
-        )
+    xs, Y, eps, seed, ok, settle = [], [], [], ic["seed_base"], 0, ic.get("settle", 0)
+    jobs = [
+        (seed + i, 1.0, i < ic["prefill_episodes"], settle) for i in range(ic["expert_episodes"])
+    ]
+    for x, y, tr, s in collect(cfg, None, jobs, a.workers):
         xs += x
         Y += y
         ok += s
-        seed += 1
         if tr:
             eps.append(tr)
+    seed += len(jobs)
     (run / "expert_eps.pkl").write_bytes(pickle.dumps(eps))
     Y_arr = np.asarray(Y, np.float32)
     loss = fit(model, stack(xs), Y_arr, ic["epochs"], ic["batch_size"], ic["lr"])
     score("bc", loss)
+    model.save(run / "bc.zip")
     for it, beta in enumerate(ic["betas"][: ic["dagger_iters"]]):
-        for _ in range(ic["dagger_episodes"]):
-            x, y, _, _ = rollout(env, expert, model, beta, seed, rng, False, ic.get("settle", 0))
+        jobs = [(seed + i, beta, False, settle) for i in range(ic["dagger_episodes"])]
+        for x, y, _, _ in collect(cfg, model.policy, jobs, a.workers):
             xs += x
             Y += y
-            seed += 1
+        seed += len(jobs)
         Y_arr = np.asarray(Y, np.float32)
         loss = fit(model, stack(xs), Y_arr, ic["dagger_epochs"], ic["batch_size"], ic["lr"])
         score(f"dagger{it + 1}", loss)
-    model.save(run / "bc.zip")
+        model.save(run / "bc.zip")  # every round, so a stopped run still leaves its latest student
     X = stack(xs)
     np.savez_compressed(run / "demos.npz", actions=Y_arr, **{f"obs_{k}": v for k, v in X.items()})
     print(f"run={run.name} expert_success={ok / ic['expert_episodes']:.0%} samples={len(Y)}")

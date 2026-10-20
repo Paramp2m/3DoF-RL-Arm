@@ -47,3 +47,14 @@ def test_markov_label_ignores_history():
         fresh.path = None
         assert np.array_equal(a, fresh.predict(obs)[0])
         obs = e.step(a)[0]
+
+
+def test_consistent_expert_has_reference_and_keeps_margin():
+    e = env()
+    ex = PlannerExpert(e, consistent=5.0)
+    e.reset(seed=8)
+    q0 = e.target_q.copy()
+    path = ex.plan(q0)
+    assert ex.pref is not None and path is not None
+    for a, b in itertools.pairwise(path):
+        assert ex.seg_ok(a, b, ex.margin - 1e-6)

@@ -27,12 +27,16 @@ class PlannerExpert:
         gain: float = 0.5,
         replan: float = 0.2,
         markov: bool = False,
+        consistent: float = 0.0,
     ):
         self.e = env.unwrapped
         self.m = self.e.model
         self.d = mujoco.MjData(self.m)  # private scratch data: planning never touches the env state
         self.margin, self.gain, self.replan = margin, gain, replan
         self.markov = markov  # replan every step: the label then depends on the current state only (for DAgger)
+        # > 0: prefer (per rad, max-norm) the via-point / goal pose of a reference plan that depends on the goal and
+        # box only, so the detour side does not flip between nearby states (a student would average the two sides)
+        self.consistent, self.pref, self.pref_key = consistent, None, None
         self.links = [self.m.geom(n).id for n in LINKS]
         lo, hi = self.e.lim[:, 0], self.e.lim[:, 1]
         axes = [np.linspace(lo[i] + 0.05, hi[i] - 0.05, grid[i]) for i in range(3)]
@@ -63,11 +67,37 @@ class PlannerExpert:
         """Waypoints after q0 ending at a goal pose, or None. Deterministic for a given state. Tries the full
         clearance margin first, then a third of it, then bare contact-freedom (some starts are tight)."""
         self._sync()
+        if self.consistent and self.pref_key != self._key():
+            self.pref_key, self.pref = self._key(), None
+            self.pref = self._reference()
         for margin in (self.margin, self.margin / 3, 1e-4):
             path = self._plan(q0, margin)
             if path is not None:
                 return path
         return None
+
+    def _key(self) -> tuple[bytes, bytes]:
+        return self.e.goal.tobytes(), self.e.data.mocap_pos.tobytes()
+
+    def _reference(self) -> tuple[np.ndarray | None, np.ndarray] | None:
+        """(via or None, goal pose) of the plan from a fixed pose behind the box (goal mirrored through the box
+        centre, pulled in until reachable and clear): a function of the goal and box only."""
+        c = self.e.data.mocap_pos[self.e.omocap]
+        for s in (1.0, 0.6, 0.3):
+            for q in ik(c + s * (c - self.e.goal), lim=self.e.lim):
+                if self.gap(q) >= self.margin:
+                    path = self._plan(q, self.margin)
+                    if path is not None:
+                        return (path[0] if len(path) > 1 else None), path[-1]
+        return None
+
+    def _bias(self, v: np.ndarray | None, g: np.ndarray) -> float:
+        if not self.pref:
+            return 0.0
+        pv, pg = self.pref
+        return self.consistent * (
+            np.abs(g - pg).max() + (np.abs(v - pv).max() if v is not None and pv is not None else 0)
+        )
 
     def _plan(self, q0: np.ndarray, margin: float) -> list[np.ndarray] | None:
         m0 = max(
@@ -75,13 +105,14 @@ class PlannerExpert:
         )  # starting tight to the box: don't demand more
         sols = ik(self.e.goal, lim=self.e.lim)
         goals = sorted(
-            (g for g in sols if self.gap(g) >= margin), key=lambda g: np.abs(g - q0).max()
+            (g for g in sols if self.gap(g) >= margin),
+            key=lambda g: np.abs(g - q0).max() + self._bias(None, g),
         )
         for g in goals:
             if self.seg_ok(q0, g, m0):
                 return [g]
         vias = [v for v in self.grid if self.gap(v) >= margin]
-        cost = lambda v, g: np.abs(v - q0).max() + np.abs(g - v).max()
+        cost = lambda v, g: np.abs(v - q0).max() + np.abs(g - v).max() + self._bias(v, g)
         pairs = sorted(itertools.product(vias, goals), key=lambda p: cost(*p))
         for v, g in pairs:
             if self.seg_ok(q0, v, m0) and self.seg_ok(v, g, margin):

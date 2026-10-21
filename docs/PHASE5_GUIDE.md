@@ -156,7 +156,7 @@ Every task: type hints + short docstrings, a unit test per piece of logic (`@pyt
 - Copy the seed-0 `video.gif` of each task to `docs/media/phase5_<task>.gif` (< 3 MB; if bigger, re-render fewer frames rather than shrinking below a readable size). Log F8.
 
 ### T13: Gate + review
-- `check_phase.py 5 --summary`. On a FAIL, use §7, and count attempts.
+- `check_phase.py 5`. On a FAIL, use §7, and count attempts.
 - One review subagent (model sonnet) with the phase skill's exact prompt for phase 5. Fix (a)–(c), then re-run gates 3, 4 and 5.
 
 ### T14: Report, commit

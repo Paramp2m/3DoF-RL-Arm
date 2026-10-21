@@ -3,6 +3,7 @@
 # Wave 1: 12 SAC jobs x 1 torch thread. Wave 2: 3 SAC jobs alongside 3 sequential PPO jobs (8 workers + main).
 set -u
 cd "$(dirname "$0")/.."
+mkdir -p runs/_logs
 job() {
   uv run python scripts/train.py --config "configs/$1.yaml" --seed "$2" > "runs/_logs/$1-s$2.log" 2>&1 &&
     uv run python scripts/eval.py --run "$(ls -d runs/*_"$1"_s"$2" | tail -1)" >> "runs/_logs/$1-s$2.log" 2>&1

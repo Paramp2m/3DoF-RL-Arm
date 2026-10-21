@@ -25,7 +25,7 @@ Run phase **$0** of docs/ROADMAP.md autonomously. The user judges the outputs, n
 - Log every non-obvious choice in docs/decisions.md as one line.
 
 ## 4. Gate
-- Run `uv run python scripts/check_phase.py $0 --summary`.
+- Run `uv run python scripts/check_phase.py $0`.
 - If a check fails, diagnose it before changing anything.
 - Three genuine attempts at the same failing check without progress means stop. Write the report with the evidence (numbers, curves, what you tried) and ask the user. Never lower a threshold.
 

@@ -11,3 +11,5 @@ MJDATA.TXT
 .claude/unlock
 *.egg-info/
 /User Ref/
+# third-party skill: restore from skills-lock.json, not redistributed here
+.claude/skills/stable-baselines3/

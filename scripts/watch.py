@@ -23,8 +23,8 @@ from rlarm.common import ROOT, apply_threads, load_policy, make_env
 
 
 def latest_run() -> Path:
-    """Most recently modified run folder (skips runs/_dry and runs/_logs)."""
-    runs = [p.parent for p in (ROOT / "runs").glob("*/config.yaml")]
+    """Most recently modified run folder (skips runs/_dry, runs/_logs and imitate runs)."""
+    runs = [p.parent for p in (ROOT / "runs").glob("*/summary.json")]
     if not runs:
         sys.exit("no runs yet: pass --config to watch a random policy")
     return max(runs, key=lambda p: (p / "summary.json").stat().st_mtime)

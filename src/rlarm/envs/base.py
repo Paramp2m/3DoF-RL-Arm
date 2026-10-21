@@ -12,6 +12,7 @@ from rlarm.arm import load_model
 from rlarm.kinematics import L1, L2, H
 
 MODES = ("delta_pos", "abs_pos", "torque", "torque_gravcomp")
+MAX_TRIES = 10_000  # rejection-sampling cap at reset: a config no sample can satisfy raises instead of hanging
 
 
 class ArmGoalEnv(gym.Env):

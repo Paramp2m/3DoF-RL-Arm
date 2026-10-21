@@ -8,7 +8,6 @@ over the second half (one JSON line). Settings: configs/demo.yaml.
 import argparse
 import json
 import os
-import sys
 import time
 from pathlib import Path
 
@@ -16,7 +15,6 @@ import numpy as np
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
 
 
 def target_path(lim: np.ndarray, dt: float, steps: int, script: dict) -> np.ndarray:

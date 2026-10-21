@@ -15,6 +15,7 @@ from rlarm.common import ROOT, early_stop_reason
 interval = int(sys.argv[1]) if len(sys.argv) > 1 else 300
 pattern = sys.argv[2] if len(sys.argv) > 2 else "20*"
 log = ROOT / "runs/_logs/babysit.log"
+log.parent.mkdir(parents=True, exist_ok=True)
 BEHIND = 0.10  # val-score gap to the batch leader that marks a run as not worth its threads
 while True:
     live, rows = 0, []

@@ -5,7 +5,7 @@ from __future__ import annotations
 import mujoco
 import numpy as np
 
-from rlarm.envs.base import ArmGoalEnv
+from rlarm.envs.base import MAX_TRIES, ArmGoalEnv
 
 CUBE_Z = 0.025  # cube centre height (5 cm cube on the floor)
 
@@ -64,11 +64,12 @@ class PushEnv(ArmGoalEnv):
         r, yaw = rng.uniform(*self.cube_r), rng.uniform(-self.cube_yaw, self.cube_yaw)
         self.cube0 = np.array([r * np.cos(yaw), r * np.sin(yaw), CUBE_Z])
         hi = 0.04 + self.difficulty * (self.push_max - 0.04)
-        while True:
+        for _ in range(MAX_TRIES):
             d, a = rng.uniform(0.04, max(hi, 0.0401)), rng.uniform(0, 2 * np.pi)
             g = self.cube0 + np.array([d * np.cos(a), d * np.sin(a), 0.0])
             if self._in_band(g):
                 return g
+        raise RuntimeError(f"no push goal in goal_r after {MAX_TRIES} tries: check cube_r/goal_r")
 
     def _place_task(self) -> None:
         q = (

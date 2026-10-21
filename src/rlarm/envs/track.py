@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from rlarm.envs.base import ArmGoalEnv
+from rlarm.envs.base import MAX_TRIES, ArmGoalEnv
 from rlarm.kinematics import fk, ik
 
 
@@ -58,11 +58,13 @@ class TrackEnv(ArmGoalEnv):
         return None
 
     def _sample_goal(self) -> np.ndarray:
-        while True:
+        for _ in range(MAX_TRIES):
             c = fk(self.np_random.uniform(self.lim[:, 0], self.lim[:, 1]))
             path = self._branch(c)
             if path is not None:
                 break
+        else:
+            raise RuntimeError(f"no reachable circle in {MAX_TRIES} tries: check radius")
         self.centre, self.path = c, path
         self.phi0 = self.np_random.uniform(0, 2 * np.pi)  # the circle is traced from angle phi0
         self.dir = self.np_random.choice([-1.0, 1.0])

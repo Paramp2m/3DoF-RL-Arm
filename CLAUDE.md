@@ -32,7 +32,7 @@ Read only the sections you need. Never read whole logs.
 - Train: `uv run python scripts/train.py --config configs/<name>.yaml`, which writes runs/<run_id>/
 - Eval: `uv run python scripts/eval.py --run runs/<run_id>`, which writes eval.json + video
 - Visual check: `uv run python scripts/render_snapshot.py ...`, which writes a PNG (≤640 px)
-- Phase gate: `uv run python scripts/check_phase.py <N>` (`--summary` gives a compact table)
+- Phase gate: `uv run python scripts/check_phase.py <N>` (one line per check)
 - Live view: `uv run python scripts/watch.py [--run runs/<id>]` (latest checkpoint during training). Claude never runs a GUI directly: always `scripts/claude_gui.sh <cmd...>`, which opens it as a floating, pinned window in the bottom-right corner and gives focus back to the terminal
 
 ## Credit discipline

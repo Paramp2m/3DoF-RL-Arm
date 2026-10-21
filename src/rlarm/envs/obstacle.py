@@ -5,6 +5,7 @@ from __future__ import annotations
 import mujoco
 import numpy as np
 
+from rlarm.envs.base import MAX_TRIES
 from rlarm.envs.reach import ReachEnv
 from rlarm.kinematics import fk, ik
 
@@ -41,6 +42,8 @@ class ObstacleEnv(ReachEnv):
         e = cfg["env"]
         if self.safe and self.mode != "delta_pos":
             raise ValueError("safe_action needs action_mode delta_pos")
+        if (self.residual or e["reward"].get("w_wp")) and not self.obs_wp:
+            raise ValueError("residual_waypoint and w_wp need obs_waypoint: true")
         self.half = np.array(e["box_half"], float)
         self.min_span = e.get("min_span", 0.2)
         self.clearance = e.get("start_clearance", 0.0)  # min gap [m] between arm and box at reset
@@ -125,15 +128,8 @@ class ObstacleEnv(ReachEnv):
         return out
 
     def _arm_gap(self) -> float:
-        """Smallest distance from any arm link to the box (capped at 0.5 m)."""
-        fromto = np.zeros(6)
-        gaps = [
-            mujoco.mj_geomDistance(
-                self.model, self.data, self.model.geom(n).id, self.gid, 0.5, fromto
-            )
-            for n in ("upper_arm", "forearm")
-        ]
-        return min(gaps)
+        """Smallest distance from any arm link to the box (capped at 0.5 m, 0 when touching)."""
+        return min(g for g, _ in self._link_gaps())
 
     def _box_dist(self, p: np.ndarray) -> float:
         """Distance from point p to the box surface (0 inside)."""
@@ -159,7 +155,7 @@ class ObstacleEnv(ReachEnv):
 
     def _place_task(self) -> None:
         q = self.data.qpos[:3].copy()
-        while True:
+        for _ in range(MAX_TRIES):
             tip, goal = fk(q), self.goal
             if np.linalg.norm(goal - tip) >= self.min_span:
                 t = self.np_random.uniform(0.35, 0.65)
@@ -185,6 +181,7 @@ class ObstacleEnv(ReachEnv):
             self.target_q = q.copy()
             self.goal = self._sample_goal()
             self.data.mocap_pos[self.mocap] = self.goal
+        raise RuntimeError(f"no valid obstacle reset in {MAX_TRIES} tries: check the env config")
 
     def _free(self, q: np.ndarray) -> bool:
         self.data.qpos[:3] = q

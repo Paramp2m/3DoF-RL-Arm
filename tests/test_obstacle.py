@@ -1,5 +1,6 @@
 import mujoco
 import numpy as np
+import pytest
 
 from rlarm.agents import IKAgent
 from rlarm.common import ROOT, evaluate_goal, load_config, make_env
@@ -157,3 +158,10 @@ def test_residual_mode_zero_action_follows_planner():
     for _ in range(300):
         e.step(np.zeros(3))
     assert e.wp == len(e.path) - 1
+
+
+def test_waypoint_options_need_obs_waypoint():
+    cfg = load_config(ROOT / "configs/obstacle_g2.yaml")
+    cfg["env"]["obs_waypoint"] = False
+    with pytest.raises(ValueError, match="obs_waypoint"):
+        make_env(cfg)

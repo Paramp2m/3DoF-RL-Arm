@@ -1,6 +1,6 @@
 """Phase gate. Reads artifacts (docs/best_runs.yaml + run folders); never trains.
 
-Usage: check_phase.py <N> [--summary]. One line per check ID with its measured value.
+Usage: check_phase.py <N>. One line per check ID with its measured value.
 """
 
 import argparse
@@ -16,7 +16,6 @@ import numpy as np
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
 RETURN_TARGET, STEP_CAP, DRY_LIMIT_S = -7.0, 300_000, 120.0
 
 
@@ -116,13 +115,6 @@ def c06():
     if threads != cfg_threads or threads == 16:
         missing.append(f"train threads {threads} != config {cfg_threads}")
     return not missing, f"missing={missing or 'none'}"
-
-
-def c07():
-    t = sh("uv", "run", "pytest", "-q")
-    r = sh("uv", "run", "ruff", "check", ".")
-    last = t.stdout.strip().splitlines()[-1] if t.stdout.strip() else "no output"
-    return t.returncode == 0 and r.returncode == 0, f"pytest: {last}; ruff rc={r.returncode}"
 
 
 # ---- Phase 1: arm model and kinematics ----
@@ -486,13 +478,18 @@ def c34():
     )
 
 
-def c35():
-    gifs = {t: ROOT / f"docs/media/phase3_{t}.gif" for t in ("reach", "hold")}
+def _gifs(phase: int, tasks: tuple[str, ...]):
+    """docs/media/phase<N>_<task>.gif are real GIFs, non-empty and under MEDIA_MAX."""
+    gifs = {t: ROOT / f"docs/media/phase{phase}_{t}.gif" for t in tasks}
     sizes = {t: p.stat().st_size for t, p in gifs.items()}
     real = all(p.read_bytes()[:6] in (b"GIF87a", b"GIF89a") for p in gifs.values())
     return real and all(0 < v < MEDIA_MAX for v in sizes.values()), (
         "gif sizes " + ", ".join(f"{t}={v / 1e6:.2f} MB" for t, v in sizes.items())
     )
+
+
+def c35():
+    return _gifs(3, ("reach", "hold"))
 
 
 def c41():
@@ -566,12 +563,7 @@ def c53():
 
 
 def c54():
-    gifs = {t: ROOT / f"docs/media/phase5_{t}.gif" for t in ("track", "obstacle", "push")}
-    sizes = {t: p.stat().st_size for t, p in gifs.items()}
-    real = all(p.read_bytes()[:6] in (b"GIF87a", b"GIF89a") for p in gifs.values())
-    return real and all(0 < v < MEDIA_MAX for v in sizes.values()), (
-        "gif sizes " + ", ".join(f"{t}={v / 1e6:.2f} MB" for t, v in sizes.items())
-    )
+    return _gifs(5, ("track", "obstacle", "push"))
 
 
 def c61():
@@ -630,7 +622,7 @@ def c64():
 
 
 CHECKS = {
-    0: {"0.1": c01, "0.2": c02, "0.3": c03, "0.4": c04, "0.5": c05, "0.6": c06, "0.7": c07},
+    0: {"0.1": c01, "0.2": c02, "0.3": c03, "0.4": c04, "0.5": c05, "0.6": c06, "0.7": c63},
     1: {"1.1": c11, "1.2": c12, "1.3": c13, "1.4": c14, "1.5": c15, "1.6": c16},
     2: {
         "2.1": c21,
@@ -652,7 +644,6 @@ CHECKS = {
 def main() -> int:
     p = argparse.ArgumentParser()
     p.add_argument("phase", type=int)
-    p.add_argument("--summary", action="store_true")
     a = p.parse_args()
     os.environ.setdefault("MUJOCO_GL", "egl")
     results = {}

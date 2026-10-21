@@ -4,6 +4,8 @@ import argparse
 import json
 import os
 import shutil
+import signal
+import sys
 import time
 from datetime import date
 
@@ -158,6 +160,8 @@ def main() -> None:
     p.add_argument("--seed", type=int)
     p.add_argument("--dry-run", action="store_true")
     a = p.parse_args()
+    # `kill <pid>` raises SystemExit, so the except below marks the run crashed instead of running forever
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(143))
     cfg = load_config(a.config)
     if a.seed is not None:
         cfg["seed"] = a.seed
@@ -248,7 +252,7 @@ def main() -> None:
             final = {"return_mean": float(rets.mean()), "return_std": float(rets.std())}
         write("done", total, final)
     except BaseException:
-        write("crashed", model.num_timesteps if "model" in locals() else 0)
+        write("crashed", getattr(locals().get("model"), "num_timesteps", 0))
         raise
     sps = total / (
         time.time() - t0

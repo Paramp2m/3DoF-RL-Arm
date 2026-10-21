@@ -77,6 +77,46 @@ def section(stem: str, exp: dict) -> tuple[str, dict]:
     return "\n".join(md), curves
 
 
+def tasks_section() -> str:
+    """Markdown for the final policy of each task (docs/best_runs.yaml phase3 + phase5)."""
+    best = yaml.safe_load((ROOT / "docs/best_runs.yaml").read_text())
+    rows, seeds, budget, configs = [], {}, {}, {}
+    for task, dirs in {**best["phase3"], **best["phase5"]}.items():
+        runs = [ROOT / d for d in dirs]
+        ev = [json.loads((r / "eval.json").read_text()) for r in runs]
+        cfgs = [yaml.safe_load((r / "config.yaml").read_text()) for r in runs]
+        steps = [json.loads((r / "summary.json").read_text())["steps"] for r in runs]
+        seeds[task] = ", ".join(str(c["seed"]) for c in cfgs)
+        budget[task] = ", ".join(sorted({f"{s:,}" for s in steps}))
+        configs[task] = f"`configs/{cfgs[0]['name']}.yaml`"
+        g = lambda k, ev=ev: [e[k] for e in ev]
+        extra = {
+            "track": f"tracking error {_ms(g('track_err_mm_mean'))} mm",
+            "obstacle": f"collisions {_ms(g('collision_rate'), 100)} %",
+        }.get(task, "")
+        rows.append(
+            f"| {task} | {_ms(g('success_rate'), 100)} | "
+            + ", ".join(f"{v:.0%}" for v in g("success_rate"))
+            + f" | {_ms(g('final_dist_mm_median'))} | {extra} |"
+        )
+    return "\n".join(
+        [
+            "## Final task policies (Phases 3 and 5)",
+            "",
+            "The policy kept for each task (docs/best_runs.yaml); the phase reports explain each.",
+            "",
+            f"Seeds: {_join(seeds)}  ",
+            f"Step budget: {_join(budget)} env steps per run  ",
+            "Configs: " + ", ".join(f"{k} {v}" for k, v in configs.items()),
+            "",
+            "| task | success % (mean ± std over seeds) | success per seed | median final mm | task metric |",
+            "|---|---|---|---|---|",
+            *rows,
+            "",
+        ]
+    )
+
+
 def plot(stem: str, title: str, curves: dict) -> None:
     import matplotlib
 
@@ -120,6 +160,7 @@ def build() -> tuple[str, dict]:
         parts.append(md)
         if curves and len(curves) == len(exp["arms"]):
             figs[stem] = (exp["title"], curves)
+    parts.append(tasks_section())
     return "\n".join(parts), figs
 
 

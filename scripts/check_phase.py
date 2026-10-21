@@ -574,6 +574,60 @@ def c54():
     )
 
 
+def c61():
+    r = sh("uv", "run", "python", "scripts/demo.py", "--headless", "--steps", "2000")
+    if r.returncode:
+        return False, f"demo.py exit {r.returncode}: {r.stderr.strip()[-200:]}"
+    out = json.loads(r.stdout.strip().splitlines()[-1])
+    m = out["mean_dist_mm_second_half"]
+    return out["steps"] == 2000 and m <= 30, (
+        f"{out['steps']} steps, mean tip-target distance in the second half = {m:.1f} mm ({out['run']})"
+    )
+
+
+README_SECTIONS = ("Overview", "Demo", "Results", "How to run", "Project structure")
+
+
+def c62():
+    heads = {
+        ln.lstrip("#").strip()
+        for ln in (ROOT / "README.md").read_text().splitlines()
+        if ln.startswith("#")
+    }
+    miss = [h for h in README_SECTIONS if h not in heads]
+    return not miss, f"missing sections: {miss}" if miss else "all 5 sections present"
+
+
+def c63():
+    t = sh("uv", "run", "pytest", "-q")
+    rf = sh("uv", "run", "ruff", "check", ".")
+    tail = (t.stdout.strip().splitlines() or ["no output"])[-1]
+    return t.returncode == 0 and rf.returncode == 0, (
+        f"pytest: {tail}; ruff: {(rf.stdout.strip().splitlines() or ['?'])[-1]}"
+    )
+
+
+def c64():
+    env = {
+        k: v for k, v in os.environ.items() if k != "VIRTUAL_ENV"
+    }  # don't reuse this checkout's venv
+    head = sh("git", "rev-parse", "--short", "HEAD").stdout.strip()
+    with tempfile.TemporaryDirectory() as d:
+        for cmd in (
+            ["git", "clone", "-q", str(ROOT), d],
+            ["uv", "sync", "-q"],
+            ["uv", "run", "pytest", "-q", "-m", "not slow"],
+        ):
+            r = subprocess.run(cmd, cwd=d, env=env, capture_output=True, text=True, check=False)
+            if r.returncode:
+                return (
+                    False,
+                    f"clone of {head}: `{' '.join(cmd)}` exit {r.returncode}: {(r.stdout + r.stderr).strip()[-200:]}",
+                )
+        tail = r.stdout.strip().splitlines()[-1]
+    return True, f"clone of committed HEAD {head}: uv sync ok, fast tests: {tail}"
+
+
 CHECKS = {
     0: {"0.1": c01, "0.2": c02, "0.3": c03, "0.4": c04, "0.5": c05, "0.6": c06, "0.7": c07},
     1: {"1.1": c11, "1.2": c12, "1.3": c13, "1.4": c14, "1.5": c15, "1.6": c16},
@@ -590,6 +644,7 @@ CHECKS = {
     3: {"3.1": c31, "3.2": c32, "3.3": c33, "3.4": c34, "3.5": c35},
     4: {"4.1": c41, "4.2": c42, "4.3": c43, "4.4": c44},
     5: {"5.1": c51, "5.2": c52, "5.3": c53, "5.4": c54},
+    6: {"6.1": c61, "6.2": c62, "6.3": c63, "6.4": c64},
 }
 
 

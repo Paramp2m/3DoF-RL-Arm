@@ -62,3 +62,19 @@ Configs: RL (reach_final, SAC + HER) `configs/reach_final.yaml`, IK controller `
 |---|---|---|---|---|---|---|
 | RL (reach_final, SAC + HER) | 96.0 ± 0.0 | 96%, 96%, 96% | 5.7 ± 0.2 | 32.5 ± 0.7 | 0.476 ± 0.080 | n/a |
 | IK controller | 100.0 | 100% | 0.0 | 34.0 | 0.017 | n/a |
+
+## Final task policies (Phases 3 and 5)
+
+The policy kept for each task (docs/best_runs.yaml); the phase reports explain each.
+
+Seeds: 0, 1, 2  
+Step budget: reach: 1,000,000; hold: 1,000,000; track: 300,000; push: 1,000,000; obstacle: 400,000, 450,000 env steps per run  
+Configs: reach `configs/reach_final.yaml`, hold `configs/hold_final.yaml`, track `configs/track_smooth.yaml`, push `configs/push_smooth.yaml`, obstacle `configs/obstacle_g2.yaml`
+
+| task | success % (mean ± std over seeds) | success per seed | median final mm | task metric |
+|---|---|---|---|---|
+| reach | 96.0 ± 0.0 | 96%, 96%, 96% | 5.7 ± 0.2 |  |
+| hold | 95.3 ± 2.5 | 93%, 95%, 98% | 5.1 ± 0.4 |  |
+| track | 100.0 ± 0.0 | 100%, 100%, 100% | 3.5 ± 0.4 | tracking error 3.7 ± 0.2 mm |
+| push | 92.7 ± 2.3 | 90%, 94%, 94% | 6.5 ± 2.0 |  |
+| obstacle | 88.7 ± 3.1 | 86%, 88%, 92% | 8.1 ± 0.8 | collisions 1.7 ± 2.1 % |

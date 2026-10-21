@@ -1,0 +1,7 @@
+# Phase 6 demo: a trained hold policy follows the green target (live: you drag it; --headless: scripted).
+run: runs/2026-10-18_hold_final_s2   # best hold seed (98% eval success); best_runs.yaml phase6.demo
+script:                              # --headless target path, a stand-in for a user dragging the target
+  seed: 0
+  max_joint_speed: 0.5   # rad/s along the path in joint space (the arm's limit is max_delta/dt = 1.25)
+  dwell_s: 2.0           # pause at each waypoint, like a user letting go
+gif: {stride: 2, max_frames: 200}    # --gif: every 2nd control step, at most 200 frames (16 s; < 3 MB)

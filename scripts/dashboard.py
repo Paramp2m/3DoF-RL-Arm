@@ -156,6 +156,7 @@ SETTINGS = {  # flattened config key -> plain name; unknown keys show as the raw
 }
 SKIP_DIFF = ("seed", "name", "val.", "dry_", "gif_episodes", "eval_episodes")
 DOCS = [  # (group, title, path); a missing file is left out
+    ("Start here", "README (project overview)", "README.md"),
     ("Start here", "Dashboard guide", "User Ref/GUIDE.md"),
     ("Start here", "First-time setup", "User Ref/SETUP.md"),
     ("Start here", "Phase 5 guide", "docs/PHASE5_GUIDE.md"),
@@ -793,9 +794,13 @@ def roles() -> dict[str, dict]:
     for phase, tasks in best.items():
         for task, dirs in (tasks or {}).items():
             for d in dirs if isinstance(dirs, list) else [dirs]:
-                out.setdefault(Path(d).name, {})["best"] = (
-                    f"Phase {phase.removeprefix('phase')} · {task}"
+                r, role = (
+                    out.setdefault(Path(d).name, {}),
+                    f"Phase {phase.removeprefix('phase')} · {task}",
                 )
+                r["best"] = (
+                    f"{r['best']}, {role}" if "best" in r else role
+                )  # e.g. hold s2 is also the demo
     for stem, exp in experiments().items():
         for arm, spec in exp.get("arms", {}).items():
             c = yread(ROOT / spec["config"]) or {}

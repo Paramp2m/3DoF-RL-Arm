@@ -1,6 +1,6 @@
 # Phase 5: Harder tasks (track, obstacle, push)
 
-**Status:** PASS · **Date:** 2026-10-20 · **Commit:** tag `phase-5-done`
+**Status:** PASS · **Date:** 2026-10-21 · **Commit:** tag `phase-5-done`
 
 ## What was built
 Three env subclasses on a generalised base env (arm DOF sliced, task hooks): **track** (target circling r = 8 cm, T = 8 s), **obstacle** (box across the start→target line, contact-safe action filter, planner waypoint + learned residual), **push** (pusher pad + free 5 cm cube, push-only arm variant with elbow limit −2.2 rad).
@@ -21,6 +21,20 @@ Training tooling: `val.early_stop` (plateau → finalise and keep, stuck → unu
 - obstacle: `obstacle_g2` s0–2, 400–450k steps (plateau stop), ~2.4 h each. **Planner follower alone (zero residual, same filter): 89% success, 3% collisions.** Pure RL best (f1, safe filter): 72% success, 2% collisions (detour episodes 61%, direct 85%).
 - jitter (mean action change once settled): track 0.26 → 0.02, push 0.49 → 0.13 with `w_smooth`.
 
+## Network-only obstacle study (h1–h6, negative result)
+Goal: pass 5.2 with the network alone at test time (no planner, residual or filter); a planner may teach during training. Method: teacher → student → RL. `rlarm.expert.PlannerExpert` (joint-space planner, clearance margin, no filter: 100% success / 1% collisions) → BC + DAgger into the SAC actor (`scripts/imitate.py`) → SAC fine-tune with a decaying BC term (`rlarm.sacbc.SACBC`). Eval: 3 seeds × 100 episodes, same eval seeds as the check; episodes are reset-filtered to planner-solvable ones (`require_plan`, ~1% rejected).
+
+| Variant | Change | Student after imitation | Fine-tuned (3 seeds) |
+|---|---|---|---|
+| h1 | path-following expert | 19% / 27% | not run |
+| h2 | expert replans every step (Markov labels), episodes cut after the goal, 3000 + 6×500 episodes (h1: 1500 + 4×300) | 82% / 17% | 88.0% / 23.3% |
+| h4 | h2, collision weight 20 (was 1) | (h2) | 81.0% / 19.3% |
+| h3 | h2, 3 cm teacher margin, 8 DAgger rounds | 82% / 18% | 84.7% / 14.0% |
+| h5 | h3, fine-tune lr 1e-4 | (h3) | 87.7% / 14.7% |
+| h6 | h2, consistent detour side, net 512×3, 6000 + 8×1000 episodes, lr 1e-4 | 86% / 11% | **89.7% / 11.3%** |
+
+Fine-tuned success reaches 85% in h2, h5 and h6; collisions never got below 11% (target ≤ 5%). Every fine-tune stopped itself on a plateau at 240–300k of 600k steps, with best val scores (success − collisions) of 0.65–0.80, only a little above the imitation start (0.64–0.65 for h2–h5). Collisions are in-transit arm hits, mostly the forearm (14 of 18 in a 100-episode diagnosis of the h3 student): in the 5 steps before a hit the student's action differs from the teacher's by > 1 (max-norm, actions in [−1, 1]) while the gap closes 39 → 2 mm, so the student generalises badly close to the box. A larger margin, a 20× collision penalty and a lower learning rate did not change that. By user decision (2026-10-21), 5.2 keeps the planner-assisted g2 result. The h-runs are documented here only, not in `docs/best_runs.yaml`.
+
 ## Look at this
 - ![](../media/phase5_obstacle.gif) the arm goes round the box without touching it (red box, green target)
 - ![](../media/phase5_push.gif) the round pad pushes the yellow cube onto the green floor marker
@@ -32,7 +46,7 @@ Track and push use SAC (push with HER) and a shaped reward plus an action-smooth
 Obstacle: pure RL learned to avoid touching the box only once a contact-safe filter took collisions off the table (2%), but plateaued at ~72% success because it could not find detours; a joint-space planner gives a collision-free waypoint path, a follower tracks it, and SAC learns a residual correction on top.
 
 ## Decisions made
-30 lines tagged `| 5 |` in [docs/decisions.md](../decisions.md): D-1 push arm variant (elbow −2.2), schema, track design, each obstacle round (a1–a3, b, c, d, e, f, g) with its diagnosis, `w_smooth`, run-triage rules.
+48 lines tagged `| 5 |` in [docs/decisions.md](../decisions.md): D-1 push arm variant (elbow −2.2), schema, track design, each obstacle round (a1–a3, b, c, d, e, f, g, network-only h1–h6) with its diagnosis, `w_smooth`, run-triage rules.
 
 ## Known issues / next
 - **5.2 depends on privileged information.** The planner and the safe filter read the box's true pose from the simulator; the planner alone already passes 5.2 (89% / 3%). The learned residual adds ~0 on average (88.7% / 1.7%). Pure RL without the planner tops out at ~72% success.
@@ -43,3 +57,4 @@ Obstacle: pure RL learned to avoid touching the box only once a contact-safe fil
 - The collision metric was made stricter mid-phase (end-of-step contact refresh); earlier obstacle runs were not re-scored.
 - Push uses a model variant whose forearm can touch the floor (SPEC §2 invariant waived for push only).
 - Pure-RL obstacle with a bigger network was stopped (~27 h at 15 steps/s); a GPU or a longer budget is the next step for it.
+- Network-only obstacle (see the study above) reaches 89.7% / 11.3% at best. The next ideas would be a learned safety critic (a contact predictor that vetoes moves, trained from rollouts) or a policy head that chooses the detour side explicitly.

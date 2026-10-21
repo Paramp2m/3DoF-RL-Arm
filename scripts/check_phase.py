@@ -406,14 +406,9 @@ STEP_LIMIT, MEDIA_MAX = 1_000_000, 3_000_000
 # phase 5: circle r 8 cm / T 8 s (guide D-3, locked before training), push goal within 3 cm, obstacle reach 2 cm)
 TASK_DEF = {
     "track": {"action_mode": "delta_pos", "radius": 0.08, "period": 8.0, "episode_steps": 200},
-    # network-only at test time (user decision 2026-10-20): no planner waypoint, residual or rollback filter
-    "obstacle": {
-        "action_mode": "delta_pos",
-        "success_dist": 0.02,
-        "safe_action": False,
-        "residual_waypoint": 0.0,
-        "obs_waypoint": False,
-    },
+    # test-time helpers (planner waypoint, residual, rollback filter) allowed again (user decision 2026-10-21):
+    # the network-only variant (configs/obstacle_h*) reached 89.7% / 11.3%, see docs/reports/phase-5.md
+    "obstacle": {"action_mode": "delta_pos", "success_dist": 0.02},
     "push": {"action_mode": "delta_pos", "success_dist": 0.03},
     "reach": {"action_mode": "delta_pos", "success_dist": 0.02, "episode_steps": 200},
     "hold": {
@@ -443,10 +438,10 @@ def _evals(task: str, phase: int = 3) -> list[dict]:
         ev = json.loads((run / "eval.json").read_text())
         if cfg["task"] != task or steps > limit or ev["episodes"] != 100:
             raise ValueError(f"{r}: task={cfg['task']} steps={steps} episodes={ev['episodes']}")
-        bad = {  # a pinned "off" value (False / 0) also accepts a missing key (the env default is off)
+        bad = {
             k: cfg["env"].get(k)
             for k, v in TASK_DEF.get(task, {}).items()
-            if cfg["env"].get(k, v if not v else None) != v
+            if cfg["env"].get(k) != v
         }
         if bad:
             raise ValueError(f"{r}: env differs from ROADMAP task definition: {bad}")

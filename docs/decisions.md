@@ -129,3 +129,4 @@ One line per decision: `YYYY-MM-DD | phase | decision | reason`
 2026-10-21 | 6 | 6.4 clones the committed HEAD (local git clone), unsets VIRTUAL_ENV, then uv sync + fast tests | tests what a fresh clone gets, not this checkout's venv or uncommitted files
 2026-10-21 | 6 | results.md gains a generated "Final task policies" section from best_runs.yaml phase3+5 | "final results.md": every task's kept policy in one place, still no hand-typed numbers
 2026-10-21 | 6 | dashboard: all_runs tolerates a missing runs/ (500 on a fresh clone); its tests no longer need real runs (dismiss uses a tmp run folder, run-field asserts hold for every run listed) | 6.4 fresh clone exposed 7 failing dashboard tests
+2026-10-21 | 6 | dashboard process list: its own pid is 'this dashboard' before run/job matching | under check_phase.py (a scripts/ job) pytest's in-process dashboard was filed as that job, failing 6.3

@@ -606,13 +606,15 @@ def procs() -> list[dict]:
         groups: dict[tuple, dict] = {}
         for (pid, start), (name, ticks, rss, _) in now.items():
             r = run_of(pid)
-            if r:
+            if pid == os.getpid():  # first: a dashboard started under a script is still itself
+                key = ("self", "this dashboard")
+            elif r:
                 rd = newest(r[0], r[1]) if r[1] is not None else None
                 key = ("run", rd.name if rd else r[0])
             elif j := job_of(pid):
                 key = ("job", j)
             else:
-                key = ("self", "this dashboard") if pid == os.getpid() else ("app", name)
+                key = ("app", name)
             g = groups.setdefault(
                 key, {"kind": key[0], "name": key[1], "cpu": 0.0, "mem_gb": 0.0, "n": 0}
             )

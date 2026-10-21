@@ -5,7 +5,6 @@
 ## What was built
 - `scripts/demo.py`: live window where you drag the green target and the trained hold policy follows; `--headless` moves the target on a script and prints the mean distance. Settings in `configs/demo.yaml`.
 - `README.md` (overview, demo, results, how to run, project structure) and a generated "Final task policies" section in `docs/results.md`.
-- Fresh-clone fixes: the dashboard no longer crashes without `runs/`, and its tests no longer need real runs.
 
 ## Checks
 | ID | Check | Target | Measured | Result |
@@ -29,7 +28,7 @@
 The demo reuses the hold policy unchanged. Every control step (25 Hz) it reads where the target ball is, writes that into the policy's goal input, and applies the policy's action (a small change of each joint setpoint). The policy was trained on still targets, but since it re-reads the goal every step, a slowly moving target is just a sequence of nearby still targets. It lags a moving target by about a centimetre and closes the gap when the target stops.
 
 ## Decisions made
-See docs/decisions.md, lines dated 2026-10-21 with phase 6: demo policy choice, headless target script, how 6.4 clones, the results.md section, two dashboard fixes.
+See docs/decisions.md, lines dated 2026-10-21 with phase 6: demo policy choice, headless target script, how 6.4 clones, the results.md section. 
 
 ## Known issues / next
 - `runs/` is not in git, so a fresh clone cannot run the demo, eval or the run-reading checks until it trains (the README says so). Shipping one small `model.zip` would fix that.

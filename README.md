@@ -78,7 +78,7 @@ src/rlarm/
   rewards.py      reward terms
   wrappers.py     curriculum, randomisation
   expert.py, sacbc.py, policies.py   obstacle planner, SAC+BC, network parts
-scripts/          train, eval, demo, watch, check_phase, make_results, dashboard, ...
+scripts/          train, eval, demo, watch, check_phase, make_results, ...
 tests/            pytest (slow ones marked)
 docs/             SPEC, ROADMAP, decisions, results, reports/, media/
 runs/             training output (git-ignored)

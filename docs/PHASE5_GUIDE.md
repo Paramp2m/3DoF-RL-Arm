@@ -56,7 +56,7 @@ Push needs a model variant whose arm can reach the floor (F6/F7).
 | D-6 | Obstacle: SAC+HER as in reach_final, plus reward term `collision` (−w_c per step with arm–box contact, read from `info`, so it works with HER `copy_info_dict`). **No termination** on contact. Contacts checked on every physics substep. 250-step episodes. | Keeps the never-terminate env contract. A contact between control steps still counts. |
 | D-7 | Push: SAC+HER (FetchPush recipe). achieved_goal = cube centre, desired_goal = floor marker, `success_dist: 0.03`. Obs extras = cube pos, cube linear velocity, pad→cube vector. Reward = precision/success on cube→goal + `w_reach` pad→cube term (from info). Curriculum on goal distance from the cube (3 cm → full). 250-step episodes. | HER fits push naturally. The pad→cube shaping is goal-independent, so HER stays consistent. |
 | D-8 | Step budgets (the ROADMAP sets no cap for Phase 5): track/obstacle ≤ 1M, push ≤ 3M per run. Pilots at 300k, seed 0. | Wall time ≈ 5 h per 1M at 57 steps/s |
-| D-9 | GIF names: `docs/media/phase5_{track,obstacle,push}.gif`, each < 3 MB, from the seed-0 final run's `video.gif` | Matches the phase3_* naming the dashboard globs |
+| D-9 | GIF names: `docs/media/phase5_{track,obstacle,push}.gif`, each < 3 MB, from the seed-0 final run's `video.gif` | Matches the phase3_* naming |
 | D-10 | Curriculum: `curriculum: {param, start, end, up_at, window}` in YAML. The wrapper raises `env.difficulty` by a step when the rolling success over `window` episodes is ≥ `up_at`. Logged to TensorBoard as `curriculum/difficulty`. | Config-driven, visible in curves, eval unaffected (F9) |
 
 ---
@@ -73,7 +73,7 @@ T0 orient ─ T1 checks (FAIL) ─ T2 env generalisation ─┬─ T3 eval schem
                                                        │
                      T11 finals (3 seeds × 3 tasks) ── T12 eval + best_runs + GIFs
                                                        │
-                     T13 gate + review ── T14 report + dashboard + commit
+                     T13 gate + review ── T14 report + commit
 ```
 Push (highest risk) gets a feasibility test in T9a before anything else is spent on it. Training overlaps with building: launch a pilot, end the turn, and build the next env when it completes.
 
@@ -86,7 +86,6 @@ Every task: type hints + short docstrings, a unit test per piece of logic (`@pyt
 ### T0: Orient (XS)
 - `git tag -f phase-5-start`. Read only the "Known issues" of docs/reports/phase-4.md.
 - Create the task list (T1–T14).
-- **Accept:** the tag exists. The dashboard shows Phase 5 as started.
 
 ### T1: Phase 5 checks first (S)
 - Add `c51`–`c54` to scripts/check_phase.py with the exact IDs and thresholds above, one line each with the measured value (per-seed values like the 3.x lines). Generalise `_evals` to `(phase, task)` (F3); 3.x calls stay unchanged in behaviour.
@@ -103,9 +102,8 @@ Every task: type hints + short docstrings, a unit test per piece of logic (`@pyt
 ### T3: Eval schema + re-eval (M, runs in the background)
 - Extend `EVAL_SCHEMA` and `evaluate_goal` (D-2). The env reports `info["collision"]` only when it has an obstacle.
 - Re-eval in one background shell script (`runs/_logs/phase5_reeval.log`): every run in docs/best_runs.yaml + every `arm_runs` of configs/experiments/. Compare each old eval.json value with the new one; they must match exactly except for the 2 new keys.
-- Dashboard: show the 2 new fields where run metrics are listed (CLAUDE.md rule); update tests/test_dashboard.py if it pins fields.
 - **Accept:** `check_phase.py 3` and `4` PASS; `make_results.py --check` shows no diff; no old metric changed.
-- Files: src/rlarm/common.py, scripts/check_phase.py (if needed), scripts/dashboard.py, tests/test_results.py
+- Files: src/rlarm/common.py, scripts/check_phase.py (if needed), tests/test_results.py
 
 ### T4: Curriculum wrapper (S)
 - `rlarm.wrappers.Curriculum` (D-10), applied in train.py **only** to the training env when `curriculum:` is in the config.
@@ -161,9 +159,8 @@ Every task: type hints + short docstrings, a unit test per piece of logic (`@pyt
 - `check_phase.py 5 --summary`. On a FAIL, use §7, and count attempts.
 - One review subagent (model sonnet) with the phase skill's exact prompt for phase 5. Fix (a)–(c), then re-run gates 3, 4 and 5.
 
-### T14: Report, dashboard, commit
+### T14: Report, commit
 - `docs/reports/phase-5.md`: per-check values per seed; the track radius/speed (D-3); the D-1 outcome; IK baselines vs RL; known issues. Phase 5's media is the 3 GIFs (≤ 3 PNGs optional).
-- Dashboard: Phase 5 text in `PHASES` still accurate? Update it if the time or "what you do" changed. Regenerate docs/results.md (`make_results.py`) as the phase skill requires.
 - Final `check_phase.py 5` in the same turn → commit `phase 5: track, obstacle, push` → `git tag -f phase-5-done`. Never push.
 
 ---

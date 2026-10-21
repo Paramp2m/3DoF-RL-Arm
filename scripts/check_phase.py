@@ -602,6 +602,7 @@ def c63():
     t = sh("uv", "run", "pytest", "-q")
     rf = sh("uv", "run", "ruff", "check", ".")
     tail = (t.stdout.strip().splitlines() or ["no output"])[-1]
+    tail += "".join(f" | {ln}" for ln in t.stdout.splitlines() if ln.startswith("FAILED"))
     return t.returncode == 0 and rf.returncode == 0, (
         f"pytest: {tail}; ruff: {(rf.stdout.strip().splitlines() or ['?'])[-1]}"
     )

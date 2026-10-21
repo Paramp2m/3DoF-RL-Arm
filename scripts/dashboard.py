@@ -778,8 +778,8 @@ def diff(cfg: dict, base: dict) -> list[dict]:
 
 def all_runs() -> list[Path]:
     return sorted(
-        (p for p in RUNS.iterdir() if p.is_dir() and NAME.match(p.name)), key=lambda p: p.name
-    )
+        (p for p in RUNS.glob("*") if p.is_dir() and NAME.match(p.name)), key=lambda p: p.name
+    )  # glob, not iterdir: a fresh clone has no runs/ yet
 
 
 def newest(name: str, seed: int) -> Path | None:

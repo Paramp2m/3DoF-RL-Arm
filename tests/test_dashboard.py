@@ -36,7 +36,9 @@ def test_state_lists_phases_runs_docs_and_unchanged_poll_is_tiny(url):
     assert code == 200 and len(s["phase"]["list"]) == 8
     assert {"runs", "machine", "decisions", "docs", "experiments"} <= s.keys()
     assert all(dashboard.NAME.match(r["id"]) for r in s["runs"])
-    assert {"val_kind", "stopped_early", "usable"} <= s["runs"][0].keys()
+    assert all(
+        {"val_kind", "stopped_early", "usable"} <= r.keys() for r in s["runs"]
+    )  # none in a fresh clone
     assert {"cpu", "cpu_temp", "chip_w", "mem_used", "battery"} <= s["machine"].keys()
     same = json.loads(get(url + "/api/state?v=" + s["v"])[1])
     assert same["same"] and same["v"] == s["v"] and "runs" not in same
@@ -113,7 +115,9 @@ def test_config_diff_names_changed_settings_only():
 
 def test_dismiss_only_takes_real_run_ids(tmp_path, monkeypatch):
     monkeypatch.setattr(dashboard, "DISMISSED", tmp_path / "dismissed.json")
-    rid = next(r.name for r in dashboard.RUNS.iterdir() if dashboard.NAME.match(r.name))
+    rid = "2026-01-01_demo_s0"  # a run folder of our own, so a fresh clone (no runs/) works
+    (tmp_path / rid).mkdir()
+    monkeypatch.setattr(dashboard, "RUNS", tmp_path)
     for bad in (None, [], ["../../etc"], [rid, "2026-01-01_nope_s0"]):
         assert "error" in dashboard.action({"kind": "dismiss", "runs": bad})
     assert "ok" in dashboard.action({"kind": "dismiss", "runs": [rid]})
@@ -144,7 +148,7 @@ def test_phone_via_tailscale_sees_everything_but_cannot_open_laptop_windows(url,
 def test_changed_polls_skip_the_decision_log_the_page_already_has(url):
     s = json.loads(get(url + "/api/state")[1])
     again = json.loads(get(url + f"/api/state?v=stale&dv={s['dv']}")[1])
-    assert "decisions" in s and "decisions" not in again and again["runs"]
+    assert "decisions" in s and "decisions" not in again and "runs" in again
 
 
 def test_laptop_page_data_covers_every_thread_and_names_this_dashboard(url):

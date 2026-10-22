@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>rl-arm: a robot arm that learned five tasks</title>
+<meta name="description" content="A three-joint arm in MuJoCo learns reach, hold, track, obstacle and push with reinforcement learning.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=DM+Sans:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--pad:clamp(72px,9vw,128px);--g:clamp(20px,4vw,56px)}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;font:400 1.0625rem/1.6 'DM Sans',system-ui,sans-serif;background:#e8edf4;color:#3a0f46;-webkit-font-smoothing:antialiased}
+h1,h2,h3{font-family:'Bricolage Grotesque',sans-serif;line-height:1.08;margin:0;letter-spacing:-.01em}
+h1{font-size:clamp(2.4rem,5.6vw,5.2rem)}h2{font-size:clamp(1.9rem,4.2vw,3.6rem);max-width:20ch}h3{font-size:clamp(1.4rem,2.4vw,2rem)}
+p{margin:0}a{color:inherit}img,video{display:block;max-width:100%}
+.w{width:min(1240px,100% - 2*var(--g));margin-inline:auto}
+.sec{background:var(--sbg);color:var(--sink);position:relative;padding:var(--pad) 0;margin-top:-1px}
+.sec+.sec{margin-top:calc(-1 * var(--pad) / 2);padding-top:calc(var(--pad) * 1.5);padding-top:calc(var(--pad) + 60px);-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 60'%3E%3Cpath d='M0 60V30Q60 0 120 30T240 30V60Z'/%3E%3C/svg%3E") top/240px 60px repeat-x,url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100%25' height='100%25'/%3E%3C/svg%3E") 0 59px/100% calc(100% - 59px) no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 60'%3E%3Cpath d='M0 60V30Q60 0 120 30T240 30V60Z'/%3E%3C/svg%3E") top/240px 60px repeat-x,url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100%25' height='100%25'/%3E%3C/svg%3E") 0 59px/100% calc(100% - 59px) no-repeat}
+.c0{--sbg:#e8edf4;--sink:#3a0f46;--acc:#3a0f46}.c1{--sbg:#f6a800;--sink:#3a0f46;--acc:#3a0f46}.c2{--sbg:#3a0f46;--sink:#e8edf4;--acc:#f6a800}.c3{--sbg:#e8edf4;--sink:#3a0f46;--acc:#3a0f46}.c4{--sbg:#f6a800;--sink:#3a0f46;--acc:#3a0f46}.c5{--sbg:#3a0f46;--sink:#e8edf4;--acc:#f6a800}.c6{--sbg:#e8edf4;--sink:#3a0f46;--acc:#3a0f46}
+.btn{display:inline-flex;align-items:center;min-height:52px;padding:0 28px;border-radius:999px;background:var(--acc);color:var(--sbg);font:600 1rem 'DM Sans';border:0;cursor:pointer;text-decoration:none;transition:transform .2s}
+.btn:hover{transform:translateY(-3px) rotate(-2deg)}
+.lnk{font-weight:600;text-underline-offset:5px;text-decoration-thickness:3px}
+:focus-visible{outline:3px solid var(--acc);outline-offset:3px}
+nav{position:absolute;top:0;left:0;right:0;z-index:5}nav .w{display:flex;align-items:center;justify-content:space-between;padding:22px 0;gap:16px;flex-wrap:wrap}
+.brand{font:700 1.3rem 'Bricolage Grotesque';text-decoration:none;background:var(--acc);color:var(--sbg);padding:6px 20px;border-radius:999px}
+nav ul{display:flex;gap:6px;list-style:none;margin:0;padding:0;flex-wrap:wrap}nav li a{display:block;padding:8px 16px;border-radius:999px;text-decoration:none;font-weight:600}nav li a:hover{background:var(--sink);color:var(--sbg)}
+.hero{padding-top:clamp(120px,14vw,170px);padding-bottom:var(--pad);overflow:hidden}
+.hero>.w{display:grid;grid-template-columns:1.15fr .85fr;gap:var(--g);align-items:center}
+.hl p.sub{margin:28px 0 32px;max-width:46ch;font-size:1.2rem}.acts{display:flex;gap:28px;align-items:center;flex-wrap:wrap}
+.hl span.hi{white-space:nowrap;background:var(--acc);color:var(--sbg);padding:0 .22em}
+.dwrap{position:relative;aspect-ratio:1;width:100%;max-width:520px;justify-self:center}
+.demo{position:absolute;inset:11%;overflow:hidden;background:var(--sink)}.demo video{width:100%;height:100%;object-fit:cover}
+.orbit{position:absolute;inset:0;width:100%;height:100%;animation:spin 28s linear infinite;fill:var(--sink);font:700 15px 'Bricolage Grotesque'}
+@keyframes spin{to{transform:rotate(360deg)}}
+.pill{display:inline-flex;gap:14px;align-items:center;margin-top:36px;padding:10px 22px;border-radius:999px;border:3px solid var(--sink);font-weight:700}
+.toywrap{display:grid;grid-template-columns:.8fr 1.2fr;gap:var(--g);align-items:center}.toyhead p{max-width:44ch}
+.toy{display:block;width:100%;height:auto;cursor:crosshair;touch-action:none;background:var(--sink);border-radius:50% 50% 24px 24px / 38% 38% 24px 24px}
+.toy .arm{stroke:var(--sbg);stroke-width:34;stroke-linecap:round;fill:none}.toy .arm2{stroke:var(--acc)}.toy circle.j{fill:var(--sink);stroke:var(--sbg);stroke-width:10}
+.toy .goal{fill:none;stroke:var(--acc);stroke-width:6;stroke-dasharray:4 14;stroke-linecap:round;transform-box:fill-box;transform-origin:center;animation:spin 6s linear infinite}.toy .tip{fill:var(--acc)}.toy .pad{fill:var(--sbg)}
+.status{margin-top:16px;font-weight:600}
+.rings{display:flex;gap:clamp(8px,2vw,24px);justify-content:center;flex-wrap:wrap;margin:44px 0 52px}
+.ring{position:relative;width:clamp(104px,15vw,168px);aspect-ratio:1;border-radius:50%;border:0;background:transparent;color:var(--sink);cursor:pointer;display:grid;place-items:center;align-content:center;font:inherit;animation:bob 4.5s ease-in-out infinite;animation-delay:calc(var(--i) * -.9s);transition:background .25s,color .25s}
+.ring svg{position:absolute;inset:0;width:100%;height:100%;fill:none;stroke-width:9}.ring .t{stroke:var(--sink);opacity:.22}.ring .p{stroke:var(--acc);stroke-linecap:round}
+.ring b{font:700 clamp(1.5rem,3vw,2.3rem) 'Bricolage Grotesque';line-height:1}.ring small{font-size:.5em}.ring span{font-weight:600;font-size:.95rem}
+.ring.on{background:var(--acc);color:var(--sbg)}.ring.on .p{stroke:var(--sbg)}.ring.on .t{stroke:var(--sbg)}
+@keyframes bob{50%{transform:translateY(-12px)}}
+.stage{display:grid;grid-template-columns:.9fr 1.1fr;gap:var(--g);align-items:center}
+.demo2{aspect-ratio:1;overflow:hidden;background:var(--sink);width:min(100%,520px);justify-self:center}.demo2 video{width:100%;height:100%;object-fit:cover}
+.read h3{margin-bottom:12px}.read .big{font:700 clamp(3.2rem,8vw,6.6rem) 'Bricolage Grotesque';line-height:1;margin:22px 0 10px}.read .big small{font:600 1.1rem 'DM Sans'}
+.tabs{display:flex;flex-wrap:wrap;gap:10px;margin:32px 0}.tabs button{min-height:48px;padding:0 22px;border-radius:999px;border:3px solid var(--sink);background:transparent;color:var(--sink);font:600 1rem 'DM Sans';cursor:pointer}.tabs button.on{background:var(--sink);color:var(--sbg)}
+.expgrid{display:grid;grid-template-columns:1fr 1fr;gap:var(--g);align-items:center}
+.bars{display:grid;gap:18px;margin:26px 0}.bar{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 14px;align-items:center}.bar .bl{font-weight:600}.bar .bv{font-weight:700}.bar .bt{grid-column:1/-1;height:26px;border-radius:999px;background:var(--sink);opacity:1;overflow:hidden;display:block;position:relative}
+.bar .bt i{position:absolute;left:3px;top:3px;bottom:3px;width:calc(var(--w) - 6px);min-width:20px;border-radius:999px;background:var(--sbg);transition:width .6s cubic-bezier(.2,.9,.3,1)}.bar.hi .bt i{background:var(--acc)}
+.curve{width:100%;border-radius:48px;background:#fff}.swap .bars,.swap .curve{animation:pop .5s}@keyframes pop{from{opacity:0;transform:scale(.97)}}
+.demo3{width:clamp(140px,18vw,220px);aspect-ratio:1;border-radius:50%;overflow:hidden;background:var(--sink)}.demo3 video{width:100%;height:100%;object-fit:cover}
+.runwrap{display:grid;grid-template-columns:1.2fr .8fr;gap:var(--g);align-items:center}.demo3.big{width:min(100%,380px);justify-self:center}
+.dots{display:flex;flex-wrap:wrap;gap:clamp(12px,2vw,28px);margin:44px 0 40px;justify-content:center}
+.dot{display:grid;place-content:center;text-align:center;border-radius:50%;background:var(--sink);color:var(--sbg);padding:14px;width:clamp(140px,16vw,200px);aspect-ratio:1}.dot:nth-child(even){background:var(--acc);color:var(--sbg);transform:translateY(24px)}
+.dot b{font:700 clamp(1.8rem,3.2vw,2.7rem) 'Bricolage Grotesque';line-height:1}.dot span{font-size:.95rem;margin-top:6px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:var(--g)}.two p+p{margin-top:1em}
+.cmd{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-top:30px}.cmd code{font:600 1.05rem 'DM Sans';padding:14px 26px;border-radius:999px;background:var(--sink);color:var(--sbg);overflow-wrap:anywhere}
+.seg{display:flex;gap:10px;margin-top:28px}.seg button{min-height:44px;padding:0 20px;border-radius:999px;border:3px solid var(--sink);background:transparent;color:var(--sink);font:600 1rem 'DM Sans';cursor:pointer}.seg .on{background:var(--sink);color:var(--sbg)}
+footer .w:first-child{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:var(--g)}footer ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}footer li:first-child{font-weight:700}
+.word{white-space:nowrap;font:700 clamp(3.5rem,16vw,15rem) 'Bricolage Grotesque';line-height:.9;letter-spacing:-.04em;margin-top:56px;text-align:center}
+.legal{margin-top:36px;display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.rv{opacity:1}.js .rv{opacity:0;transform:translateY(26px);transition:opacity .7s,transform .7s}.js .rv.in{opacity:1;transform:none}
+@media (max-width:820px){.hero>.w,.stage,.expgrid,.two,.toywrap,.runwrap,footer .w:first-child{grid-template-columns:1fr}.dwrap{max-width:380px}.dot:nth-child(even){transform:none}.hl p.sub{font-size:1.1rem}nav ul{display:none}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.demo,.demo2{border-radius:60% 40% 55% 45% / 50% 60% 40% 50%;animation:morph 14s ease-in-out infinite alternate}@keyframes morph{50%{border-radius:40% 60% 45% 55% / 60% 40% 60% 40%}100%{border-radius:55% 45% 60% 40% / 45% 55% 45% 55%}}.hl span.hi{border-radius:40% 60% 50% 50%/60% 50% 50% 40%}</style></head><body>
+<header class="sec hero c0" style="padding-bottom:calc(var(--pad) + 40px)">
+ <nav><div class="w"><a class="brand" href="#top">rl-arm</a><ul><li><a href="#toy">Play</a></li><li><a href="#results">Results</a></li><li><a href="#experiments">Experiments</a></li><li><a href="#failed">What failed</a></li><li><a href="#run">Run it</a></li></ul></div></nav>
+ <div class="w" id="top">
+  <div class="hl"><h1>Five tasks, <span class="hi">self‑taught</span></h1>
+   <p class="sub">A three-joint arm in MuJoCo learns to reach, hold, track, avoid a box and push a cube with reinforcement learning. 88.7 to 100% success, three seeds each.</p>
+   <div class="acts"><a class="btn" href="#results">See the results</a><a class="lnk" href="#" data-todo="github-url">GitHub</a></div>
+   <p class="pill">Built by <span data-todo="author">TODO author name</span> · simulation only</p></div>
+  <div class="dwrap"><svg class="orbit" viewBox="0 0 200 200" aria-hidden="true"><defs><path id="ov6" d="M100 100m-90 0a90 90 0 1 1 180 0a90 90 0 1 1-180 0"/></defs><text><textPath href="#ov6" textLength="565">reach · hold · track · avoid · push · reach · hold · track ·</textPath></text></svg>
+   <div class="demo" id="hd"><video muted loop playsinline autoplay poster="media/phase6_demo.jpg" aria-label="The arm follows a gliding target"><source src="media/phase6_demo.mp4" type="video/mp4"><source src="media/phase6_demo.webm" type="video/webm"></video></div></div>
+ </div>
+</header>
+
+<section class="sec c1" id="toy"><div class="w">
+ <div class="toywrap"><div class="toyhead rv"><div><h2>Drag the target</h2><p style="margin-top:20px">A toy, not the policy: this arm is two links solved with closed-form inverse kinematics, running in your browser. The learned policy is in the clips below.</p><p class="status" id="toystat" aria-live="polite"></p></div></div>
+ <svg class="toy rv" id="toysvg" viewBox="0 0 800 480" role="img" aria-label="A two-link arm reaching for a target that follows your pointer">
+  <circle cx="400" cy="450" r="64" class="pad"/><path id="l1" class="arm" d="M0 0"/><path id="l2" class="arm arm2" d="M0 0"/><circle id="j" class="j" r="22"/>
+  <circle id="goal" class="goal" r="26"/><circle id="tip" class="tip" r="14"/></svg>
+ </div>
+</div></section>
+
+<section class="sec c2" id="results"><div class="w">
+ <h2 class="rv">Pick a task, watch it run</h2><p class="rv" style="margin-top:16px;max-width:52ch">Success means the tip ends within 2 cm of the goal. Each ring is the mean over 3 seeds on 100 fixed goals.</p>
+ <div id="ex"><div class="rings" id="rings"></div>
+  <div class="stage"><div class="demo2" id="d2"><video data-vid muted loop playsinline autoplay aria-label="The arm performing the selected task"></video></div>
+   <div class="read"><h3 data-f="name"></h3><p data-f="sentence" style="max-width:36ch"></p><p class="big"><span data-f="success"></span><small>% success <span data-f="std"></span></small></p>
+    <p>Per seed <span data-f="seeds"></span>. Median miss <span data-f="median"></span> mm<span data-f="extra"></span>. Trained <span data-f="steps"></span>.</p></div></div></div>
+</div></section>
+
+<section class="sec c3" id="experiments"><div class="w">
+ <h2 class="rv">Four questions, four experiments</h2>
+ <div id="exps"><div class="tabs"><button data-exp="e1">Action modes</button><button data-exp="e2">SAC or PPO</button><button data-exp="e3">Sparse reward</button><button data-exp="e4">Versus IK</button></div>
+  <div class="expgrid"><div><h3 data-exp-title></h3><p data-exp-q style="margin-top:8px;font-weight:600"></p><div class="bars" data-exp-bars></div><p data-exp-note></p></div>
+   <img class="curve" data-exp-img alt=""></div></div>
+ <p style="margin-top:28px;max-width:60ch">Comparisons use 300k steps, which ranks learning speed, not final skill: every curve was still rising. With 1M steps plain SAC reached 88%.</p>
+</div></section>
+
+<section class="sec c4" id="failed"><div class="w">
+ <h2 class="rv">Where it falls short, plainly</h2>
+ <div class="dots rv"><div class="dot"><b>100%</b><span>closed-form IK, 0 mm, no training</span></div><div class="dot"><b>96%</b><span>learned reach, 5.7 mm median</span></div><div class="dot"><b>89.7%</b><span>best network-only obstacle run</span></div><div class="dot"><b>11.3%</b><span>its collisions, limit was 5%</span></div><div class="dot"><b>1.7%</b><span>collisions of the kept policy</span></div></div>
+ <div class="two"><div class="rv" style="grid-column:1/-1;display:flex;gap:var(--g);align-items:center;flex-wrap:wrap"><div class="demo3"><video muted loop playsinline autoplay poster="media/phase2_ik_reach.jpg" aria-label="The closed-form inverse kinematics baseline reaching"><source src="media/phase2_ik_reach.mp4" type="video/mp4"><source src="media/phase2_ik_reach.webm" type="video/webm"></video></div><div class="demo3"><video muted loop playsinline autoplay poster="media/phase5_obstacle.jpg" aria-label="The kept obstacle policy reaching around a box"><source src="media/phase5_obstacle.mp4" type="video/mp4"><source src="media/phase5_obstacle.webm" type="video/webm"></video></div><p style="flex:1;min-width:240px;font-weight:600">Left: the closed-form baseline. Right: the kept obstacle policy.</p></div><p>Classical inverse kinematics beats the learned policy on plain reaching. It needs no training and is exact. The learned policy lands within four points, and the same method also covers hold, track, obstacle and push.</p>
+ <p>Six network-only attempts at the obstacle task reached 89.7% success but collided 11.3% of the time against a 5% limit. That is reported as a negative result. The kept policy pairs a planner waypoint with a learned residual and a safety filter: 88.7% success, 1.7% collisions.</p></div>
+</div></section>
+
+<section class="sec c5" id="run"><div class="w">
+ <div class="runwrap"><div><h2 class="rv">Run it yourself</h2><p style="margin-top:16px;max-width:50ch">Python 3.12 with uv, CPU only. Every behaviour switch lives in a YAML config, and each run keeps its config, git hash and logs.</p>
+ <div class="seg" role="group" aria-label="Mode"><button class="on" data-cmd="uv run python scripts/demo.py --headless --steps 2000">Headless</button><button data-cmd="uv run python scripts/demo.py">With a window</button></div>
+ <div class="cmd"><code id="cmd">uv run python scripts/demo.py --headless --steps 2000</code><button class="btn" id="copy">Copy command</button></div></div>
+ <div class="demo3 big"><img src="media/phase1_arm.png" alt="The arm model: base yaw, shoulder pitch, elbow pitch" style="width:100%;height:100%;object-fit:cover"></div></div>
+</div></section>
+
+<footer class="sec c6"><div class="w"><div><h3>rl-arm</h3><p style="margin-top:8px;max-width:34ch">A 3-DOF arm learning in MuJoCo. Simulation only.</p></div>
+ <ul><li>Source</li><li><a href="#" data-todo="github-url">GitHub</a></li></ul><ul><li>Contact</li><li><a href="mailto:TODO@example.com" data-todo="email">TODO@example.com</a></li></ul></div>
+ <div class="w"><div class="word" aria-hidden="true">rl-arm</div><div class="legal"><span>Every number comes from the project's generated results file.</span></div></div></footer>
+
+<script src="site.js"></script><script src="fun.js"></script>
+<script>
+rings(document.getElementById("rings")); explorer(document.getElementById("ex")); experiments(document.getElementById("exps"));
+armToy(document.getElementById("toysvg"), document.getElementById("toystat"));
+const cmd=document.getElementById("cmd");document.querySelectorAll("[data-cmd]").forEach(b=>b.addEventListener("click",()=>{document.querySelectorAll("[data-cmd]").forEach(x=>x.classList.toggle("on",x===b));cmd.textContent=b.dataset.cmd}));
+copier(document.getElementById("copy"),()=>cmd.textContent);reveal();
+
+</script></body></html>

@@ -19,7 +19,7 @@ Read only the sections you need. Never read whole logs.
 - Use the `phase` skill procedure for roadmap work, and the `train` skill for any job over ~5 min.
 
 ## Environment
-- Machine: Ryzen 7 8845HS (8 cores/16 threads), Radeon 780M iGPU, CachyOS. No CUDA, so use CPU-only PyTorch.
+- CPU only, no CUDA: use CPU-only PyTorch. Machine-specific notes go in CLAUDE.local.md (git-ignored).
 - Python 3.12 via uv:
   - always run things with `uv run ...`
   - add deps with `uv add` (dev deps: `uv add --dev`)
@@ -33,7 +33,7 @@ Read only the sections you need. Never read whole logs.
 - Eval: `uv run python scripts/eval.py --run runs/<run_id>`, which writes eval.json + video
 - Visual check: `uv run python scripts/render_snapshot.py ...`, which writes a PNG (≤640 px)
 - Phase gate: `uv run python scripts/check_phase.py <N>` (one line per check)
-- Live view: `uv run python scripts/watch.py [--run runs/<id>]` (latest checkpoint during training). Claude never runs a GUI directly: always `scripts/claude_gui.sh <cmd...>`, which opens it as a floating, pinned window in the bottom-right corner and gives focus back to the terminal
+- Live view: `uv run python scripts/watch.py [--run runs/<id>]` (latest checkpoint during training)
 
 ## Credit discipline
 - Scripts print a short summary. Full logs go to files; inspect them with `tail -n` / `grep`.

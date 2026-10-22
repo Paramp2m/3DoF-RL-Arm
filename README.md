@@ -22,7 +22,7 @@ Drag the target and the trained hold policy follows it:
 
 ![demo](docs/media/phase6_demo.gif)
 
-```fish
+```bash
 uv run python scripts/demo.py                       # window: double-click the ball, then Ctrl+right-drag
 uv run python scripts/demo.py --headless --steps 2000   # scripted target, prints the mean tip-target distance
 ```
@@ -54,7 +54,7 @@ PPO at equal budget; HER makes a sparse reward work.
 
 Needs [uv](https://docs.astral.sh/uv/) and Python 3.12. PyTorch is the CPU build.
 
-```fish
+```bash
 uv sync                                                    # install
 uv run pytest -q -m "not slow"                             # fast tests (all: uv run pytest -q)
 uv run python scripts/train.py --config configs/hold_final.yaml --seed 0   # writes runs/<run_id>/

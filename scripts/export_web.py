@@ -1,5 +1,5 @@
 """Export the hold policy's actor (deterministic mean action) as a float32 blob for the website, plus a
-reference rollout the browser build is checked against. Writes website/shared/live/{policy.bin,policy.json,ref.json}."""
+reference rollout the browser build is checked against. Writes website/final/live/{policy.bin,policy.json,ref.json}."""
 
 import json
 from pathlib import Path
@@ -10,7 +10,7 @@ import yaml
 from rlarm.common import load_policy, make_env
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / "website/shared/live"
+OUT = ROOT / "website/final/live"
 run = ROOT / yaml.safe_load((ROOT / "configs/demo.yaml").read_text())["run"]
 cfg = yaml.safe_load((run / "config.yaml").read_text())
 model = load_policy(cfg, run / "model.zip")

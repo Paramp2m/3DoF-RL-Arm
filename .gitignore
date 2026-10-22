@@ -18,3 +18,12 @@ MJDATA.TXT
 # website iteration working files
 website/**/.taste-skill/
 website/.playwright-cli/
+
+# personal, kept locally only
+CLAUDE.local.md
+scripts/claude_gui.sh
+tasks/
+/.playwright-cli/
+website/v[0-9]*/
+website/compare/
+website/shared/

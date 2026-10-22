@@ -5,6 +5,9 @@ import { createSim } from "./armsim.mjs";
 
 export async function initLive({ canvas, status, fallback, roamBtn, randomBtn }) {
   const say = t => { if (status) status.textContent = t; };
+  const fail = why => { console.warn("live demo unavailable:", why); canvas.hidden = true; if (fallback) fallback.hidden = false; say(why); };
+  if (location.protocol === "file:") return fail("Open this page through a web server (python3 -m http.server) so the live demo can load. Showing a recording instead.");
+  const dog = setTimeout(() => { if (!canvas.dataset.ready) say("Still loading the physics engine. It needs WebGL and WebAssembly; if nothing appears, reload or try another browser."); }, 12000);
   try {
     say("Loading the physics engine (10 MB, once)…");
     const here = p => new URL(p, import.meta.url);
@@ -19,21 +22,22 @@ export async function initLive({ canvas, status, fallback, roamBtn, randomBtn })
     const nearest = p => { let b = pts[0], d = 1e9; for (const q of pts) { const k = (q[0] - p[0]) ** 2 + (q[1] - p[1]) ** 2 + (q[2] - p[2]) ** 2; if (k < d) { d = k; b = q; } } return b; };
     const randomGoal = () => sim.fk((Math.random() - .5) * 3, sim.lo[1] + Math.random() * (sim.hi[1] - sim.lo[1]), sim.lo[2] + Math.random() * (sim.hi[2] - sim.lo[2]));
 
-    const scene = new THREE.Scene(); scene.background = new THREE.Color(0x24262d);
+    const scene = new THREE.Scene(); const P = ["a", "b", "c"].map(k => new THREE.Color(canvas.dataset[k] || "#888")), mix = (x, y, t) => x.clone().lerp(y, t);
+    scene.background = P[0].clone();
     const cam = new THREE.PerspectiveCamera(36, 1, 0.05, 10); cam.up.set(0, 0, 1); cam.position.set(0.95, -0.95, 0.6); cam.lookAt(0.17, 0, 0.22);
     scene.add(new THREE.AmbientLight(0xffffff, 1.1)); const sun = new THREE.DirectionalLight(0xffffff, 2.2); sun.position.set(0.6, -0.4, 1.4); scene.add(sun);
     const mat = c => new THREE.MeshStandardMaterial({ color: c, roughness: 0.55, metalness: 0.1 });
     const chk = document.createElement("canvas"); chk.width = chk.height = 256; const g = chk.getContext("2d");
-    for (let i = 0; i < 8; i++) for (let j = 0; j < 8; j++) { g.fillStyle = (i + j) % 2 ? "#5a5d68" : "#43464f"; g.fillRect(i * 32, j * 32, 32, 32); }
+    for (let i = 0; i < 8; i++) for (let j = 0; j < 8; j++) { g.fillStyle = (i + j) % 2 ? "#" + mix(P[0], P[1], 0.32).getHexString() : "#" + mix(P[0], P[1], 0.18).getHexString(); g.fillRect(i * 32, j * 32, 32, 32); }
     const tex = new THREE.CanvasTexture(chk); tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(3, 3); tex.colorSpace = THREE.SRGBColorSpace;
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(3, 3), new THREE.MeshStandardMaterial({ map: tex, roughness: 1 })); scene.add(floor);
-    const column = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.06, 32).rotateX(Math.PI / 2).translate(0, 0, 0.03), mat(0x9aa0ad)); scene.add(column);
+    const column = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.06, 32).rotateX(Math.PI / 2).translate(0, 0, 0.03), mat(mix(P[0], P[2], 0.5))); scene.add(column);
     const link = (len, r, color) => { const grp = new THREE.Group(); grp.add(new THREE.Mesh(new THREE.CapsuleGeometry(r, len, 8, 20).rotateZ(-Math.PI / 2).translate(len / 2, 0, 0), mat(color))); scene.add(grp); return grp; };
-    const housing = new THREE.Mesh(new THREE.SphereGeometry(0.035, 24, 16), mat(0x9aa0ad)); scene.add(housing);
-    const upper = link(0.30, 0.025, 0xeceef2), fore = link(0.25, 0.02, 0xb8bcc7);
-    const tipM = new THREE.Mesh(new THREE.SphereGeometry(0.014, 16, 12), new THREE.MeshBasicMaterial({ color: 0xffffff })); scene.add(tipM);
-    const goalM = new THREE.Mesh(new THREE.SphereGeometry(0.022, 24, 16), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85 })); scene.add(goalM);
-    const halo = new THREE.Mesh(new THREE.RingGeometry(0.03, 0.036, 48), new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, transparent: true, opacity: 0.6 })); scene.add(halo);
+    const housing = new THREE.Mesh(new THREE.SphereGeometry(0.035, 24, 16), mat(mix(P[0], P[2], 0.5))); scene.add(housing);
+    const upper = link(0.30, 0.025, P[2]), fore = link(0.25, 0.02, P[1]);
+    const tipM = new THREE.Mesh(new THREE.SphereGeometry(0.014, 16, 12), new THREE.MeshBasicMaterial({ color: P[2] })); scene.add(tipM);
+    const goalM = new THREE.Mesh(new THREE.SphereGeometry(0.022, 24, 16), new THREE.MeshBasicMaterial({ color: P[1], transparent: true, opacity: 0.95 })); scene.add(goalM);
+    const halo = new THREE.Mesh(new THREE.RingGeometry(0.03, 0.036, 48), new THREE.MeshBasicMaterial({ color: P[2], side: THREE.DoubleSide, transparent: true, opacity: 0.7 })); scene.add(halo);
 
     const pose = (m, body) => { const p = sim.data.xpos, q = sim.data.xquat; m.position.set(p[body * 3], p[body * 3 + 1], p[body * 3 + 2]); m.quaternion.set(q[body * 4 + 1], q[body * 4 + 2], q[body * 4 + 3], q[body * 4]); };
     const draw = () => {
@@ -74,8 +78,8 @@ export async function initLive({ canvas, status, fallback, roamBtn, randomBtn })
       draw();
       if (now - lastTxt > 250) { lastTxt = now; const d = Math.hypot(...sim.tip().map((v, k) => v - sim.goal[k])) * 1000; say(`Tip ${d.toFixed(0)} mm from the target${d < 20 ? ", inside the 2 cm success zone" : ""}`); }
     })(last);
-    canvas.dataset.ready = "1"; canvas.sim = sim; canvas.cam = cam;
+    canvas.dataset.ready = "1"; canvas.sim = sim; canvas.cam = cam; clearTimeout(dog);
   } catch (err) {
-    console.warn("live demo unavailable:", err); canvas.hidden = true; if (fallback) fallback.hidden = false; say("The live demo needs WebGL and WebAssembly. Showing a recording instead.");
+    fail("The live demo could not start (" + (err && err.message || err) + "). Showing a recording instead."); clearTimeout(dog);
   }
 }

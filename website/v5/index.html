@@ -87,7 +87,7 @@ footer .w:first-child{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:var(-
 </header>
 
 <section class="sec gB" id="live"><div class="w livewrap">
- <div><h2 class="rv">Drag the target</h2><p style="margin-top:20px;max-width:42ch">This is not a video. The trained policy and the MuJoCo physics engine run in your browser: grab the ball and the arm chases it, 25 decisions a second, with the same network as the results below. Targets snap to places the arm can reach.</p>
+ <div><h2 class="rv">Drag the target</h2><p style="margin-top:20px;max-width:42ch">This is not a video. The trained policy and the MuJoCo physics engine run in your browser: grab the ball and the arm chases it, 25 decisions a second. It is the hold policy, the best of three seeds (98% eval success). Targets snap to places the arm can reach.</p>
   <p class="status" id="lst" aria-live="polite">Loading the live demo when you scroll here.</p>
   <div class="acts"><button class="btn" id="rnd" type="button">Random target</button><button class="btn alt" id="roam" type="button" aria-pressed="true">Let it roam</button></div></div>
  <div class="venn livebox"><i></i><canvas id="lc" class="tri" aria-label="Live simulation of the arm following the target you drag"></canvas><div class="lfb" id="lfb" hidden><video class="tri" muted loop playsinline autoplay preload="metadata" poster="media/phase6_demo.jpg" ><source src="media/phase6_demo.mp4" type="video/mp4"><source src="media/phase6_demo.webm" type="video/webm"></video></div></div>

@@ -5,15 +5,15 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=DM+Sans:wght@400;600&display=swap" rel="stylesheet">
 <style>
-:root{--A:#3a0f46;--B:#f6a800;--C:#e8edf4;--pad:clamp(72px,9vw,128px);--g:clamp(20px,4vw,56px)}
-*{box-sizing:border-box}html{scroll-behavior:smooth;overflow-x:clip}body{overflow-x:clip}body{margin:0;font:400 1.0625rem/1.6 'DM Sans',system-ui,sans-serif;background:#e8edf4;color:#3a0f46;-webkit-font-smoothing:antialiased}
+:root{--G:#eef1f6;--I:#3a0f46;--X:#f6a800;--Y:#7b4a8a;--T0:var(--A);--T1:var(--A);--T2:var(--A);--A:#3a0f46;--B:#f6a800;--C:#e8edf4;--pad:clamp(72px,9vw,128px);--g:clamp(20px,4vw,56px)}
+*{box-sizing:border-box}html{scroll-behavior:smooth;overflow-x:clip}body{overflow-x:clip}body{margin:0;font:400 1.0625rem/1.6 'DM Sans',system-ui,sans-serif;background:#eef1f6;color:#3a0f46;-webkit-font-smoothing:antialiased}
 h1,h2,h3{font-family:'Bricolage Grotesque',sans-serif;line-height:1.08;margin:0;letter-spacing:-.01em}
 h1{font-size:clamp(2.4rem,5.6vw,5.2rem)}h2{font-size:clamp(1.9rem,4.2vw,3.6rem);max-width:20ch}h3{font-size:clamp(1.4rem,2.4vw,2rem)}
 p{margin:0}a{color:inherit}img,video{display:block;max-width:100%}
 .w{width:min(1240px,100% - 2*var(--g));margin-inline:auto}
 .sec{background:var(--gr);color:var(--i);position:relative;padding:var(--pad) 0;margin-top:-1px}
 .sec+.sec{margin-top:calc(-1 * var(--pad) / 2);padding-top:calc(var(--pad) * 1.5);padding-top:calc(var(--pad) + 60px);-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 60'%3E%3Cpath d='M0 60V30Q60 0 120 30T240 30V60Z'/%3E%3C/svg%3E") top/240px 60px repeat-x,url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100%25' height='100%25'/%3E%3C/svg%3E") 0 59px/100% calc(100% - 59px) no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 60'%3E%3Cpath d='M0 60V30Q60 0 120 30T240 30V60Z'/%3E%3C/svg%3E") top/240px 60px repeat-x,url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100%25' height='100%25'/%3E%3C/svg%3E") 0 59px/100% calc(100% - 59px) no-repeat}
-.gA{--gr:var(--A);--i:var(--C);--x:var(--B);--y:var(--C)}.gB{--gr:var(--B);--i:var(--A);--x:var(--C);--y:var(--A)}.gC{--gr:var(--C);--i:var(--A);--x:var(--B);--y:var(--A)}
+.sec{--i:var(--I);--x:var(--X);--y:var(--Y)}.s0,.s2{--gr:var(--G)}.s1,.s4{--gr:color-mix(in srgb,var(--G) 86%,var(--T0) 14%)}.s3{--gr:color-mix(in srgb,var(--G) 90%,var(--T1) 10%)}.s5{--gr:color-mix(in srgb,var(--G) 88%,var(--T2) 12%)}
 .btn{display:inline-flex;align-items:center;min-height:52px;padding:0 28px;border-radius:999px;background:var(--x);color:var(--A);font:600 1rem 'DM Sans';border:0;cursor:pointer;text-decoration:none;transition:transform .2s}
 .btn:hover{transform:translateY(-3px) rotate(-2deg)}
 .lnk{font-weight:600;text-underline-offset:5px;text-decoration-thickness:3px}
@@ -37,7 +37,7 @@ nav ul{display:flex;gap:6px;list-style:none;margin:0;padding:0;flex-wrap:wrap}na
 .status{margin-top:16px;font-weight:600}
 .rings{display:flex;gap:clamp(8px,2vw,24px);justify-content:center;flex-wrap:wrap;margin:44px 0 52px}
 .ring{position:relative;width:clamp(104px,15vw,168px);aspect-ratio:1;border-radius:50%;border:0;background:transparent;color:var(--i);cursor:pointer;display:grid;place-items:center;align-content:center;font:inherit;animation:bob 4.5s ease-in-out infinite;animation-delay:calc(var(--i) * -.9s);transition:background .25s,color .25s}
-.ring svg{position:absolute;inset:0;width:100%;height:100%;fill:none;stroke-width:9}.ring .t{stroke:var(--y);opacity:.35}.ring .p{stroke:var(--x);stroke-linecap:round}
+.ring svg{position:absolute;inset:0;width:100%;height:100%;fill:none;stroke-width:9}.ring .t{stroke:var(--i);opacity:.18}.ring .p{stroke:var(--x);stroke-linecap:round}
 .ring b{font:700 clamp(1.5rem,3vw,2.3rem) 'Bricolage Grotesque';line-height:1}.ring small{font-size:.5em}.ring span{font-weight:600;font-size:.95rem}
 .ring.on{background:var(--x);color:var(--A)}.ring.on .p,.ring.on .t{stroke:var(--A)}
 @keyframes bob{50%{transform:translateY(-12px)}}
@@ -46,13 +46,13 @@ nav ul{display:flex;gap:6px;list-style:none;margin:0;padding:0;flex-wrap:wrap}na
 .read h3{margin-bottom:12px}.read .big{font:700 clamp(3.2rem,8vw,6.6rem) 'Bricolage Grotesque';line-height:1;margin:22px 0 10px}.read .big small{font:600 1.1rem 'DM Sans'}
 .tabs{display:flex;flex-wrap:wrap;gap:10px;margin:32px 0}.tabs button{min-height:48px;padding:0 22px;border-radius:999px;border:3px solid var(--i);background:transparent;color:var(--i);font:600 1rem 'DM Sans';cursor:pointer}.tabs button.on{background:var(--i);color:var(--gr)}
 .expgrid{display:grid;grid-template-columns:1fr 1fr;gap:var(--g);align-items:center}
-.bars{display:grid;gap:18px;margin:26px 0}.bar{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 14px;align-items:center}.bar .bl{font-weight:600}.bar .bv{font-weight:700}.bar .bt{grid-column:1/-1;height:26px;border-radius:999px;background:var(--i);opacity:1;overflow:hidden;display:block;position:relative}
-.bar .bt i{position:absolute;left:3px;top:3px;bottom:3px;width:calc(var(--w) - 6px);min-width:20px;border-radius:999px;background:var(--gr);transition:width .6s cubic-bezier(.2,.9,.3,1)}.bar.hi .bt i{background:var(--x)}
+.bars{display:grid;gap:18px;margin:26px 0}.bar{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 14px;align-items:center}.bar .bl{font-weight:600}.bar .bv{font-weight:700}.bar .bt{grid-column:1/-1;height:26px;border-radius:999px;background:color-mix(in srgb,var(--i) 14%,var(--gr));opacity:1;overflow:hidden;display:block;position:relative}
+.bar .bt i{position:absolute;left:3px;top:3px;bottom:3px;width:calc(var(--w) - 6px);min-width:20px;border-radius:999px;background:color-mix(in srgb,var(--i) 55%,var(--gr));transition:width .6s cubic-bezier(.2,.9,.3,1)}.bar.hi .bt i{background:var(--x)}
 .curve{width:100%;border-radius:48px;background:#fff}.swap .bars,.swap .curve{animation:pop .5s}@keyframes pop{from{opacity:0;transform:scale(.97)}}
 .demo3{width:clamp(140px,18vw,220px);aspect-ratio:1;border-radius:50%;overflow:hidden;background:var(--i)}.demo3 video{width:100%;height:100%;object-fit:cover}
 .runwrap{display:grid;grid-template-columns:1.2fr .8fr;gap:var(--g);align-items:center}.demo3.big{width:min(100%,380px);justify-self:center}
 .dots{display:flex;flex-wrap:wrap;gap:clamp(12px,2vw,28px);margin:44px 0 40px;justify-content:center}
-.dot{display:grid;place-content:center;text-align:center;border-radius:50%;background:var(--i);color:var(--gr);padding:14px;width:clamp(140px,16vw,200px);aspect-ratio:1}.dot:nth-child(even){background:var(--x);color:var(--gr);transform:translateY(24px)}
+.dot{display:grid;place-content:center;text-align:center;border-radius:50%;padding:14px;width:clamp(140px,16vw,200px);aspect-ratio:1}
 .dot b{font:700 clamp(1.8rem,3.2vw,2.7rem) 'Bricolage Grotesque';line-height:1}.dot span{font-size:.95rem;margin-top:6px}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:var(--g)}.two p+p{margin-top:1em}
 .cmd{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-top:30px}.cmd code{font:600 1.05rem 'DM Sans';padding:14px 26px;border-radius:999px;background:var(--i);color:var(--gr);overflow-wrap:anywhere}
@@ -61,47 +61,44 @@ footer .w:first-child{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:var(-
 .word{white-space:nowrap;font:700 clamp(3.5rem,16vw,15rem) 'Bricolage Grotesque';line-height:.9;letter-spacing:-.04em;margin-top:56px;text-align:center}
 .legal{margin-top:36px;display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
 
-.tri{filter:url(#tri)}
-.venn{position:relative;isolation:isolate}.venn::before,.venn::after,.venn i{content:"";position:absolute;border-radius:50%;z-index:-1;opacity:.9}
-.venn::before{width:62%;aspect-ratio:1;left:-9%;top:-7%;background:var(--x)}.venn::after{width:54%;aspect-ratio:1;right:-8%;bottom:-6%;background:var(--y);mix-blend-mode:var(--mix,normal)}.venn i{width:34%;aspect-ratio:1;right:6%;top:-8%;background:var(--gr);filter:none;mix-blend-mode:difference}
-.gA .venn{--mix:screen}.gB .venn,.gC .venn{--mix:multiply}
+
+.venn{position:relative}.demo,.demo2,.livebox canvas,.demo3{outline:3px solid color-mix(in srgb,var(--x) 45%,transparent);outline-offset:10px}.venn i{display:none}
 .livewrap{display:grid;grid-template-columns:.8fr 1.2fr;gap:var(--g);align-items:center}.livebox{width:100%;aspect-ratio:1.15;max-width:760px;justify-self:center}.livebox canvas{display:block;position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:default}.livebox canvas.grab{cursor:grabbing}.livebox canvas[hidden]{display:none}.lfb{position:absolute;inset:0}.lfb video{width:100%;height:100%;object-fit:cover}
 .status{margin:20px 0 28px;font-weight:700;min-height:3.2em}.btn.alt{background:transparent;color:var(--i);border:3px solid var(--i)}.btn.alt[aria-pressed=true]{background:var(--i);color:var(--gr)}
-.dot{margin-left:calc(-1 * clamp(8px,1.6vw,26px));mix-blend-mode:normal}.dot:nth-child(3n+1){background:var(--x);color:var(--A)}.dot:nth-child(3n+2){background:var(--i);color:var(--gr)}.dot:nth-child(3n){background:var(--y);color:var(--gr);opacity:.95}.dot:nth-child(even){transform:translateY(24px)}.dot:first-child{margin-left:0}
+.dot{margin-left:calc(-1 * clamp(8px,1.6vw,26px));color:var(--i)}.dot:nth-child(3n+1){background:color-mix(in srgb,var(--x) 20%,var(--gr))}.dot:nth-child(3n+2){background:color-mix(in srgb,var(--i) 12%,var(--gr))}.dot:nth-child(3n){background:color-mix(in srgb,var(--y) 14%,var(--gr))}.dot:nth-child(even){transform:translateY(24px)}.dot:first-child{margin-left:0}
 .contact{display:flex;flex-wrap:wrap;gap:14px;margin-top:28px}
 .rv{opacity:1}.js .rv{opacity:0;transform:translateY(26px);transition:opacity .7s,transform .7s}.js .rv.in{opacity:1;transform:none}
 @media (max-width:820px){.hero>.w,.stage,.expgrid,.two,.livewrap,footer .w:first-child{grid-template-columns:1fr}.dwrap{max-width:380px}.dot:nth-child(even){transform:none}.hl p.sub{font-size:1.1rem}nav ul{display:none}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 .demo,.demo2,.livebox canvas{border-radius:60% 40% 55% 45% / 50% 60% 40% 50%;animation:morph 14s ease-in-out infinite alternate}@keyframes morph{50%{border-radius:40% 60% 45% 55% / 60% 40% 60% 40%}100%{border-radius:55% 45% 60% 40% / 45% 55% 45% 55%}}.hl span.hi{border-radius:40% 60% 50% 50%/60% 50% 50% 40%}</style></head><body>
-<svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="tri" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values=".3 .6 .1 0 0 .3 .6 .1 0 0 .3 .6 .1 0 0 0 0 0 1 0"/><feComponentTransfer><feFuncR type="linear" slope="1.5" intercept="-.22"/><feFuncG type="linear" slope="1.5" intercept="-.22"/><feFuncB type="linear" slope="1.5" intercept="-.22"/></feComponentTransfer><feComponentTransfer><feFuncR type="table" tableValues="0.227 0.965 0.910"/><feFuncG type="table" tableValues="0.059 0.659 0.929"/><feFuncB type="table" tableValues="0.275 0.000 0.957"/></feComponentTransfer></filter></svg>
-<header class="sec hero gC" style="padding-bottom:calc(var(--pad) + 40px)">
+<header class="sec hero s0" style="padding-bottom:calc(var(--pad) + 40px)">
  <nav><div class="w"><a class="brand" href="#top">rl-arm</a><ul><li><a href="#live">Play</a></li><li><a href="#results">Results</a></li><li><a href="#experiments">Experiments</a></li><li><a href="#failed">What failed</a></li><li><a href="#contact">Contact</a></li></ul></div></nav>
  <div class="w" id="top">
   <div class="hl"><h1>Five tasks, <span class="hi">self‑taught</span></h1>
    <p class="sub">A three-joint arm in MuJoCo learns to reach, hold, track, avoid a box and push a cube with reinforcement learning. 88.7 to 100% success, three seeds each.</p>
    <div class="acts"><a class="btn" href="#live">Drag the target</a><a class="lnk" href="https://github.com/Paramp2m/3DoF-RL-Arm">GitHub</a></div>
    <p class="pill">Built by Param · simulation only</p></div>
-  <div class="dwrap venn"><i></i><svg class="orbit" viewBox="0 0 200 200" aria-hidden="true"><defs><path id="ov6" d="M100 100m-90 0a90 90 0 1 1 180 0a90 90 0 1 1-180 0"/></defs><text><textPath href="#ov6" textLength="565">reach · hold · track · avoid · push · reach · hold · track ·</textPath></text></svg>
-   <div class="demo" id="hd"><video class="tri" muted loop playsinline autoplay preload="metadata" poster="media/phase3_reach.jpg" aria-label="The arm reaching three random goals"><source src="media/phase3_reach.mp4" type="video/mp4"><source src="media/phase3_reach.webm" type="video/webm"></video></div></div>
+  <div class="dwrap"><svg class="orbit" viewBox="0 0 200 200" aria-hidden="true"><defs><path id="ov6" d="M100 100m-90 0a90 90 0 1 1 180 0a90 90 0 1 1-180 0"/></defs><text><textPath href="#ov6" textLength="565">reach · hold · track · avoid · push · reach · hold · track ·</textPath></text></svg>
+   <div class="demo" id="hd"><video muted loop playsinline autoplay preload="metadata" poster="media/phase3_reach.jpg" aria-label="The arm reaching three random goals"><source src="media/phase3_reach.mp4" type="video/mp4"><source src="media/phase3_reach.webm" type="video/webm"></video></div></div>
  </div>
 </header>
 
-<section class="sec gB" id="live"><div class="w livewrap">
+<section class="sec s1" id="live"><div class="w livewrap">
  <div><h2 class="rv">Drag the target</h2><p style="margin-top:20px;max-width:42ch">This is not a video. The trained policy and the MuJoCo physics engine run in your browser: grab the ball and the arm chases it, 25 decisions a second. It is the hold policy, the best of three seeds (98% eval success). Targets snap to places the arm can reach.</p>
   <p class="status" id="lst" aria-live="polite">Loading the live demo when you scroll here.</p>
   <div class="acts"><button class="btn" id="rnd" type="button">Random target</button><button class="btn alt" id="roam" type="button" aria-pressed="true">Let it roam</button></div></div>
- <div class="venn livebox"><i></i><canvas id="lc" data-a="#3a0f46" data-b="#f6a800" data-c="#e8edf4" aria-label="Live simulation of the arm following the target you drag"></canvas><div class="lfb" id="lfb" hidden><video class="tri" muted loop playsinline autoplay preload="metadata" poster="media/phase6_demo.jpg" ><source src="media/phase6_demo.mp4" type="video/mp4"><source src="media/phase6_demo.webm" type="video/webm"></video></div></div>
+ <div class="venn livebox"><i></i><canvas id="lc" data-a="#3a0f46" data-b="#f6a800" data-c="#e8edf4" aria-label="Live simulation of the arm following the target you drag"></canvas><div class="lfb" id="lfb" hidden><video muted loop playsinline autoplay preload="metadata" poster="media/phase6_demo.jpg" ><source src="media/phase6_demo.mp4" type="video/mp4"><source src="media/phase6_demo.webm" type="video/webm"></video></div></div>
 </div></section>
 
-<section class="sec gA" id="results"><div class="w">
+<section class="sec s2" id="results"><div class="w">
  <h2 class="rv">Pick a task, watch it run</h2><p class="rv" style="margin-top:16px;max-width:52ch">Success means the tip ends within 2 cm of the goal. Each ring is the mean over 3 seeds on 100 fixed goals.</p>
  <div id="ex"><div class="rings" id="rings"></div>
-  <div class="stage"><div class="demo2 venn" id="d2" style="overflow:visible"><i></i><div style="position:absolute;inset:0;border-radius:inherit;overflow:hidden"><video class="tri" data-vid muted loop playsinline autoplay aria-label="The arm performing the selected task"></video></div></div>
+  <div class="stage"><div class="demo2 venn" id="d2" style="overflow:visible"><i></i><div style="position:absolute;inset:0;border-radius:inherit;overflow:hidden"><video data-vid muted loop playsinline autoplay aria-label="The arm performing the selected task"></video></div></div>
    <div class="read"><h3 data-f="name"></h3><p data-f="sentence" style="max-width:36ch"></p><p class="big"><span data-f="success"></span><small>% success <span data-f="std"></span></small></p>
     <p>Per seed <span data-f="seeds"></span>. Median miss <span data-f="median"></span> mm<span data-f="extra"></span>. Trained <span data-f="steps"></span>.</p></div></div></div>
 </div></section>
 
-<section class="sec gC" id="experiments"><div class="w">
+<section class="sec s3" id="experiments"><div class="w">
  <h2 class="rv">Four questions, four experiments</h2>
  <div id="exps"><div class="tabs"><button data-exp="e1">Action modes</button><button data-exp="e2">SAC or PPO</button><button data-exp="e3">Sparse reward</button><button data-exp="e4">Versus IK</button></div>
   <div class="expgrid"><div><h3 data-exp-title></h3><p data-exp-q style="margin-top:8px;font-weight:600"></p><div class="bars" data-exp-bars></div><p data-exp-note></p></div>
@@ -109,15 +106,15 @@ footer .w:first-child{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:var(-
  <p style="margin-top:28px;max-width:60ch">Comparisons use 300k steps, which ranks learning speed, not final skill: every curve was still rising. With 1M steps plain SAC reached 88%.</p>
 </div></section>
 
-<section class="sec gB" id="failed"><div class="w">
+<section class="sec s4" id="failed"><div class="w">
  <h2 class="rv">Where it falls short, plainly</h2>
  <div class="dots rv"><div class="dot"><b>100%</b><span>closed-form IK, 0 mm, no training</span></div><div class="dot"><b>96%</b><span>learned reach, 5.7 mm median</span></div><div class="dot"><b>89.7%</b><span>best network-only obstacle run</span></div><div class="dot"><b>11.3%</b><span>its collisions, limit was 5%</span></div><div class="dot"><b>1.7%</b><span>collisions of the kept policy</span></div></div>
- <div class="two"><div class="rv" style="grid-column:1/-1;display:flex;gap:var(--g);align-items:center;flex-wrap:wrap"><div class="demo3 venn" style="overflow:visible"><i></i><div style="position:absolute;inset:0;border-radius:50%;overflow:hidden"><video class="tri" muted loop playsinline autoplay preload="metadata" poster="media/phase2_ik_reach.jpg" aria-label="The closed-form inverse kinematics baseline reaching"><source src="media/phase2_ik_reach.mp4" type="video/mp4"><source src="media/phase2_ik_reach.webm" type="video/webm"></video></div></div><div class="demo3 venn" style="overflow:visible"><i></i><div style="position:absolute;inset:0;border-radius:50%;overflow:hidden"><video class="tri" muted loop playsinline autoplay preload="metadata" poster="media/phase5_obstacle.jpg" aria-label="The kept obstacle policy reaching around a box"><source src="media/phase5_obstacle.mp4" type="video/mp4"><source src="media/phase5_obstacle.webm" type="video/webm"></video></div></div><p style="flex:1;min-width:240px;font-weight:600">Left: the closed-form baseline. Right: the kept obstacle policy.</p></div>
+ <div class="two"><div class="rv" style="grid-column:1/-1;display:flex;gap:var(--g);align-items:center;flex-wrap:wrap"><div class="demo3 venn" style="overflow:visible"><i></i><div style="position:absolute;inset:0;border-radius:50%;overflow:hidden"><video muted loop playsinline autoplay preload="metadata" poster="media/phase2_ik_reach.jpg" aria-label="The closed-form inverse kinematics baseline reaching"><source src="media/phase2_ik_reach.mp4" type="video/mp4"><source src="media/phase2_ik_reach.webm" type="video/webm"></video></div></div><div class="demo3 venn" style="overflow:visible"><i></i><div style="position:absolute;inset:0;border-radius:50%;overflow:hidden"><video muted loop playsinline autoplay preload="metadata" poster="media/phase5_obstacle.jpg" aria-label="The kept obstacle policy reaching around a box"><source src="media/phase5_obstacle.mp4" type="video/mp4"><source src="media/phase5_obstacle.webm" type="video/webm"></video></div></div><p style="flex:1;min-width:240px;font-weight:600">Left: the closed-form baseline. Right: the kept obstacle policy.</p></div>
  <p>Classical inverse kinematics beats the learned policy on plain reaching. It needs no training and is exact. The learned policy lands within four points, and the same method also covers hold, track, obstacle and push.</p>
  <p>Six network-only attempts at the obstacle task reached 89.7% success but collided 11.3% of the time against a 5% limit. That is reported as a negative result. The kept policy pairs a planner waypoint with a learned residual and a safety filter: 88.7% success, 1.7% collisions.</p></div>
 </div></section>
 
-<footer class="sec gA" id="contact"><div class="w"><div><h2>Let's talk</h2><p style="margin-top:14px;max-width:40ch">Built by Param as a simulation-only project: MuJoCo, Stable-Baselines3, PyTorch on CPU. Code, configs and per-phase reports are public.</p>
+<footer class="sec s5" id="contact"><div class="w"><div><h2>Let's talk</h2><p style="margin-top:14px;max-width:40ch">Built by Param as a simulation-only project: MuJoCo, Stable-Baselines3, PyTorch on CPU. Code, configs and per-phase reports are public.</p>
  <div class="contact"><a class="btn" href="mailto:paramp2m@gmail.com">paramp2m@gmail.com</a><a class="btn alt" href="tel:+918762030987">+91 87620 30987</a><a class="btn alt" href="https://github.com/Paramp2m/3DoF-RL-Arm">GitHub</a></div></div>
  <ul><li>Project</li><li><a href="#live">Live demo</a></li><li><a href="#results">Results</a></li><li><a href="#experiments">Experiments</a></li></ul><ul><li>Elsewhere</li><li><a href="https://github.com/Paramp2m/3DoF-RL-Arm">GitHub repository</a></li></ul></div>
  <div class="w"><div class="word" aria-hidden="true">rl-arm</div></div></footer>

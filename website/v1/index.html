@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>rl-arm: a robot arm that learned five tasks</title>
+<meta name="description" content="A three-joint arm in MuJoCo learns to reach, hold, track, avoid a box and push a cube with reinforcement learning. 88.7 to 100% success, three seeds each.">
+<meta name="theme-color" content="#161c1a">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#161c1a;--surface:#1f2725;--surface2:#273230;--ink:#e3e2da;--muted:#a0a69f;--accent:#9fc7b8;--accent-ink:#161c1a;
+  --paper:#e4e8e3;--paper-ink:#161c1a;--paper-muted:#5d655f;
+  --font:"Work Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --step-small:clamp(.875rem,.85rem + .1vw,.9375rem);--step-body:clamp(1.0625rem,1rem + .25vw,1.1875rem);
+  --step-lead:clamp(1.25rem,1.1rem + .7vw,1.625rem);--step-head:clamp(2rem,1.3rem + 3.2vw,4rem);--step-display:clamp(3.5rem,9vw,8.125rem);
+  --margin:clamp(1rem,2.2vw,2rem);--gap:clamp(1rem,2vw,2rem);--section:clamp(5rem,10vw,10rem);
+  --ease-out:cubic-bezier(.22,1,.36,1);--ease-expo:cubic-bezier(.16,1,.3,1);
+}
+*{box-sizing:border-box;margin:0}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--ink);font:400 var(--step-body)/1.55 var(--font);overflow-x:hidden}
+a{color:inherit}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;text-align:left}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+::selection{background:var(--accent);color:var(--accent-ink)}
+video,img{display:block;max-width:100%}
+.wrap{padding-inline:var(--margin)}
+h1,h2{font-weight:300;letter-spacing:-.035em;line-height:1.02}
+h2{font-size:var(--step-head);max-width:20ch}
+section{padding-block:var(--section)}
+.skip{position:absolute;left:-999px}.skip:focus{left:var(--margin);top:8px;background:var(--accent);color:var(--accent-ink);padding:8px 12px;z-index:9}
+
+/* nav */
+.nav{display:flex;align-items:center;justify-content:space-between;gap:var(--gap);height:72px;padding-inline:var(--margin);position:relative;z-index:3}
+.nav b{font-weight:500;letter-spacing:-.02em;font-size:var(--step-body)}
+.nav ul{display:flex;gap:clamp(1rem,2.4vw,2.2rem);list-style:none;padding:0;font-size:var(--step-small)}
+.nav ul a{text-decoration:none;color:var(--muted);transition:color .18s}.nav ul a:hover{color:var(--ink)}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 24px;background:var(--accent);color:var(--accent-ink);font-weight:500;text-decoration:none;transition:transform .14s var(--ease-out),background .18s}
+.btn:hover{background:#b4d6c9}.btn:active{transform:scale(.97)}
+.lnk{color:var(--ink);text-underline-offset:5px;text-decoration-thickness:1px;transition:color .18s}.lnk:hover{color:var(--accent)}
+@media(max-width:720px){.nav ul{display:none}}
+
+/* hero */
+.hero{padding-block:clamp(2rem,5vw,4.5rem) var(--section);display:grid;grid-template-columns:5fr 7fr;gap:var(--gap);align-items:start}
+.lines{font-size:clamp(2.25rem,3.9vw,3.625rem)}
+.lines .line{display:block;overflow:hidden;padding-bottom:.1em;margin-bottom:-.1em}
+.js .lines [data-line]{display:block;transform:translateY(105%);transition:transform .9s var(--ease-expo);transition-delay:calc(var(--i)*110ms + 120ms)}
+.js.ready .lines [data-line]{transform:none}
+.sub{margin-top:40px;max-width:34ch;font-size:var(--step-lead);line-height:1.4;color:var(--ink)}
+.sub small{display:block;margin-top:18px;font-size:var(--step-small);color:var(--muted)}
+.actions{margin-top:36px;display:flex;align-items:center;gap:28px;flex-wrap:wrap}
+.js .fade{opacity:0;transform:translateY(16px);transition:opacity .8s var(--ease-expo) .55s,transform .8s var(--ease-expo) .55s}
+.js.ready .fade{opacity:1;transform:none}
+.stage{background:var(--surface);padding:20px;display:grid;grid-template-columns:auto minmax(190px,1fr);gap:22px;align-items:end}
+.stage video{width:min(520px,62svh,100%);height:auto;aspect-ratio:1;background:#0e1312;object-fit:cover}
+.stage h2{font-size:var(--step-lead);font-weight:400;letter-spacing:-.01em;line-height:1.2}
+.readout{display:grid;gap:18px}
+.readout div{display:grid;gap:2px}
+.readout dt{color:var(--muted);font-size:var(--step-small)}
+.readout dd{font-size:var(--step-small);color:var(--ink)}
+.readout dd.big{font-size:var(--step-head);font-weight:300;letter-spacing:-.04em;line-height:1;font-variant-numeric:tabular-nums}
+.readout dd.big small{font-size:.32em;letter-spacing:0;margin-left:4px;color:var(--muted)}
+@media(max-width:900px){.hero{grid-template-columns:1fr}.stage{grid-template-columns:1fr}.stage video{width:100%}}
+
+/* statement */
+.statement{padding-block:var(--section)}
+.statement p{max-width:30em;font-size:clamp(1.5rem,2.5vw,2.25rem);line-height:1.22;font-weight:400;letter-spacing:-.02em;margin-inline:auto}
+.statement img{display:inline-block;height:.9em;width:1.15em;object-fit:cover;vertical-align:-.12em;margin-inline:.08em}
+@media(max-width:720px){.statement p{margin-inline:0;font-size:1.5rem}}
+
+/* ledger + preview */
+.work{display:grid;grid-template-columns:5fr 7fr;gap:var(--gap);align-items:start}
+.work h2{grid-column:1/-1;margin-bottom:clamp(2rem,4vw,3.5rem)}
+.ledger{display:grid;gap:4px}
+.row{display:grid;grid-template-columns:1.1fr .9fr .9fr;align-items:center;gap:12px;min-height:60px;padding:0 20px;background:transparent;color:var(--muted);transition:background .18s,color .18s,transform .14s var(--ease-out)}
+.row:hover{color:var(--ink)}.row.on{background:var(--surface);color:var(--ink)}.row:active{transform:scale(.99)}
+.row b{font-weight:500;font-size:var(--step-body)}.row span{font-variant-numeric:tabular-nums;font-size:var(--step-small)}
+.row .num{text-align:right}
+.ledger .head{display:grid;grid-template-columns:1.1fr .9fr .9fr;gap:12px;padding:0 20px 8px;color:var(--muted);font-size:var(--step-small)}
+.ledger .head span:last-child,.ledger .head span:nth-child(3){text-align:right}
+.ledger .head span:nth-child(2){}
+.preview{background:var(--surface);padding:20px;display:grid;grid-template-columns:auto minmax(200px,1fr);gap:22px;align-items:end;position:sticky;top:20px}
+.preview video{width:min(380px,50svh,100%);height:auto;aspect-ratio:1;background:#0e1312;object-fit:cover}
+.preview p.s{font-size:var(--step-body);line-height:1.4;margin-bottom:22px}
+.meter{height:10px;background:var(--bg);margin-top:8px}.meter i{display:block;height:100%;width:var(--w,0);background:var(--accent);transition:width .6s var(--ease-expo)}
+@media(max-width:900px){.work{grid-template-columns:1fr}.preview{position:static;grid-template-columns:1fr}.preview video{width:100%}}
+
+/* experiments */
+.exp{display:grid;grid-template-columns:5fr 7fr;gap:var(--gap);align-items:start}
+.exp h2{grid-column:1/-1;margin-bottom:clamp(2rem,4vw,3.5rem)}
+.names{display:grid;gap:4px;padding-top:6px}
+.names button{font-size:var(--step-head);line-height:1.1;letter-spacing:-.03em;font-weight:300;color:var(--muted);padding:12px 0;transition:color .18s,transform .18s var(--ease-out)}
+.names button:hover{color:var(--ink);transform:translateX(6px)}.names button.on{color:var(--ink)}
+.names p{margin-top:28px;max-width:34ch;color:var(--muted);font-size:var(--step-small)}
+.floor{background:var(--surface);padding:clamp(1rem,3vw,2.5rem)}
+.sheet{background:var(--paper);color:var(--paper-ink);padding:clamp(1.25rem,3vw,2.5rem);max-width:640px}
+.sheet h3{font-size:var(--step-lead);font-weight:500;letter-spacing:-.02em;line-height:1.15}
+.sheet .q{color:var(--paper-muted);margin-top:6px;font-size:var(--step-small)}
+.bars{margin-top:24px;display:grid;gap:12px}
+.bar{display:grid;grid-template-columns:minmax(80px,170px) 1fr auto;gap:12px;align-items:center;font-size:var(--step-small)}
+.bar .bt{height:18px;background:#d3d2c8;display:block}.bar .bt i{display:block;height:100%;width:var(--w);background:#7a857f;transform-origin:left;animation:grow .7s var(--ease-expo) both}
+.bar.hi .bt i{background:#1f5a47}.bar .bv{font-variant-numeric:tabular-nums;font-weight:500;min-width:92px;text-align:right}
+@keyframes grow{from{transform:scaleX(0)}}
+.sheet img{margin-top:24px;width:100%;height:auto;background:#fff}
+.sheet .note{margin-top:20px;font-size:var(--step-small);line-height:1.5}
+.swap .sheet{animation:fadein .24s var(--ease-out)}@keyframes fadein{from{opacity:0;transform:translateY(8px)}}
+@media(max-width:900px){.exp{grid-template-columns:1fr}.names{grid-template-columns:1fr 1fr;gap:4px 16px}.names button{font-size:var(--step-lead)}.names p{display:none}}
+
+/* letter */
+.letter{max-width:540px;margin-inline:auto}
+.letter h2{margin-bottom:36px}
+.letter p{margin-bottom:1.1em}
+.letter mark{background:var(--accent);color:var(--accent-ink);padding:0 .15em}
+.sign{margin-top:40px;font-size:var(--step-lead);font-style:italic}.sign small{display:block;font-style:normal;font-size:var(--step-small);color:var(--muted)}
+.letter-section{padding-block:calc(var(--section)*.9) calc(var(--section)*.4)}
+@media(max-width:720px){.letter{margin-inline:0}}
+
+/* tabs + bands */
+.how{display:grid;grid-template-columns:150px 1fr;gap:16px 40px}
+.how h2{grid-column:1/-1;margin-bottom:clamp(1.5rem,3vw,2.5rem)}
+.tabs{display:grid;gap:6px;align-content:start}
+.tabs button{height:64px;padding:0 18px;background:var(--surface);color:var(--muted);display:flex;align-items:center;transition:background .18s,color .18s,transform .14s var(--ease-out)}
+.tabs button:hover{background:var(--surface2);color:var(--ink)}.tabs button.on{background:var(--ink);color:var(--bg)}.tabs button:active{transform:scale(.98)}
+.bands{display:grid;gap:4px}
+.band{display:grid;grid-template-columns:140px minmax(0,1fr);gap:16px 32px;align-items:center;min-height:84px;padding:16px 24px;background:var(--surface)}
+.band:nth-child(even){background:var(--surface2)}
+.band .k{font-size:var(--step-small);color:var(--muted)}
+.band b{font-weight:500;font-size:var(--step-body);letter-spacing:-.01em;display:block}
+.band span{font-size:var(--step-small);color:var(--muted);display:block;margin-top:2px}
+[hidden]{display:none!important}
+@media(max-width:720px){.how{grid-template-columns:1fr}.tabs{grid-template-columns:repeat(4,1fr);position:sticky;top:0;z-index:2}.tabs button{height:52px;padding:0 8px;justify-content:center;font-size:.875rem}.band{grid-template-columns:1fr;padding:16px}}
+
+/* closing field */
+.close{background:var(--accent);color:var(--accent-ink);min-height:76svh;display:grid;grid-template-columns:5fr 6fr;gap:var(--gap);align-items:end;padding:var(--margin);padding-block:clamp(2rem,5vw,4rem)}
+.close h2{font-size:var(--step-display);line-height:.92;max-width:none}
+.close p{margin-top:24px;max-width:30ch;font-size:var(--step-body)}
+.close .dlg{grid-column:2;align-self:center;justify-self:end;width:min(100%,460px);background:var(--paper);color:var(--paper-ink);padding:24px;display:grid;gap:16px;box-shadow:0 18px 50px rgb(0 0 0/.25)} /* taste-skill-ignore: dialog fragment */
+.dlg h3{font-size:var(--step-lead);font-weight:500;letter-spacing:-.02em}
+.seg{display:grid;grid-template-columns:1fr 1fr;background:#d3d2c8}
+.seg button{height:44px;text-align:center;font-size:var(--step-small);transition:background .18s}.seg button.on{background:var(--paper-ink);color:var(--paper)}
+.dlg pre{background:#161c1a;color:#e3e2da;padding:16px;overflow-x:auto;font:.875rem/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap;word-break:break-all}
+.dlg .btn{background:var(--paper-ink);color:var(--paper)}.dlg .btn:hover{background:#2b3532}
+.dlg small{color:var(--paper-muted);font-size:var(--step-small)}
+@media(max-width:900px){.close{grid-template-columns:1fr;align-items:start}.close .dlg{grid-column:1;justify-self:stretch;align-self:end}}
+
+/* footer tiles */
+footer{padding:8px}
+.tiles{display:grid;grid-template-columns:repeat(12,1fr);gap:8px}
+.tile{background:var(--surface);padding:20px;min-height:220px;display:flex;flex-direction:column;justify-content:space-between}
+.tile p{font-size:var(--step-lead);line-height:1.25;letter-spacing:-.015em;max-width:22ch}.tile small{font-size:var(--step-small);color:var(--muted)}
+.tile ul{list-style:none;padding:0;display:grid;gap:6px}.tile a{text-decoration-thickness:1px;text-underline-offset:4px}
+.t1{grid-column:span 4}.t2{grid-column:span 3}.t3{grid-column:span 2}.t4{grid-column:span 3}
+.t5{grid-column:span 8;background:var(--ink);color:var(--bg);min-height:320px;align-items:center;justify-content:center;font-size:var(--step-display);font-weight:300;letter-spacing:-.05em;line-height:1}
+.t6{grid-column:span 4;background:var(--accent);color:var(--accent-ink);min-height:320px;text-decoration:none;font-size:var(--step-lead);letter-spacing:-.02em;transition:background .18s}
+.t6:hover{background:#b4d6c9}.t6 svg{width:48px;height:48px;align-self:flex-end;transition:transform .3s var(--ease-out)}.t6:hover svg{transform:translate(6px,-6px)}
+@media(max-width:900px){.tiles{grid-template-columns:repeat(2,1fr)}.t1,.t4,.t5,.t6{grid-column:1/-1}.t2,.t3{grid-column:span 1}.t2{min-height:190px}.t3{min-height:190px}.t4{min-height:150px}.t5{min-height:200px}.t6{min-height:260px}.t1{min-height:240px}}
+
+/* entrances */
+.js .rv{opacity:0;transform:translateY(26px);transition:opacity .8s var(--ease-expo),transform .8s var(--ease-expo)}
+.js .rv.in{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){
+  *{animation:none!important;transition-duration:.01ms!important;transition-delay:0s!important}
+  .js .rv,.js .fade{opacity:1;transform:none}.js .lines [data-line]{transform:none}
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#tasks">Skip to the results</a>
+<header class="nav">
+  <b>rl-arm</b>
+  <ul><li><a href="#tasks">Tasks</a></li><li><a href="#experiments">Experiments</a></li><li><a href="#failed">What failed</a></li><li><a href="#method">Method</a></li></ul>
+  <a class="lnk" href="#run">Run it</a>
+</header>
+
+<main>
+<section class="hero wrap" style="padding-top:clamp(2rem,5vw,4.5rem)">
+  <div>
+    <h1 class="lines"><span class="line"><span data-line style="--i:0">An arm that</span></span><span class="line"><span data-line style="--i:1">learned five tasks</span></span></h1>
+    <p class="sub fade">A three-joint arm in MuJoCo learns to reach, hold, track, avoid a box and push a cube with reinforcement learning. 88.7 to 100% success, three seeds each.</p>
+    <p class="actions fade"><a class="btn" href="#tasks">See the results</a><a class="lnk" href="#run">Run the demo</a></p>
+  </div>
+  <div class="stage fade">
+    <video autoplay muted loop playsinline preload="metadata" poster="media/phase6_demo.jpg" aria-label="The arm follows a target as it glides between points" width="640" height="640"><source src="media/phase6_demo.mp4" type="video/mp4"><source src="media/phase6_demo.webm" type="video/webm"></video>
+    <div>
+      <h2>Follows a moving target</h2>
+      <dl class="readout" style="margin-top:20px">
+        <div><dd class="big">14.7<small>mm</small></dd><dt>Mean tip-to-target distance</dt></div>
+        <div><dt>Measured over</dt><dd>second half of 2000 steps, headless, trained hold policy</dd></div>
+      </dl>
+    </div>
+  </div>
+</section>
+
+<section class="statement wrap" aria-label="Summary">
+  <p class="rv">One arm, five jobs, trained with reinforcement learning: reach <img src="media/phase3_reach.jpg" alt="" width="64" height="64" loading="lazy">, hold <img src="media/phase3_hold.jpg" alt="" width="64" height="64" loading="lazy">, track <img src="media/phase5_track.jpg" alt="" width="64" height="64" loading="lazy">, avoid a box <img src="media/phase5_obstacle.jpg" alt="" width="64" height="64" loading="lazy"> and push a cube <img src="media/phase5_push.jpg" alt="" width="64" height="64" loading="lazy">.</p>
+</section>
+
+<section id="tasks" class="work wrap" style="padding-top:0">
+  <h2 class="rv">Five tasks, each with its numbers</h2>
+  <div class="ledger rv" role="group" aria-label="Choose a task">
+    <div class="head" aria-hidden="true"><span>Task</span><span class="num" style="text-align:right">Success</span><span class="num" style="text-align:right">Median miss</span></div>
+    <button class="row" data-task="reach"><b>Reach</b><span class="num">96.0%</span><span class="num">5.7 mm</span></button>
+    <button class="row" data-task="hold"><b>Hold</b><span class="num">95.3%</span><span class="num">5.1 mm</span></button>
+    <button class="row" data-task="track"><b>Track</b><span class="num">100.0%</span><span class="num">3.5 mm</span></button>
+    <button class="row" data-task="obstacle"><b>Obstacle</b><span class="num">88.7%</span><span class="num">8.1 mm</span></button>
+    <button class="row" data-task="push"><b>Push</b><span class="num">92.7%</span><span class="num">6.5 mm</span></button>
+  </div>
+  <div class="preview rv">
+    <video data-vid autoplay muted loop playsinline preload="metadata" poster="media/phase3_reach.jpg" aria-label="Clip of the selected task" width="640" height="640"></video>
+    <div>
+      <p class="s" data-f="sentence">Move the tip to a random goal and stop within 2 cm.</p>
+      <dl class="readout">
+        <div><dd class="big"><span data-f="success">96.0</span><small>%</small></dd><dt>Success over 100 fixed goals</dt><div class="meter"><i data-bar></i></div></div>
+        <div><dt>Per seed</dt><dd data-f="seeds">96%, 96%, 96%</dd></div>
+        <div><dt>Median final distance</dt><dd><span data-f="median">5.7</span> mm <span data-f="extra" style="color:var(--muted)"></span></dd></div>
+        <div><dt>Training</dt><dd data-f="steps">1M steps</dd></div>
+      </dl>
+    </div>
+  </div>
+</section>
+
+<section id="experiments" class="exp wrap" style="padding-top:0">
+  <h2 class="rv">Four experiments, one against a classic</h2>
+  <div class="names rv" role="group" aria-label="Choose an experiment">
+    <button data-exp="e1">Action modes</button>
+    <button data-exp="e2">SAC or PPO</button>
+    <button data-exp="e3">Sparse reward</button>
+    <button data-exp="e4">Versus IK</button>
+    <p>Success on the reach task, 100 fixed goals, mean and spread over three seeds. E1 to E3 use 300k steps: they rank how fast each setup learns, not where it ends.</p>
+  </div>
+  <div class="floor rv">
+    <article class="sheet" aria-live="polite">
+      <h3 data-exp-title>Action modes</h3>
+      <p class="q" data-exp-q></p>
+      <div class="bars" data-exp-bars></div>
+      <img data-exp-img src="" alt="" width="640" height="400" loading="lazy">
+      <p class="note" data-exp-note></p>
+    </article>
+  </div>
+</section>
+
+<section id="failed" class="letter-section wrap">
+  <div class="letter">
+    <h2 class="rv">What did not work</h2>
+    <p class="rv">The obstacle task is where I was most wrong. I assumed the network could learn the detour on its own. I tried six ways, using a planner as teacher, imitation, then reinforcement fine-tuning. The best reached 89.7% success but hit the box in 11.3% of episodes, where the limit was 5%.</p>
+    <p class="rv">So the policy I kept is not purely learned. A planner proposes a waypoint, the network learns a residual and a safety filter blocks contact. It scores 88.7% with 1.7% collisions. <mark>The planner alone scores 89% with 3% collisions</mark>, so the learning adds little there. I would rather say so.</p>
+    <p class="rv">The comparisons are early. At 300k steps every learning curve was still rising, so they rank speed, not the end point. With a 1M step budget, plain SAC on the same reach setup got to 88%.</p>
+    <p class="rv">Closed-form inverse kinematics still beats the learned reach policy: 100% and 0 mm against 96% and 5.7 mm. What the policy shows is that the same training code handled five different tasks.</p>
+    <p class="sign rv">The rl-arm project log<small>from docs/reports/phase-5.md and docs/results.md</small></p>
+  </div>
+</section>
+
+<section id="method" class="how wrap" style="padding-top:0">
+  <h2 class="rv">How it is built<br>and how it was checked</h2>
+  <div class="tabs rv" role="tablist" aria-label="Topics">
+    <button role="tab" data-tab="robot">Robot</button><button role="tab" data-tab="learning">Learning</button><button role="tab" data-tab="method">Method</button><button role="tab" data-tab="process">Process</button>
+  </div>
+  <div class="bands rv">
+    <div data-panel="robot" class="bands">
+      <div class="band"><span class="k">Arm</span><div><b>A three-joint arm of our own</b><span>Base yaw, shoulder pitch and elbow pitch, written as an MJCF model for MuJoCo.</span></div></div>
+      <div class="band"><span class="k">Target</span><div><b>A green ball you can move</b><span>The goal is a mocap ball. Move it in code, or drag it with the mouse in the demo window.</span></div></div>
+      <div class="band"><span class="k">Control</span><div><b>25 steps a second</b><span>Each step the policy nudges every joint's position setpoint by a small amount.</span></div></div>
+    </div>
+    <div data-panel="learning" class="bands" hidden>
+      <div class="band"><span class="k">Observation</span><div><b>What the policy sees</b><span>Sine and cosine of the joint angles, joint speeds, tip position and the target.</span></div></div>
+      <div class="band"><span class="k">Algorithm</span><div><b>SAC with hindsight replay</b><span>Stable-Baselines3, with PPO for the comparison. PyTorch on CPU only, no GPU.</span></div></div>
+      <div class="band"><span class="k">Reward</span><div><b>Every term logged on its own</b><span>Precision, success, settle, joint limits, smoothness and collisions each get a TensorBoard curve.</span></div></div>
+    </div>
+    <div data-panel="method" class="bands" hidden>
+      <div class="band"><span class="k">Configs</span><div><b>Every switch lives in YAML</b><span>Task, action mode, reward weights, physics and algorithm. A new experiment is a new config file.</span></div></div>
+      <div class="band"><span class="k">Runs</span><div><b>Each run keeps its receipts</b><span>Config copy, git hash, TensorBoard logs, model, evaluation results and a video.</span></div></div>
+      <div class="band"><span class="k">Evaluation</span><div><b>Fixed goals, separate validation</b><span>100 evaluation goals. The kept checkpoint is chosen on different validation goals.</span></div></div>
+    </div>
+    <div data-panel="process" class="bands" hidden>
+      <div class="band"><span class="k">Phases</span><div><b>Seven phases, each gated</b><span>A phase closed only when a scripted check passed and a written report existed.</span></div></div>
+      <div class="band"><span class="k">Checks</span><div><b>Targets set before the results</b><span>Thresholds were fixed in the roadmap. A missed target is reported with evidence, not relaxed.</span></div></div>
+      <div class="band"><span class="k">Hardware</span><div><b>One laptop CPU</b><span>A Ryzen 7 8845HS. The longest runs took four to five hours.</span></div></div>
+    </div>
+  </div>
+</section>
+
+<section id="run" class="close">
+  <div>
+    <h2>Run it<br>yourself</h2>
+    <p>Clone the repository, sync the environment and the headless demo prints the tip-to-target distance in about eight seconds.</p>
+  </div>
+  <div class="dlg" data-ui>
+    <h3>Run the demo</h3>
+    <div class="seg" role="group" aria-label="Mode"><button class="on" data-cmd="uv run python scripts/demo.py --headless --steps 2000">Headless</button><button data-cmd="uv run python scripts/demo.py">With a window</button></div>
+    <pre><code id="cmd">uv run python scripts/demo.py --headless --steps 2000</code></pre>
+    <button class="btn" id="copy">Copy command</button>
+    <small>Needs <a href="#" data-todo="github-url">the repository</a> cloned and <code>uv sync</code> run first.</small>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="tiles">
+    <div class="tile t1"><p>Simulation only. Every number on this page comes from the project's generated results file.</p><small>rl-arm, 2026</small></div>
+    <div class="tile t2"><ul><li><a href="#tasks">Tasks</a></li><li><a href="#experiments">Experiments</a></li><li><a href="#failed">What failed</a></li><li><a href="#method">Method</a></li></ul><small>On this page</small></div>
+    <div class="tile t3"><p>CPU only</p><small>No GPU used</small></div>
+    <div class="tile t4"><p><a href="mailto:TODO@example.com" data-todo="email">TODO@example.com</a></p><small>Contact</small></div>
+    <div class="tile t5" aria-hidden="true">rl-arm</div>
+    <a class="tile t6" href="#" data-todo="github-url"><span>Read the code on GitHub</span><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="4" aria-hidden="true"><path d="M12 36 36 12M16 12h20v20"/></svg></a>
+  </div>
+</footer>
+
+<script src="site.js"></script>
+<script>
+explorer(document.querySelector(".work"), "reach");
+experiments(document.querySelector(".exp"));
+// tabs
+const tabs=[...document.querySelectorAll("[data-tab]")];
+function tab(id){tabs.forEach(b=>{const on=b.dataset.tab===id;b.classList.toggle("on",on);b.setAttribute("aria-selected",on)});document.querySelectorAll("[data-panel]").forEach(p=>p.hidden=p.dataset.panel!==id)}
+tabs.forEach(b=>b.addEventListener("click",()=>tab(b.dataset.tab)));tab("robot");
+// run command
+const cmd=document.getElementById("cmd");let cur=cmd.textContent;
+document.querySelectorAll(".seg button").forEach(b=>b.addEventListener("click",()=>{document.querySelectorAll(".seg button").forEach(x=>x.classList.toggle("on",x===b));cur=cmd.textContent=b.dataset.cmd}));
+copier(document.getElementById("copy"),()=>cur);
+reveal();
+requestAnimationFrame(()=>requestAnimationFrame(()=>document.documentElement.classList.add("ready")));
+</script>
+</body>
+</html>

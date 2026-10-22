@@ -13,3 +13,8 @@ MJDATA.TXT
 /User Ref/
 # third-party skill: restore from skills-lock.json, not redistributed here
 .claude/skills/stable-baselines3/
+!website/**/*.mp4
+
+# website iteration working files
+website/**/.taste-skill/
+website/.playwright-cli/

@@ -1,0 +1,1 @@
+{"layers": [[256, 21], [256, 256], [3, 256]], "scale": 30.0, "max_delta": 0.05, "vel_scale": 0.1, "vel_clip": 5.0, "frame_skip": 20, "home": [0.0, 1.0, -0.5]}

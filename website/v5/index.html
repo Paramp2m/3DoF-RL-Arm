@@ -1,98 +1,107 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>rl-arm: a robot arm that learned five tasks</title>
-<meta name="description" content="A three-joint arm in MuJoCo learns reach, hold, track, obstacle and push with reinforcement learning.">
+<meta name="description" content="A three-joint arm in MuJoCo learns reach, hold, track, obstacle and push with reinforcement learning. Drag the target and the trained policy follows it live in your browser.">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
-:root{--pad:clamp(72px,9vw,128px);--g:clamp(20px,4vw,56px)}
-*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;font:400 1.0625rem/1.6 'Manrope',system-ui,sans-serif;background:#07080b;color:#f2f5fa;-webkit-font-smoothing:antialiased}
+:root{--A:#07080b;--B:#1d8cf0;--C:#ff2e93;--pad:clamp(72px,9vw,128px);--g:clamp(20px,4vw,56px)}
+*{box-sizing:border-box}html{scroll-behavior:smooth;overflow-x:clip}body{overflow-x:clip}body{margin:0;font:400 1.0625rem/1.6 'Manrope',system-ui,sans-serif;background:#07080b;color:#ff2e93;-webkit-font-smoothing:antialiased}
 h1,h2,h3{font-family:'Unbounded',sans-serif;line-height:1.08;margin:0;letter-spacing:-.01em}
 h1{font-size:clamp(2.3rem,5.2vw,4.9rem)}h2{font-size:clamp(1.9rem,4.2vw,3.6rem);max-width:20ch}h3{font-size:clamp(1.4rem,2.4vw,2rem)}
 p{margin:0}a{color:inherit}img,video{display:block;max-width:100%}
 .w{width:min(1240px,100% - 2*var(--g));margin-inline:auto}
-.sec{background:var(--sbg);color:var(--sink);position:relative;padding:var(--pad) 0;margin-top:-1px}
+.sec{background:var(--gr);color:var(--i);position:relative;padding:var(--pad) 0;margin-top:-1px}
 .sec+.sec{margin-top:calc(-1 * var(--pad) / 2);padding-top:calc(var(--pad) * 1.5);border-radius:50% 50% 0 0 / 120px 120px 0 0}
-.c0{--sbg:#07080b;--sink:#f2f5fa;--acc:#ff2e93}.c1{--sbg:#3ba4f5;--sink:#07080b;--acc:#07080b}.c2{--sbg:#07080b;--sink:#f2f5fa;--acc:#3ba4f5}.c3{--sbg:#ff2e93;--sink:#07080b;--acc:#07080b}.c4{--sbg:#101722;--sink:#f2f5fa;--acc:#ff2e93}.c5{--sbg:#3ba4f5;--sink:#07080b;--acc:#07080b}.c6{--sbg:#07080b;--sink:#f2f5fa;--acc:#ff2e93}
-.btn{display:inline-flex;align-items:center;min-height:52px;padding:0 28px;border-radius:999px;background:var(--acc);color:var(--sbg);font:600 1rem 'Manrope';border:0;cursor:pointer;text-decoration:none;transition:transform .2s}
+.gA{--gr:var(--A);--i:var(--C);--x:var(--B);--y:var(--C)}.gB{--gr:var(--B);--i:var(--A);--x:var(--C);--y:var(--A)}.gC{--gr:var(--C);--i:var(--A);--x:var(--B);--y:var(--A)}
+.btn{display:inline-flex;align-items:center;min-height:52px;padding:0 28px;border-radius:999px;background:var(--x);color:var(--A);font:600 1rem 'Manrope';border:0;cursor:pointer;text-decoration:none;transition:transform .2s}
 .btn:hover{transform:translateY(-3px) rotate(-2deg)}
 .lnk{font-weight:600;text-underline-offset:5px;text-decoration-thickness:3px}
-:focus-visible{outline:3px solid var(--acc);outline-offset:3px}
+:focus-visible{outline:3px solid var(--x);outline-offset:3px}
 nav{position:absolute;top:0;left:0;right:0;z-index:5}nav .w{display:flex;align-items:center;justify-content:space-between;padding:22px 0;gap:16px;flex-wrap:wrap}
-.brand{font:700 1.3rem 'Unbounded';text-decoration:none;background:var(--acc);color:var(--sbg);padding:6px 20px;border-radius:999px}
-nav ul{display:flex;gap:6px;list-style:none;margin:0;padding:0;flex-wrap:wrap}nav li a{display:block;padding:8px 16px;border-radius:999px;text-decoration:none;font-weight:600}nav li a:hover{background:var(--sink);color:var(--sbg)}
+.brand{font:700 1.3rem 'Unbounded';text-decoration:none;background:var(--x);color:var(--A);padding:6px 20px;border-radius:999px}
+nav ul{display:flex;gap:6px;list-style:none;margin:0;padding:0;flex-wrap:wrap}nav li a{display:block;padding:8px 16px;border-radius:999px;text-decoration:none;font-weight:600}nav li a:hover{background:var(--i);color:var(--gr)}
 .hero{padding-top:clamp(120px,14vw,170px);padding-bottom:var(--pad);overflow:hidden}
 .hero>.w{display:grid;grid-template-columns:1.15fr .85fr;gap:var(--g);align-items:center}
 .hl p.sub{margin:28px 0 32px;max-width:46ch;font-size:1.2rem}.acts{display:flex;gap:28px;align-items:center;flex-wrap:wrap}
-.hl span.hi{white-space:nowrap;background:var(--acc);color:var(--sbg);padding:0 .22em}
+.hl span.hi{white-space:nowrap;background:var(--x);color:var(--A);padding:0 .22em}
 .dwrap{position:relative;aspect-ratio:1;width:100%;max-width:520px;justify-self:center}
-.demo{position:absolute;inset:11%;overflow:hidden;background:var(--sink)}.demo video{width:100%;height:100%;object-fit:cover}
-.orbit{position:absolute;inset:0;width:100%;height:100%;animation:spin 28s linear infinite;fill:var(--sink);font:700 15px 'Unbounded'}
-@keyframes spin{to{transform:rotate(360deg)}}
-.pill{display:inline-flex;gap:14px;align-items:center;margin-top:36px;padding:10px 22px;border-radius:999px;border:3px solid var(--sink);font-weight:700}
+.demo{position:absolute;inset:11%;overflow:hidden;background:var(--i)}.demo video{width:100%;height:100%;object-fit:cover}
+.orbit{position:absolute;inset:0;width:100%;height:100%;animation:spin 28s linear infinite;fill:var(--i);font:700 15px 'Unbounded'}
+@keyframes spin{to{transform:rotate(360deg)}}.orbit text{stroke:var(--gr);stroke-width:5px;paint-order:stroke;stroke-linejoin:round}
+.pill{display:inline-flex;gap:14px;align-items:center;margin-top:36px;padding:10px 22px;border-radius:999px;border:3px solid var(--i);font-weight:700}
 .toywrap{display:grid;grid-template-columns:.8fr 1.2fr;gap:var(--g);align-items:center}.toyhead p{max-width:44ch}
-.toy{display:block;width:100%;height:auto;cursor:crosshair;touch-action:none;background:var(--sink);border-radius:50% 50% 24px 24px / 38% 38% 24px 24px}
-.toy .arm{stroke:var(--sbg);stroke-width:34;stroke-linecap:round;fill:none}.toy .arm2{stroke:var(--acc)}.toy circle.j{fill:var(--sink);stroke:var(--sbg);stroke-width:10}
-.toy .goal{fill:none;stroke:var(--acc);stroke-width:6;stroke-dasharray:4 14;stroke-linecap:round;transform-box:fill-box;transform-origin:center;animation:spin 6s linear infinite}.toy .tip{fill:var(--acc)}.toy .pad{fill:var(--sbg)}
+.toy{display:block;width:100%;height:auto;cursor:crosshair;touch-action:none;background:var(--i);border-radius:50% 50% 24px 24px / 38% 38% 24px 24px}
+.toy .arm{stroke:var(--gr);stroke-width:34;stroke-linecap:round;fill:none}.toy .arm2{stroke:var(--x)}.toy circle.j{fill:var(--i);stroke:var(--gr);stroke-width:10}
+.toy .goal{fill:none;stroke:var(--x);stroke-width:6;stroke-dasharray:4 14;stroke-linecap:round;transform-box:fill-box;transform-origin:center;animation:spin 6s linear infinite}.toy .tip{fill:var(--x)}.toy .pad{fill:var(--gr)}
 .status{margin-top:16px;font-weight:600}
 .rings{display:flex;gap:clamp(8px,2vw,24px);justify-content:center;flex-wrap:wrap;margin:44px 0 52px}
-.ring{position:relative;width:clamp(104px,15vw,168px);aspect-ratio:1;border-radius:50%;border:0;background:transparent;color:var(--sink);cursor:pointer;display:grid;place-items:center;align-content:center;font:inherit;animation:bob 4.5s ease-in-out infinite;animation-delay:calc(var(--i) * -.9s);transition:background .25s,color .25s}
-.ring svg{position:absolute;inset:0;width:100%;height:100%;fill:none;stroke-width:9}.ring .t{stroke:var(--sink);opacity:.22}.ring .p{stroke:var(--acc);stroke-linecap:round}
+.ring{position:relative;width:clamp(104px,15vw,168px);aspect-ratio:1;border-radius:50%;border:0;background:transparent;color:var(--i);cursor:pointer;display:grid;place-items:center;align-content:center;font:inherit;animation:bob 4.5s ease-in-out infinite;animation-delay:calc(var(--i) * -.9s);transition:background .25s,color .25s}
+.ring svg{position:absolute;inset:0;width:100%;height:100%;fill:none;stroke-width:9}.ring .t{stroke:var(--y);opacity:.35}.ring .p{stroke:var(--x);stroke-linecap:round}
 .ring b{font:700 clamp(1.5rem,3vw,2.3rem) 'Unbounded';line-height:1}.ring small{font-size:.5em}.ring span{font-weight:600;font-size:.95rem}
-.ring.on{background:var(--acc);color:var(--sbg)}.ring.on .p{stroke:var(--sbg)}.ring.on .t{stroke:var(--sbg)}
+.ring.on{background:var(--x);color:var(--A)}.ring.on .p,.ring.on .t{stroke:var(--A)}
 @keyframes bob{50%{transform:translateY(-12px)}}
 .stage{display:grid;grid-template-columns:.9fr 1.1fr;gap:var(--g);align-items:center}
-.demo2{aspect-ratio:1;overflow:hidden;background:var(--sink);width:min(100%,520px);justify-self:center}.demo2 video{width:100%;height:100%;object-fit:cover}
+.demo2{aspect-ratio:1;overflow:hidden;background:var(--i);width:min(100%,520px);justify-self:center}.demo2 video{width:100%;height:100%;object-fit:cover}
 .read h3{margin-bottom:12px}.read .big{font:700 clamp(3.2rem,8vw,6.6rem) 'Unbounded';line-height:1;margin:22px 0 10px}.read .big small{font:600 1.1rem 'Manrope'}
-.tabs{display:flex;flex-wrap:wrap;gap:10px;margin:32px 0}.tabs button{min-height:48px;padding:0 22px;border-radius:999px;border:3px solid var(--sink);background:transparent;color:var(--sink);font:600 1rem 'Manrope';cursor:pointer}.tabs button.on{background:var(--sink);color:var(--sbg)}
+.tabs{display:flex;flex-wrap:wrap;gap:10px;margin:32px 0}.tabs button{min-height:48px;padding:0 22px;border-radius:999px;border:3px solid var(--i);background:transparent;color:var(--i);font:600 1rem 'Manrope';cursor:pointer}.tabs button.on{background:var(--i);color:var(--gr)}
 .expgrid{display:grid;grid-template-columns:1fr 1fr;gap:var(--g);align-items:center}
-.bars{display:grid;gap:18px;margin:26px 0}.bar{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 14px;align-items:center}.bar .bl{font-weight:600}.bar .bv{font-weight:700}.bar .bt{grid-column:1/-1;height:26px;border-radius:999px;background:var(--sink);opacity:1;overflow:hidden;display:block;position:relative}
-.bar .bt i{position:absolute;left:3px;top:3px;bottom:3px;width:calc(var(--w) - 6px);min-width:20px;border-radius:999px;background:var(--sbg);transition:width .6s cubic-bezier(.2,.9,.3,1)}.bar.hi .bt i{background:var(--acc)}
+.bars{display:grid;gap:18px;margin:26px 0}.bar{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 14px;align-items:center}.bar .bl{font-weight:600}.bar .bv{font-weight:700}.bar .bt{grid-column:1/-1;height:26px;border-radius:999px;background:var(--i);opacity:1;overflow:hidden;display:block;position:relative}
+.bar .bt i{position:absolute;left:3px;top:3px;bottom:3px;width:calc(var(--w) - 6px);min-width:20px;border-radius:999px;background:var(--gr);transition:width .6s cubic-bezier(.2,.9,.3,1)}.bar.hi .bt i{background:var(--x)}
 .curve{width:100%;border-radius:48px;background:#fff}.swap .bars,.swap .curve{animation:pop .5s}@keyframes pop{from{opacity:0;transform:scale(.97)}}
-.demo3{width:clamp(140px,18vw,220px);aspect-ratio:1;border-radius:50%;overflow:hidden;background:var(--sink)}.demo3 video{width:100%;height:100%;object-fit:cover}
+.demo3{width:clamp(140px,18vw,220px);aspect-ratio:1;border-radius:50%;overflow:hidden;background:var(--i)}.demo3 video{width:100%;height:100%;object-fit:cover}
 .runwrap{display:grid;grid-template-columns:1.2fr .8fr;gap:var(--g);align-items:center}.demo3.big{width:min(100%,380px);justify-self:center}
 .dots{display:flex;flex-wrap:wrap;gap:clamp(12px,2vw,28px);margin:44px 0 40px;justify-content:center}
-.dot{display:grid;place-content:center;text-align:center;border-radius:50%;background:var(--sink);color:var(--sbg);padding:14px;width:clamp(140px,16vw,200px);aspect-ratio:1}.dot:nth-child(even){background:var(--acc);color:var(--sbg);transform:translateY(24px)}
+.dot{display:grid;place-content:center;text-align:center;border-radius:50%;background:var(--i);color:var(--gr);padding:14px;width:clamp(140px,16vw,200px);aspect-ratio:1}.dot:nth-child(even){background:var(--x);color:var(--gr);transform:translateY(24px)}
 .dot b{font:700 clamp(1.8rem,3.2vw,2.7rem) 'Unbounded';line-height:1}.dot span{font-size:.95rem;margin-top:6px}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:var(--g)}.two p+p{margin-top:1em}
-.cmd{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-top:30px}.cmd code{font:600 1.05rem 'Manrope';padding:14px 26px;border-radius:999px;background:var(--sink);color:var(--sbg);overflow-wrap:anywhere}
-.seg{display:flex;gap:10px;margin-top:28px}.seg button{min-height:44px;padding:0 20px;border-radius:999px;border:3px solid var(--sink);background:transparent;color:var(--sink);font:600 1rem 'Manrope';cursor:pointer}.seg .on{background:var(--sink);color:var(--sbg)}
+.cmd{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-top:30px}.cmd code{font:600 1.05rem 'Manrope';padding:14px 26px;border-radius:999px;background:var(--i);color:var(--gr);overflow-wrap:anywhere}
+.seg{display:flex;gap:10px;margin-top:28px}.seg button{min-height:44px;padding:0 20px;border-radius:999px;border:3px solid var(--i);background:transparent;color:var(--i);font:600 1rem 'Manrope';cursor:pointer}.seg .on{background:var(--i);color:var(--gr)}
 footer .w:first-child{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:var(--g)}footer ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}footer li:first-child{font-weight:700}
 .word{white-space:nowrap;font:700 clamp(3.5rem,16vw,15rem) 'Unbounded';line-height:.9;letter-spacing:-.04em;margin-top:56px;text-align:center}
 .legal{margin-top:36px;display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
+
+.tri{filter:url(#tri)}
+.venn{position:relative;isolation:isolate}.venn::before,.venn::after,.venn i{content:"";position:absolute;border-radius:50%;z-index:-1;opacity:.9}
+.venn::before{width:62%;aspect-ratio:1;left:-9%;top:-7%;background:var(--x)}.venn::after{width:54%;aspect-ratio:1;right:-8%;bottom:-6%;background:var(--y);mix-blend-mode:var(--mix,normal)}.venn i{width:34%;aspect-ratio:1;right:6%;top:-8%;background:var(--gr);filter:none;mix-blend-mode:difference}
+.gA .venn{--mix:screen}.gB .venn,.gC .venn{--mix:multiply}
+.livewrap{display:grid;grid-template-columns:.8fr 1.2fr;gap:var(--g);align-items:center}.livebox{width:100%;aspect-ratio:1.15;max-width:760px;justify-self:center}.livebox canvas{display:block;width:100%;height:100%;touch-action:none;cursor:default}.livebox canvas.grab{cursor:grabbing}.lfb{position:absolute;inset:0}.lfb video{width:100%;height:100%;object-fit:cover}
+.status{margin:20px 0 28px;font-weight:700;min-height:3.2em}.btn.alt{background:transparent;color:var(--i);border:3px solid var(--i)}.btn.alt[aria-pressed=true]{background:var(--i);color:var(--gr)}
+.dot{margin-left:calc(-1 * clamp(8px,1.6vw,26px));mix-blend-mode:normal}.dot:nth-child(3n+1){background:var(--x);color:var(--A)}.dot:nth-child(3n+2){background:var(--i);color:var(--gr)}.dot:nth-child(3n){background:var(--y);color:var(--gr);opacity:.95}.dot:nth-child(even){transform:translateY(24px)}.dot:first-child{margin-left:0}
+.contact{display:flex;flex-wrap:wrap;gap:14px;margin-top:28px}
 .rv{opacity:1}.js .rv{opacity:0;transform:translateY(26px);transition:opacity .7s,transform .7s}.js .rv.in{opacity:1;transform:none}
-@media (max-width:820px){.hero>.w,.stage,.expgrid,.two,.toywrap,.runwrap,footer .w:first-child{grid-template-columns:1fr}.dwrap{max-width:380px}.dot:nth-child(even){transform:none}.hl p.sub{font-size:1.1rem}nav ul{display:none}}
+@media (max-width:820px){.hero>.w,.stage,.expgrid,.two,.livewrap,footer .w:first-child{grid-template-columns:1fr}.dwrap{max-width:380px}.dot:nth-child(even){transform:none}.hl p.sub{font-size:1.1rem}nav ul{display:none}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
-.demo{border-radius:50%}.demo2{border-radius:50%}.hl span.hi{border-radius:999px}</style></head><body>
-<header class="sec hero c0" style="padding-bottom:calc(var(--pad) + 40px)">
- <nav><div class="w"><a class="brand" href="#top">rl-arm</a><ul><li><a href="#toy">Play</a></li><li><a href="#results">Results</a></li><li><a href="#experiments">Experiments</a></li><li><a href="#failed">What failed</a></li><li><a href="#run">Run it</a></li></ul></div></nav>
+.demo,.demo2,.livebox canvas,.livebox{border-radius:50%}.hl span.hi{border-radius:999px}</style></head><body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="tri" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values=".3 .6 .1 0 0 .3 .6 .1 0 0 .3 .6 .1 0 0 0 0 0 1 0"/><feComponentTransfer><feFuncR type="linear" slope="1.5" intercept="-.22"/><feFuncG type="linear" slope="1.5" intercept="-.22"/><feFuncB type="linear" slope="1.5" intercept="-.22"/></feComponentTransfer><feComponentTransfer><feFuncR type="table" tableValues="0.027 0.114 1.000"/><feFuncG type="table" tableValues="0.031 0.549 0.180"/><feFuncB type="table" tableValues="0.043 0.941 0.576"/></feComponentTransfer></filter></svg>
+<header class="sec hero gA" style="padding-bottom:calc(var(--pad) + 40px)">
+ <nav><div class="w"><a class="brand" href="#top">rl-arm</a><ul><li><a href="#live">Play</a></li><li><a href="#results">Results</a></li><li><a href="#experiments">Experiments</a></li><li><a href="#failed">What failed</a></li><li><a href="#contact">Contact</a></li></ul></div></nav>
  <div class="w" id="top">
   <div class="hl"><h1>Five tasks, <span class="hi">self‑taught</span></h1>
    <p class="sub">A three-joint arm in MuJoCo learns to reach, hold, track, avoid a box and push a cube with reinforcement learning. 88.7 to 100% success, three seeds each.</p>
-   <div class="acts"><a class="btn" href="#results">See the results</a><a class="lnk" href="#" data-todo="github-url">GitHub</a></div>
-   <p class="pill">Built by <span data-todo="author">TODO author name</span> · simulation only</p></div>
-  <div class="dwrap"><svg class="orbit" viewBox="0 0 200 200" aria-hidden="true"><defs><path id="ov5" d="M100 100m-90 0a90 90 0 1 1 180 0a90 90 0 1 1-180 0"/></defs><text><textPath href="#ov5" textLength="565">reach · hold · track · avoid · push · reach · hold · track ·</textPath></text></svg>
-   <div class="demo" id="hd"><video muted loop playsinline autoplay poster="media/phase6_demo.jpg" aria-label="The arm follows a gliding target"><source src="media/phase6_demo.mp4" type="video/mp4"><source src="media/phase6_demo.webm" type="video/webm"></video></div></div>
+   <div class="acts"><a class="btn" href="#live">Drag the target</a><a class="lnk" href="https://github.com/Paramp2m/3DoF-RL-Arm">GitHub</a></div>
+   <p class="pill">Built by Param · simulation only</p></div>
+  <div class="dwrap venn"><i></i><svg class="orbit" viewBox="0 0 200 200" aria-hidden="true"><defs><path id="ov5" d="M100 100m-90 0a90 90 0 1 1 180 0a90 90 0 1 1-180 0"/></defs><text><textPath href="#ov5" textLength="565">reach · hold · track · avoid · push · reach · hold · track ·</textPath></text></svg>
+   <div class="demo" id="hd"><video class="tri" muted loop playsinline autoplay preload="metadata" poster="media/phase3_reach.jpg" aria-label="The arm reaching three random goals"><source src="media/phase3_reach.mp4" type="video/mp4"><source src="media/phase3_reach.webm" type="video/webm"></video></div></div>
  </div>
 </header>
 
-<section class="sec c1" id="toy"><div class="w">
- <div class="toywrap"><div class="toyhead rv"><div><h2>Drag the target</h2><p style="margin-top:20px">A toy, not the policy: this arm is two links solved with closed-form inverse kinematics, running in your browser. The learned policy is in the clips below.</p><p class="status" id="toystat" aria-live="polite"></p></div></div>
- <svg class="toy rv" id="toysvg" viewBox="0 0 800 480" role="img" aria-label="A two-link arm reaching for a target that follows your pointer">
-  <circle cx="400" cy="450" r="64" class="pad"/><path id="l1" class="arm" d="M0 0"/><path id="l2" class="arm arm2" d="M0 0"/><circle id="j" class="j" r="22"/>
-  <circle id="goal" class="goal" r="26"/><circle id="tip" class="tip" r="14"/></svg>
- </div>
+<section class="sec gB" id="live"><div class="w livewrap">
+ <div><h2 class="rv">Drag the target</h2><p style="margin-top:20px;max-width:42ch">This is not a video. The trained policy and the MuJoCo physics engine run in your browser: grab the ball and the arm chases it, 25 decisions a second, with the same network as the results below. Targets snap to places the arm can reach.</p>
+  <p class="status" id="lst" aria-live="polite">Loading the live demo when you scroll here.</p>
+  <div class="acts"><button class="btn" id="rnd" type="button">Random target</button><button class="btn alt" id="roam" type="button" aria-pressed="true">Let it roam</button></div></div>
+ <div class="venn livebox"><i></i><canvas id="lc" class="tri" aria-label="Live simulation of the arm following the target you drag"></canvas><div class="lfb" id="lfb" hidden><video class="tri" muted loop playsinline autoplay preload="metadata" poster="media/phase6_demo.jpg" ><source src="media/phase6_demo.mp4" type="video/mp4"><source src="media/phase6_demo.webm" type="video/webm"></video></div></div>
 </div></section>
 
-<section class="sec c2" id="results"><div class="w">
+<section class="sec gA" id="results"><div class="w">
  <h2 class="rv">Pick a task, watch it run</h2><p class="rv" style="margin-top:16px;max-width:52ch">Success means the tip ends within 2 cm of the goal. Each ring is the mean over 3 seeds on 100 fixed goals.</p>
  <div id="ex"><div class="rings" id="rings"></div>
-  <div class="stage"><div class="demo2" id="d2"><video data-vid muted loop playsinline autoplay aria-label="The arm performing the selected task"></video></div>
+  <div class="stage"><div class="demo2 venn" id="d2" style="overflow:visible"><i></i><div style="position:absolute;inset:0;border-radius:inherit;overflow:hidden"><video class="tri" data-vid muted loop playsinline autoplay aria-label="The arm performing the selected task"></video></div></div>
    <div class="read"><h3 data-f="name"></h3><p data-f="sentence" style="max-width:36ch"></p><p class="big"><span data-f="success"></span><small>% success <span data-f="std"></span></small></p>
     <p>Per seed <span data-f="seeds"></span>. Median miss <span data-f="median"></span> mm<span data-f="extra"></span>. Trained <span data-f="steps"></span>.</p></div></div></div>
 </div></section>
 
-<section class="sec c3" id="experiments"><div class="w">
+<section class="sec gC" id="experiments"><div class="w">
  <h2 class="rv">Four questions, four experiments</h2>
  <div id="exps"><div class="tabs"><button data-exp="e1">Action modes</button><button data-exp="e2">SAC or PPO</button><button data-exp="e3">Sparse reward</button><button data-exp="e4">Versus IK</button></div>
   <div class="expgrid"><div><h3 data-exp-title></h3><p data-exp-q style="margin-top:8px;font-weight:600"></p><div class="bars" data-exp-bars></div><p data-exp-note></p></div>
@@ -100,29 +109,27 @@ footer .w:first-child{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:var(-
  <p style="margin-top:28px;max-width:60ch">Comparisons use 300k steps, which ranks learning speed, not final skill: every curve was still rising. With 1M steps plain SAC reached 88%.</p>
 </div></section>
 
-<section class="sec c4" id="failed"><div class="w">
+<section class="sec gA" id="failed"><div class="w">
  <h2 class="rv">Where it falls short, plainly</h2>
  <div class="dots rv"><div class="dot"><b>100%</b><span>closed-form IK, 0 mm, no training</span></div><div class="dot"><b>96%</b><span>learned reach, 5.7 mm median</span></div><div class="dot"><b>89.7%</b><span>best network-only obstacle run</span></div><div class="dot"><b>11.3%</b><span>its collisions, limit was 5%</span></div><div class="dot"><b>1.7%</b><span>collisions of the kept policy</span></div></div>
- <div class="two"><div class="rv" style="grid-column:1/-1;display:flex;gap:var(--g);align-items:center;flex-wrap:wrap"><div class="demo3"><video muted loop playsinline autoplay poster="media/phase2_ik_reach.jpg" aria-label="The closed-form inverse kinematics baseline reaching"><source src="media/phase2_ik_reach.mp4" type="video/mp4"><source src="media/phase2_ik_reach.webm" type="video/webm"></video></div><div class="demo3"><video muted loop playsinline autoplay poster="media/phase5_obstacle.jpg" aria-label="The kept obstacle policy reaching around a box"><source src="media/phase5_obstacle.mp4" type="video/mp4"><source src="media/phase5_obstacle.webm" type="video/webm"></video></div><p style="flex:1;min-width:240px;font-weight:600">Left: the closed-form baseline. Right: the kept obstacle policy.</p></div><p>Classical inverse kinematics beats the learned policy on plain reaching. It needs no training and is exact. The learned policy lands within four points, and the same method also covers hold, track, obstacle and push.</p>
+ <div class="two"><div class="rv" style="grid-column:1/-1;display:flex;gap:var(--g);align-items:center;flex-wrap:wrap"><div class="demo3 venn" style="overflow:visible"><i></i><div style="position:absolute;inset:0;border-radius:50%;overflow:hidden"><video class="tri" muted loop playsinline autoplay preload="metadata" poster="media/phase2_ik_reach.jpg" aria-label="The closed-form inverse kinematics baseline reaching"><source src="media/phase2_ik_reach.mp4" type="video/mp4"><source src="media/phase2_ik_reach.webm" type="video/webm"></video></div></div><div class="demo3 venn" style="overflow:visible"><i></i><div style="position:absolute;inset:0;border-radius:50%;overflow:hidden"><video class="tri" muted loop playsinline autoplay preload="metadata" poster="media/phase5_obstacle.jpg" aria-label="The kept obstacle policy reaching around a box"><source src="media/phase5_obstacle.mp4" type="video/mp4"><source src="media/phase5_obstacle.webm" type="video/webm"></video></div></div><p style="flex:1;min-width:240px;font-weight:600">Left: the closed-form baseline. Right: the kept obstacle policy.</p></div>
+ <p>Classical inverse kinematics beats the learned policy on plain reaching. It needs no training and is exact. The learned policy lands within four points, and the same method also covers hold, track, obstacle and push.</p>
  <p>Six network-only attempts at the obstacle task reached 89.7% success but collided 11.3% of the time against a 5% limit. That is reported as a negative result. The kept policy pairs a planner waypoint with a learned residual and a safety filter: 88.7% success, 1.7% collisions.</p></div>
 </div></section>
 
-<section class="sec c5" id="run"><div class="w">
- <div class="runwrap"><div><h2 class="rv">Run it yourself</h2><p style="margin-top:16px;max-width:50ch">Python 3.12 with uv, CPU only. Every behaviour switch lives in a YAML config, and each run keeps its config, git hash and logs.</p>
- <div class="seg" role="group" aria-label="Mode"><button class="on" data-cmd="uv run python scripts/demo.py --headless --steps 2000">Headless</button><button data-cmd="uv run python scripts/demo.py">With a window</button></div>
- <div class="cmd"><code id="cmd">uv run python scripts/demo.py --headless --steps 2000</code><button class="btn" id="copy">Copy command</button></div></div>
- <div class="demo3 big"><img src="media/phase1_arm.png" alt="The arm model: base yaw, shoulder pitch, elbow pitch" style="width:100%;height:100%;object-fit:cover"></div></div>
-</div></section>
-
-<footer class="sec c6"><div class="w"><div><h3>rl-arm</h3><p style="margin-top:8px;max-width:34ch">A 3-DOF arm learning in MuJoCo. Simulation only.</p></div>
- <ul><li>Source</li><li><a href="#" data-todo="github-url">GitHub</a></li></ul><ul><li>Contact</li><li><a href="mailto:TODO@example.com" data-todo="email">TODO@example.com</a></li></ul></div>
- <div class="w"><div class="word" aria-hidden="true">rl-arm</div><div class="legal"><span>Every number comes from the project's generated results file.</span></div></div></footer>
+<footer class="sec gB" id="contact"><div class="w"><div><h2>Let's talk</h2><p style="margin-top:14px;max-width:40ch">Built by Param as a simulation-only project: MuJoCo, Stable-Baselines3, PyTorch on CPU. Code, configs and per-phase reports are public.</p>
+ <div class="contact"><a class="btn" href="mailto:paramp2m@gmail.com">paramp2m@gmail.com</a><a class="btn alt" href="tel:+918762030987">+91 87620 30987</a><a class="btn alt" href="https://github.com/Paramp2m/3DoF-RL-Arm">GitHub</a></div></div>
+ <ul><li>Project</li><li><a href="#live">Live demo</a></li><li><a href="#results">Results</a></li><li><a href="#experiments">Experiments</a></li></ul><ul><li>Elsewhere</li><li><a href="https://github.com/Paramp2m/3DoF-RL-Arm">GitHub repository</a></li></ul></div>
+ <div class="w"><div class="word" aria-hidden="true">rl-arm</div></div></footer>
 
 <script src="site.js"></script><script src="fun.js"></script>
+<script type="module">
+import { initLive } from "./live/live.mjs";
+const lc = document.getElementById("lc"); let started = false;
+const start = () => { if (started) return; started = true; initLive({ canvas: lc, status: document.getElementById("lst"), fallback: document.getElementById("lfb"), roamBtn: document.getElementById("roam"), randomBtn: document.getElementById("rnd") }); };
+"IntersectionObserver" in window ? new IntersectionObserver(e => { if (e[0].isIntersecting) start(); }, { rootMargin: "500px" }).observe(lc) : start();
+</script>
 <script>
-rings(document.getElementById("rings")); explorer(document.getElementById("ex")); experiments(document.getElementById("exps"));
-armToy(document.getElementById("toysvg"), document.getElementById("toystat"));
-const cmd=document.getElementById("cmd");document.querySelectorAll("[data-cmd]").forEach(b=>b.addEventListener("click",()=>{document.querySelectorAll("[data-cmd]").forEach(x=>x.classList.toggle("on",x===b));cmd.textContent=b.dataset.cmd}));
-copier(document.getElementById("copy"),()=>cmd.textContent);reveal();
+rings(document.getElementById("rings")); explorer(document.getElementById("ex")); experiments(document.getElementById("exps")); reveal();
 
 </script></body></html>

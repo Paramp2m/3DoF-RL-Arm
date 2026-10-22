@@ -1,2 +1,2 @@
 # v6: Ice and marigold
-Palette #e8edf4/#3a0f46/#3a0f46 | #f6a800/#3a0f46/#3a0f46 | #3a0f46/#e8edf4/#f6a800; type 'Bricolage Grotesque' + 'DM Sans'. Round shapes only: ring buttons, blob hero picture, pill controls, pointer-driven arm toy.
+Tritone palette (dark, mid, light): #3a0f46 #f6a800 #e8edf4; type 'Bricolage Grotesque' + 'DM Sans'. Footage and the live canvas go through one SVG tritone filter; every section mixes all three colours. Shape language: blob.

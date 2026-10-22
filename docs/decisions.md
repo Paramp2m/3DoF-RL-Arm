@@ -120,3 +120,4 @@ One line per decision: `YYYY-MM-DD | phase | decision | reason`
 2026-10-22 | website | four iterations v1-v4 from Taste Skill directions (product-performs, name-as-monument, colour-chapters, dark-room), shared copy deck + site.js + media in website/shared | user picks one, final goes to website/final
 2026-10-22 | website | v5-v7 rebuilt as tritone palettes + live in-browser demo (MuJoCo wasm + exported actor, vendored); run-it section removed; clips trimmed by freezedetect | user feedback: palettes must blend, demo must be real, run section useless
 2026-10-22 | website | tritone filter and colour blobs dropped for one calm ground + soft tints; live canvas drawn in palette (no CSS filter on WebGL) | user: colours painful, demo failed when opened as file://
+2026-10-22 | website | v5 chosen; website/final = self-contained copy (index, site.js, fun.js, live/, vendor/, media/); footer gets round at-a-glance stats; file:// shows an explicit message | user pick
